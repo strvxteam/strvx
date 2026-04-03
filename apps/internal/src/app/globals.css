@@ -1,0 +1,551 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: #f8f8f8;
+  --color-foreground: #222222;
+  --color-surface: #ffffff;
+  --color-border: #e0e0e0;
+  --color-border-light: #f0f0f0;
+  --color-text-secondary: #888888;
+  --color-text-muted: #aaaaaa;
+  --color-danger: #e74c3c;
+  --color-warning: #f39c12;
+  --color-success: #27ae60;
+  --color-info: #1a73e8;
+  --font-sans: var(--font-sans);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+* {
+  color-scheme: light;
+}
+
+body {
+  background: #f8f8f8;
+  color: #222222;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+/* Tiptap editor styles */
+.tiptap {
+  outline: none;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  color: #aaa;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.tiptap h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: #111;
+}
+
+.tiptap h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #222;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 0.5rem;
+}
+
+.tiptap h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.tiptap p {
+  margin-bottom: 0.75rem;
+}
+
+.tiptap ul,
+.tiptap ol {
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.tiptap ul {
+  list-style-type: disc;
+}
+
+.tiptap ol {
+  list-style-type: decimal;
+}
+
+.tiptap li {
+  margin-bottom: 0.25rem;
+}
+
+.tiptap blockquote {
+  border-left: 3px solid #1a73e8;
+  background: #f0f7ff;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  font-style: italic;
+  color: #555;
+}
+
+.tiptap code {
+  background: #f0f0f0;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.85em;
+  font-family: ui-monospace, monospace;
+  color: #c0392b;
+}
+
+.tiptap pre {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+  font-size: 0.85em;
+  font-family: ui-monospace, monospace;
+  line-height: 1.6;
+}
+
+.tiptap pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.tiptap hr {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 1.5rem 0;
+}
+
+.tiptap strong {
+  font-weight: 600;
+  color: #222;
+}
+
+.tiptap a {
+  color: #1a73e8;
+  text-decoration: underline;
+}
+
+:root {
+  --background: #f8f8f8;
+  --foreground: #222222;
+  --card: #ffffff;
+  --card-foreground: #222222;
+  --popover: #ffffff;
+  --popover-foreground: #222222;
+  --primary: #1a73e8;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #333333;
+  --muted: #f0f0f0;
+  --muted-foreground: #888888;
+  --accent: #f0f0f0;
+  --accent-foreground: #222222;
+  --destructive: #e74c3c;
+  --border: #e0e0e0;
+  --input: #e0e0e0;
+  --ring: #1a73e8;
+  --chart-1: #1a73e8;
+  --chart-2: #27ae60;
+  --chart-3: #f39c12;
+  --chart-4: #8b5cf6;
+  --chart-5: #e74c3c;
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: #1a1a1a;
+  --foreground: #f5f5f5;
+  --card: #2a2a2a;
+  --card-foreground: #f5f5f5;
+  --popover: #2a2a2a;
+  --popover-foreground: #f5f5f5;
+  --primary: #4a9eff;
+  --primary-foreground: #1a1a1a;
+  --secondary: #333333;
+  --secondary-foreground: #f5f5f5;
+  --muted: #333333;
+  --muted-foreground: #999999;
+  --accent: #333333;
+  --accent-foreground: #f5f5f5;
+  --destructive: #ef4444;
+  --border: #404040;
+  --input: #404040;
+  --ring: #4a9eff;
+  --chart-1: #4a9eff;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #f87171;
+  --sidebar: #222222;
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: #4a9eff;
+  --sidebar-primary-foreground: #f5f5f5;
+  --sidebar-accent: #333333;
+  --sidebar-accent-foreground: #f5f5f5;
+  --sidebar-border: #404040;
+  --sidebar-ring: #4a9eff;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* FullCalendar overrides */
+.fc-wrapper .fc {
+  --fc-border-color: #e0e0e0;
+  --fc-today-bg-color: #f0f7ff;
+  --fc-now-indicator-color: #ef4444;
+  --fc-event-border-color: transparent;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.fc-wrapper .fc .fc-toolbar {
+  margin-bottom: 1rem;
+}
+
+.fc-wrapper .fc .fc-toolbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #222;
+}
+
+.fc-wrapper .fc .fc-button {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  color: #555;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 8px;
+  box-shadow: none;
+  text-transform: capitalize;
+}
+
+.fc-wrapper .fc .fc-button:hover {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+  color: #333;
+}
+
+.fc-wrapper .fc .fc-button-active,
+.fc-wrapper .fc .fc-button:active {
+  background: #111 !important;
+  border-color: #111 !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.fc-wrapper .fc .fc-button:focus {
+  box-shadow: none;
+}
+
+.fc-wrapper .fc .fc-button-group > .fc-button {
+  border-radius: 0;
+}
+
+.fc-wrapper .fc .fc-button-group > .fc-button:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.fc-wrapper .fc .fc-button-group > .fc-button:last-child {
+  border-radius: 0 8px 8px 0;
+}
+
+.fc-wrapper .fc .fc-col-header-cell {
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+  background: #fafafa;
+}
+
+.fc-wrapper .fc .fc-daygrid-day-number {
+  font-size: 12px;
+  font-weight: 500;
+  color: #555;
+  padding: 6px 8px;
+}
+
+.fc-wrapper .fc .fc-day-today .fc-daygrid-day-number {
+  background: #1a73e8;
+  color: #fff;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px;
+  padding: 0;
+}
+
+.fc-wrapper .fc .fc-daygrid-event,
+.fc-wrapper .fc .fc-timegrid-event {
+  border-radius: 4px;
+  border-left-width: 3px;
+  padding: 2px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.fc-wrapper .fc .fc-daygrid-event:hover,
+.fc-wrapper .fc .fc-timegrid-event:hover {
+  filter: brightness(0.95);
+}
+
+.fc-wrapper .fc .fc-event-title {
+  font-weight: 500;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+.fc-wrapper .fc .fc-daygrid-event {
+  white-space: normal !important;
+  overflow: visible !important;
+}
+
+.fc-wrapper .fc .fc-event-time {
+  font-size: 10px;
+  opacity: 0.8;
+  display: block !important;
+  white-space: nowrap;
+}
+
+.fc-wrapper .fc .fc-daygrid-event .fc-event-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.fc-wrapper .fc .fc-daygrid-dot-event .fc-event-time,
+.fc-wrapper .fc .fc-daygrid-block-event .fc-event-time {
+  display: block !important;
+  margin-right: 0;
+}
+
+.fc-wrapper .fc .fc-timegrid-slot {
+  height: 40px;
+}
+
+.fc-wrapper .fc .fc-timegrid-slot-label {
+  font-size: 11px;
+  color: #aaa;
+  vertical-align: top;
+  padding-top: 2px;
+}
+
+.fc-wrapper .fc .fc-timegrid-now-indicator-line {
+  border-color: #ef4444;
+  border-top: 1.5px solid #ef4444;
+  border-width: 0;
+  border-top-width: 1.5px;
+}
+
+.fc-wrapper .fc .fc-timegrid-now-indicator-arrow {
+  display: none;
+}
+
+
+.fc-wrapper .fc .fc-daygrid-body tr {
+  height: 130px;
+}
+
+.fc-wrapper .fc .fc-daygrid-day {
+  height: 130px !important;
+  max-height: 130px !important;
+}
+
+.fc-wrapper .fc .fc-daygrid-day-frame {
+  height: 100%;
+  max-height: 130px;
+  overflow-y: auto;
+}
+
+.fc-wrapper .fc .fc-daygrid-day-events {
+  min-height: 0;
+}
+
+.fc-wrapper .fc .fc-daygrid-more-link {
+  font-size: 11px;
+  color: #1a73e8;
+  font-weight: 500;
+}
+
+.fc-wrapper .fc .fc-day-other .fc-daygrid-day-number {
+  color: #ccc;
+}
+
+.fc-wrapper .fc .fc-scrollgrid {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.fc-wrapper .fc td,
+.fc-wrapper .fc th {
+  border-color: #f0f0f0;
+}
+
+.fc-wrapper .fc .fc-scrollgrid-section > td {
+  border-color: #e0e0e0;
+}
+/* ── Tiptap Editor ─────────────────────────────────── */
+
+.tiptap {
+  outline: none;
+}
+
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #aaa;
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 0.5rem; color: #111; }
+.tiptap h2 { font-size: 1.25rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: #222; }
+.tiptap h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.25rem; color: #333; }
+
+.tiptap ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+.tiptap ol { list-style: decimal; padding-left: 1.25rem; margin-bottom: 0.75rem; }
+.tiptap li { margin-bottom: 0.25rem; }
+
+.tiptap ul[data-type="taskList"] { list-style: none; padding-left: 0; }
+.tiptap ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; }
+.tiptap ul[data-type="taskList"] li label { margin-top: 0.15rem; }
+
+.tiptap blockquote {
+  border-left: 3px solid #e0e0e0;
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: #666;
+}
+
+.tiptap pre {
+  background: #f5f5f5;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.8125rem;
+  margin: 0.75rem 0;
+}
+
+.tiptap code {
+  background: #f0f0f0;
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.875em;
+}
+
+.tiptap pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+.tiptap hr {
+  border: none;
+  border-top: 1px solid #e0e0e0;
+  margin: 1.5rem 0;
+}
+
+.collaboration-cursor__caret {
+  position: relative;
+  border-left: 2px solid;
+  border-right: none;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  word-break: normal;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: normal;
+  padding: 0.0625rem 0.375rem;
+  border-radius: 0.25rem;
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}

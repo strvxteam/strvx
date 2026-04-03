@@ -1,0 +1,92 @@
+"use client";
+
+import { useTransition } from "react";
+import { toggleUserStatus } from "@/app/actions";
+
+const TEAM_AVATARS: Record<string, string> = {
+  Nick: "/avatars/nick.png",
+  Hari: "/avatars/hari.png",
+  Alex: "/avatars/alex.png",
+};
+
+interface TeamMember {
+  id: string;
+  name: string;
+  status: string;
+}
+
+export function TeamStatus({
+  members,
+  currentUserId,
+}: {
+  members: TeamMember[];
+  currentUserId: string | null;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleToggle(userId: string) {
+    if (userId !== currentUserId) return;
+    startTransition(async () => {
+      await toggleUserStatus(userId);
+    });
+  }
+
+  return (
+    <div className="mt-6 grid grid-cols-3 gap-4">
+      {members.map((m) => {
+        const isAvailable = m.status === "available";
+        const isMe = m.id === currentUserId;
+        const avatar = TEAM_AVATARS[m.name];
+
+        return (
+          <button
+            key={m.id}
+            onClick={() => handleToggle(m.id)}
+            disabled={!isMe || isPending}
+            className={`flex flex-col items-center gap-2 rounded-xl border border-[#e0e0e0] bg-white px-4 py-4 transition-all ${
+              isMe
+                ? "cursor-pointer hover:border-[#ccc] hover:shadow-sm"
+                : "cursor-default"
+            } ${isPending && isMe ? "opacity-60" : ""}`}
+          >
+            <div className="relative">
+              {avatar ? (
+                <img
+                  src={avatar}
+                  alt={m.name}
+                  className="h-16 w-16 rounded-full object-cover"
+                  style={{
+                    boxShadow: isAvailable
+                      ? "0 0 0 3px #fff, 0 0 0 5px #22c55e, 0 0 12px rgba(34, 197, 94, 0.4)"
+                      : "0 0 0 3px #fff, 0 0 0 5px #ef4444, 0 0 12px rgba(239, 68, 68, 0.4)",
+                  }}
+                />
+              ) : (
+                <div
+                  className="flex h-16 w-16 items-center justify-center rounded-full bg-[#e0e0e0] text-[18px] font-semibold text-[#666]"
+                  style={{
+                    boxShadow: isAvailable
+                      ? "0 0 0 3px #fff, 0 0 0 5px #22c55e, 0 0 12px rgba(34, 197, 94, 0.4)"
+                      : "0 0 0 3px #fff, 0 0 0 5px #ef4444, 0 0 12px rgba(239, 68, 68, 0.4)",
+                  }}
+                >
+                  {m.name[0]}
+                </div>
+              )}
+            </div>
+            <div className="text-center">
+              <p className="text-[13px] font-medium text-[#222]">{m.name}</p>
+              <p
+                className={`text-[11px] font-medium ${
+                  isAvailable ? "text-[#22c55e]" : "text-[#ef4444]"
+                }`}
+              >
+                {isAvailable ? "Available" : "Busy"}
+              </p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
