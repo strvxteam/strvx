@@ -29,6 +29,8 @@ import {
   createCalendarEventAction,
   updateCalendarEventAction,
   deleteCalendarEventAction,
+  deleteGoogleCalendarEventAction,
+  updateGoogleCalendarEventAction,
 } from "@/app/actions";
 import { toast } from "sonner";
 
@@ -164,15 +166,26 @@ export function CalendarPageClient({
     setSelectedEventId(null);
 
     try {
-      await updateCalendarEventAction(updated.id, {
-        title: updated.title,
-        type: updated.type,
-        date: updated.date,
-        startHour: updated.startHour,
-        durationHours: updated.durationHours,
-        client: updated.client,
-        zoomLink: updated.zoomLink,
-      });
+      if (isGoogleCalendarEvent(updated.id)) {
+        await updateGoogleCalendarEventAction(updated.id, {
+          title: updated.title,
+          date: updated.date,
+          startHour: updated.startHour,
+          durationHours: updated.durationHours,
+          client: updated.client,
+          zoomLink: updated.zoomLink,
+        });
+      } else {
+        await updateCalendarEventAction(updated.id, {
+          title: updated.title,
+          type: updated.type,
+          date: updated.date,
+          startHour: updated.startHour,
+          durationHours: updated.durationHours,
+          client: updated.client,
+          zoomLink: updated.zoomLink,
+        });
+      }
       toast.success("Event updated");
     } catch (err) {
       console.error(err);
@@ -181,16 +194,21 @@ export function CalendarPageClient({
       }
       toast.error("Failed to update event");
     }
-  }, [events]);
+  }, [events, isGoogleCalendarEvent]);
 
   const handleDeleteEvent = useCallback(async (eventId: string) => {
     const previous = events.find((e) => e.id === eventId);
     setEvents((prev) => prev.filter((e) => e.id !== eventId));
     setEditingEvent(null);
     setSelectedEventId(null);
+    setConfirmDeleteId(null);
 
     try {
-      await deleteCalendarEventAction(eventId);
+      if (isGoogleCalendarEvent(eventId)) {
+        await deleteGoogleCalendarEventAction(eventId);
+      } else {
+        await deleteCalendarEventAction(eventId);
+      }
       toast.success("Event deleted");
     } catch (err) {
       console.error(err);
@@ -199,7 +217,7 @@ export function CalendarPageClient({
       }
       toast.error("Failed to delete event");
     }
-  }, [events]);
+  }, [events, isGoogleCalendarEvent]);
 
   const selectedEvent = selectedEventId
     ? events.find((e) => e.id === selectedEventId) ?? null
@@ -374,14 +392,12 @@ export function CalendarPageClient({
 
                   {isGcal && (
                     <p className="text-[11px] text-[#bbb] mt-2">
-                      Synced from Google Calendar (read-only)
+                      Synced from Google Calendar
                     </p>
                   )}
                 </div>
 
-                {/* Action footer for non-Google Calendar events */}
-                {!isGcal && (
-                  <div className="mt-6 flex items-center justify-between border-t border-[#f0f0f0] pt-4">
+                <div className="mt-6 flex items-center justify-between border-t border-[#f0f0f0] pt-4">
                     <div>
                       {isConfirmingDelete ? (
                         <div className="flex items-center gap-2">
@@ -423,7 +439,6 @@ export function CalendarPageClient({
                       </button>
                     )}
                   </div>
-                )}
               </div>
             </div>
           </div>

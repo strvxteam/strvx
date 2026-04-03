@@ -20,7 +20,7 @@ import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getUserByEmail, createCompany, getCompanies } from "@/lib/queries";
-import { createGoogleCalendarEvent, isGoogleCalendarConnected } from "@/lib/google-calendar";
+import { createGoogleCalendarEvent, updateGoogleCalendarEvent, deleteGoogleCalendarEvent, isGoogleCalendarConnected } from "@/lib/google-calendar";
 import {
   createEngagementSchema,
   quickAddSchema,
@@ -619,6 +619,53 @@ export async function deleteCalendarEventAction(eventId: string) {
   await getCurrentUser();
   const { deleteCalendarEvent } = await import("@/lib/queries");
   await deleteCalendarEvent(parsed.data);
+
+  revalidatePath("/calendar");
+  revalidatePath("/dashboard");
+}
+
+export async function deleteGoogleCalendarEventAction(gcalEventId: string) {
+  const googleEventId = gcalEventId.replace(/^gcal-/, "");
+  if (!googleEventId) throw new Error("Invalid Google Calendar event ID");
+
+  const user = await getCurrentUser();
+  await deleteGoogleCalendarEvent(user.id, googleEventId);
+
+  revalidatePath("/calendar");
+  revalidatePath("/dashboard");
+}
+
+export async function updateGoogleCalendarEventAction(
+  gcalEventId: string,
+  data: {
+    title?: string;
+    date?: string;
+    startHour?: number;
+    durationHours?: number;
+    client?: string | null;
+    zoomLink?: string | null;
+  }
+) {
+  const googleEventId = gcalEventId.replace(/^gcal-/, "");
+  if (!googleEventId) throw new Error("Invalid Google Calendar event ID");
+
+  const user = await getCurrentUser();
+
+  const updateData: Parameters<typeof updateGoogleCalendarEvent>[2] = {};
+  if (data.title !== undefined) updateData.title = data.title;
+
+  if (data.date && data.startHour !== undefined && data.durationHours !== undefined) {
+    const startH = Math.floor(data.startHour);
+    const startM = Math.round((data.startHour - startH) * 60);
+    const endHourRaw = data.startHour + data.durationHours;
+    const endH = Math.floor(endHourRaw);
+    const endM = Math.round((endHourRaw - endH) * 60);
+
+    updateData.startTime = `${data.date}T${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}:00`;
+    updateData.endTime = `${data.date}T${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}:00`;
+  }
+
+  await updateGoogleCalendarEvent(user.id, googleEventId, updateData);
 
   revalidatePath("/calendar");
   revalidatePath("/dashboard");

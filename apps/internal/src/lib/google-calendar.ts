@@ -147,6 +147,38 @@ export async function createGoogleCalendarEvent(
   return response.data;
 }
 
+export async function updateGoogleCalendarEvent(
+  userId: string,
+  googleEventId: string,
+  event: {
+    title?: string;
+    startTime?: string;
+    endTime?: string;
+    description?: string;
+    location?: string;
+  }
+) {
+  const authed = await getAuthedClient(userId);
+  if (!authed) throw new Error("Google Calendar not connected");
+
+  const calendar = google.calendar({ version: "v3", auth: authed.oauth2Client });
+
+  const requestBody: Record<string, unknown> = {};
+  if (event.title !== undefined) requestBody.summary = event.title;
+  if (event.description !== undefined) requestBody.description = event.description;
+  if (event.location !== undefined) requestBody.location = event.location;
+  if (event.startTime) requestBody.start = { dateTime: event.startTime, timeZone: "America/Los_Angeles" };
+  if (event.endTime) requestBody.end = { dateTime: event.endTime, timeZone: "America/Los_Angeles" };
+
+  const response = await calendar.events.patch({
+    calendarId: authed.calendarId,
+    eventId: googleEventId,
+    requestBody,
+  });
+
+  return response.data;
+}
+
 export async function deleteGoogleCalendarEvent(userId: string, googleEventId: string) {
   const authed = await getAuthedClient(userId);
   if (!authed) return;
