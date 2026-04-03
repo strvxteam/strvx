@@ -42,6 +42,7 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const providerRef = useRef<SupabaseYjsProvider | null>(null);
   const titleSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveContentRef = useRef<() => void>(() => {});
   const [ydoc] = useState(() => new Y.Doc());
 
   const userColor = getCursorColor(currentUser.id);
@@ -75,6 +76,12 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
     }
   }, [editor, doc.id, title]);
 
+  // Keep ref in sync so the provider always calls the latest save function
+  // without needing to be recreated on every title/editor change
+  useEffect(() => {
+    saveContentRef.current = saveContent;
+  }, [saveContent]);
+
   useEffect(() => {
     if (ydoc == null) return;
 
@@ -90,7 +97,7 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
     });
 
     provider.onSaveRequested = () => {
-      saveContent();
+      saveContentRef.current();
     };
 
     providerRef.current = provider;
@@ -99,7 +106,7 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
       provider.destroy();
       providerRef.current = null;
     };
-  }, [doc.id, currentUser.id, currentUser.name, userColor, saveContent, ydoc]);
+  }, [doc.id, currentUser.id, currentUser.name, userColor, ydoc]);
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle);

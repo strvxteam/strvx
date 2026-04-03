@@ -38,51 +38,49 @@ export class SupabaseYjsProvider {
       config: { broadcast: { self: false } },
     });
 
-    this.channel.on("broadcast", { event: "yjs-update" }, (payload) => {
-      if (this.destroyed) return;
-      const update = new Uint8Array(payload.payload.update);
-      Y.applyUpdate(this.ydoc, update, "remote");
-    });
-
-    this.channel.on("broadcast", { event: "yjs-sync-request" }, () => {
-      if (this.destroyed) return;
-      const state = Y.encodeStateAsUpdate(this.ydoc);
-      this.channel.send({
-        type: "broadcast",
-        event: "yjs-sync-response",
-        payload: { update: Array.from(state) },
-      });
-    });
-
-    this.channel.on("broadcast", { event: "yjs-sync-response" }, (payload) => {
-      if (this.destroyed) return;
-      const update = new Uint8Array(payload.payload.update);
-      Y.applyUpdate(this.ydoc, update, "remote");
-    });
-
-    this.channel.on("presence", { event: "sync" }, () => {
-      if (this.destroyed) return;
-      const state = this.channel.presenceState<PresenceUser>();
-      this.awareness.clear();
-      for (const key of Object.keys(state)) {
-        const presences = state[key];
-        for (const p of presences) {
-          this.awareness.set(p.userId, p);
-        }
-      }
-      this.onPresenceChange?.(Array.from(this.awareness.values()));
-    });
-
-    this.channel.subscribe(async (status) => {
-      if (status === "SUBSCRIBED" && !this.destroyed) {
-        await this.channel.track(this.user);
+    // Register ALL event handlers before subscribing
+    this.channel
+      .on("broadcast", { event: "yjs-update" }, (payload) => {
+        if (this.destroyed) return;
+        const update = new Uint8Array(payload.payload.update);
+        Y.applyUpdate(this.ydoc, update, "remote");
+      })
+      .on("broadcast", { event: "yjs-sync-request" }, () => {
+        if (this.destroyed) return;
+        const state = Y.encodeStateAsUpdate(this.ydoc);
         this.channel.send({
           type: "broadcast",
-          event: "yjs-sync-request",
-          payload: {},
+          event: "yjs-sync-response",
+          payload: { update: Array.from(state) },
         });
-      }
-    });
+      })
+      .on("broadcast", { event: "yjs-sync-response" }, (payload) => {
+        if (this.destroyed) return;
+        const update = new Uint8Array(payload.payload.update);
+        Y.applyUpdate(this.ydoc, update, "remote");
+      })
+      .on("presence", { event: "sync" }, () => {
+        if (this.destroyed) return;
+        const state = this.channel.presenceState<PresenceUser>();
+        this.awareness.clear();
+        for (const key of Object.keys(state)) {
+          const presences = state[key];
+          for (const p of presences) {
+            this.awareness.set(p.userId, p);
+          }
+        }
+        this.onPresenceChange?.(Array.from(this.awareness.values()));
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED" && !this.destroyed) {
+          await this.channel.track(this.user);
+          this.channel.send({
+            type: "broadcast",
+            event: "yjs-sync-request",
+            payload: {},
+          });
+        }
+      });
 
     this.ydoc.on("update", this.handleLocalUpdate);
   }
@@ -109,7 +107,11 @@ export class SupabaseYjsProvider {
     this.ydoc.off("update", this.handleLocalUpdate);
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.onSaveRequested?.();
-    await this.channel.untrack();
+    try {
+      await this.channel.untrack();
+    } catch {
+      // Channel may already be closed during rapid cleanup
+    }
     await this.supabase.removeChannel(this.channel);
   }
 }
