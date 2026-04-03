@@ -1,19 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
-  AlertTriangle,
-  Clock,
   Target,
 } from "lucide-react";
 import { EVENT_TYPE_COLORS } from "@/lib/mock-calendar";
 import { formatHour } from "@/lib/calendar-utils";
 import {
   getRecentActivity,
-  getAtRiskItems,
   getPipelineEngagements,
   getCalendarEvents,
   getInvoices,
-  getTasks,
   getUsers,
   getCurrentUserForPage,
 } from "@/lib/queries";
@@ -37,16 +33,6 @@ const STAGE_COLORS: Record<string, string> = {
   build: "bg-[#e8f5e9] text-[#27ae60]",
   deliver: "bg-[#e0f2f1] text-[#00897b]",
   maintain: "bg-[#e3f2fd] text-[#1565c0]",
-};
-
-type AtRiskItem = {
-  id: string;
-  description: string;
-  dueDate: string | null;
-  ownerId: string;
-  engagementId: string;
-  engagementName: string;
-  companyName: string;
 };
 
 type ActivityItem = {
@@ -77,14 +63,12 @@ export default async function DashboardPage() {
     "maintain",
   ]);
 
-  const [recentActivityRaw, atRisk, engData, dbCalEvents, dbInvoices, dbTasks, dbUsers, currentUser] =
+  const [recentActivityRaw, engData, dbCalEvents, dbInvoices, dbUsers, currentUser] =
     await Promise.all([
       getRecentActivity(),
-      getAtRiskItems(),
       getPipelineEngagements(),
       getCalendarEvents(),
       getInvoices(),
-      getTasks(),
       getUsers(),
       getCurrentUserForPage(),
     ]);
@@ -97,7 +81,6 @@ export default async function DashboardPage() {
     companyName: e.companyName,
   }));
 
-  const overdueItems = atRisk.overdueActions as AtRiskItem[];
 
   const activeEngagements = engData
     .filter((e) => activeStages.has(e.stage))
@@ -120,19 +103,6 @@ export default async function DashboardPage() {
     }))
     .sort((a, b) => a.startHour - b.startHour);
 
-  const urgentTasks = dbTasks
-    .filter(
-      (t) =>
-        t.status !== "done" &&
-        (t.status === "blocked" || t.priority === "urgent")
-    )
-    .map((t) => ({
-      id: t.id,
-      title: t.title,
-      status: t.status,
-      priority: t.priority,
-      assignees: t.assigneeNames as string[],
-    }));
 
   // Goal progress
   const totalRevenue = dbInvoices
@@ -153,7 +123,6 @@ export default async function DashboardPage() {
     100
   );
 
-  const hasAttention = overdueItems.length > 0 || urgentTasks.length > 0;
 
   return (
     <div className="pb-24">
@@ -171,75 +140,6 @@ export default async function DashboardPage() {
         </span>
       </div>
 
-      {/* Attention items — only shown when there's something */}
-      {hasAttention && (
-        <section className="mb-6">
-          <div className="rounded-lg border border-[#f0e0e0] bg-[#fffbfb]">
-            {overdueItems.map((item) => (
-              <Link
-                key={item.id}
-                href={`/clients/${item.engagementId}`}
-                className="flex items-center gap-3 border-b border-[#f5e8e8] px-4 py-3 transition-colors last:border-b-0 hover:bg-[#fff5f5]"
-              >
-                <AlertTriangle size={14} className="shrink-0 text-[#c0392b]" />
-                <div className="min-w-0 flex-1 text-[13px]">
-                  <strong className="text-[#222]">{item.companyName}</strong>
-                  <span className="ml-1.5 text-[#888]">
-                    — {item.description}
-                  </span>
-                </div>
-                {item.dueDate && (
-                  <span className="text-[11px] text-[#c0392b]">
-                    {new Date(item.dueDate + "T00:00:00").toLocaleDateString(
-                      "en-US",
-                      { month: "short", day: "numeric" }
-                    )}
-                  </span>
-                )}
-              </Link>
-            ))}
-            {urgentTasks.map((task) => (
-              <Link
-                key={task.id}
-                href={`/tasks/${task.id}`}
-                className="flex items-center gap-3 border-b border-[#f5e8e8] px-4 py-3 transition-colors last:border-b-0 hover:bg-[#fff5f5]"
-              >
-                <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
-                    task.status === "blocked"
-                      ? "bg-[#fde8e8] text-[#c0392b]"
-                      : "bg-[#fff3e0] text-[#e65100]"
-                  }`}
-                >
-                  {task.status === "blocked" ? "Blocked" : "Urgent"}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[13px] text-[#222]">
-                  {task.title}
-                </span>
-                <div className="flex -space-x-1">
-                  {task.assignees.map((name) =>
-                    TEAM_AVATARS[name] ? (
-                      <img
-                        key={name}
-                        src={TEAM_AVATARS[name]}
-                        alt={name}
-                        className="h-5 w-5 rounded-full border border-white object-cover"
-                      />
-                    ) : (
-                      <div
-                        key={name}
-                        className="flex h-5 w-5 items-center justify-center rounded-full border border-white bg-[#e0e0e0] text-[9px] font-semibold text-[#666]"
-                      >
-                        {name[0]}
-                      </div>
-                    )
-                  )}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Two-column: today + active work */}
       <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
