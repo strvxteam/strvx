@@ -5,19 +5,14 @@ import path from "path";
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });
 
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
 import * as schema from "../src/lib/db/schema";
+import { db } from "../src/lib/db";
 import { eq } from "drizzle-orm";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
+if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is not set. Create a .env.local or .env file.");
   process.exit(1);
 }
-
-const client = postgres(connectionString, { prepare: false });
-const db = drizzle(client, { schema });
 
 function markdownToTiptap(md: string): Record<string, unknown> {
   const lines = md.split("\n");

@@ -13,17 +13,15 @@
 import "dotenv/config";
 import fs from "fs";
 import path from "path";
-import postgres from "postgres";
+import { db } from "../src/lib/db";
+import { sql } from "drizzle-orm";
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
+if (!process.env.DATABASE_URL) {
   console.error("ERROR: DATABASE_URL environment variable is not set.");
   console.error("Set it in .env or pass it inline:");
   console.error("  DATABASE_URL=postgresql://... pnpm tsx scripts/apply-rls.ts");
   process.exit(1);
 }
-
-const sql = postgres(connectionString, { prepare: false });
 
 async function main() {
   const migrationPath = path.resolve(
@@ -39,12 +37,12 @@ async function main() {
   const migration = fs.readFileSync(migrationPath, "utf-8");
 
   console.log("Applying RLS migration...");
-  console.log(`  Database: ${connectionString!.replace(/:[^:@]+@/, ":****@")}`);
+  console.log(`  Database: ${process.env.DATABASE_URL!.replace(/:[^:@]+@/, ":****@")}`);
   console.log(`  File: ${migrationPath}`);
   console.log("");
 
   try {
-    await sql.unsafe(migration);
+    await db.execute(sql.raw(migration));
     console.log("RLS migration applied successfully.");
     console.log("");
     console.log("Summary:");
@@ -56,8 +54,6 @@ async function main() {
     console.error("Failed to apply RLS migration:");
     console.error(err);
     process.exit(1);
-  } finally {
-    await sql.end();
   }
 }
 
