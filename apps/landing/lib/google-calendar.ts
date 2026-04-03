@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import type { TeamMember } from "./supabase";
+import type { TeamMember } from "./types";
 
 const TIMEZONE = "America/Los_Angeles";
 const BUSINESS_HOURS_START = 9;  // 9 AM Pacific
@@ -67,14 +67,14 @@ export async function getTeamBusyTimes(
 
   await Promise.all(
     members.map(async (member) => {
-      if (!member.google_refresh_token) {
+      if (!member.googleRefreshToken) {
         results.set(member.id, [{ start: timeMin.toISOString(), end: timeMax.toISOString() }]);
         return;
       }
 
       try {
         const oauth2Client = createOAuth2Client();
-        oauth2Client.setCredentials({ refresh_token: member.google_refresh_token });
+        oauth2Client.setCredentials({ refresh_token: member.googleRefreshToken });
 
         const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 

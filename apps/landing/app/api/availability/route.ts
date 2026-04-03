@@ -1,6 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { supabase, type TeamMember } from "@/lib/supabase";
+import { db } from "@strvx/db";
+import { users } from "@strvx/db/schema";
+import { eq, and, isNotNull } from "drizzle-orm";
+import type { TeamMember } from "@/lib/types";
 import { getTeamBusyTimes, calculateAvailability } from "@/lib/google-calendar";
 
 const MIN_REQUIRED = parseInt(process.env.MIN_REQUIRED_MEMBERS ?? "3", 10);
@@ -28,35 +31,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "end must be after start" }, { status: 400 });
     }
 
-    // Fetch active members that have connected their Google Calendar
-    const { data: members, error } = await supabase
-      .from("team_members")
-      .select("*")
-      .eq("is_active", true)
-      .not("google_refresh_token", "is", null);
-
-    if (error) {
-      console.error("Failed to fetch team members:", error);
-      return NextResponse.json({ error: "Failed to fetch availability" }, { status: 500 });
-    }
+    const members = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        googleRefreshToken: users.googleRefreshToken,
+        calendarId: users.calendarId,
+        isActive: users.isActive,
+      })
+      .from(users)
+      .where(and(eq(users.isActive, true), isNotNull(users.googleRefreshToken)));
 
     if (!members || members.length === 0) {
       return NextResponse.json({ slots: {}, message: "No connected calendars" });
     }
 
     const busyMap = await getTeamBusyTimes(members as TeamMember[], dateStart, dateEnd);
-    const memberIds = (members as TeamMember[]).map((m) => m.id);
+    const memberIds = members.map((m) => m.id);
     const slots = calculateAvailability(busyMap, memberIds, dateStart, dateEnd, duration, min);
 
-    // Build member ID → name lookup
     const memberNames: Record<string, string> = {};
-    (members as TeamMember[]).forEach((m) => { memberNames[m.id] = m.name; });
+    members.forEach((m) => { memberNames[m.id] = m.name; });
 
-    // Group by date (Pacific time)
     const grouped: Record<string, { start: string; end: string; members: string[]; allFree: boolean }[]> = {};
 
     for (const slot of slots) {
-      const dateKey = slot.start.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" }); // YYYY-MM-DD
+      const dateKey = slot.start.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
       if (!grouped[dateKey]) grouped[dateKey] = [];
       grouped[dateKey].push({
         start: slot.start.toISOString(),

@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { db } from "@strvx/db";
+import { bookings } from "@strvx/db/schema";
+import { eq, gte, lte, and, sql } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   // Authenticate with WEBHOOK_SECRET header
@@ -29,12 +31,12 @@ export async function POST(request: NextRequest) {
 
     // 1. Match by meet_link
     if (meetLink) {
-      const { data } = await supabase
-        .from("bookings")
-        .select("id")
-        .eq("meet_link", meetLink)
-        .maybeSingle();
-      booking = data;
+      const rows = await db
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(eq(bookings.meetLink, meetLink))
+        .limit(1);
+      booking = rows[0] ?? null;
     }
 
     // 2. Match by start_time within a 15-minute window
@@ -44,27 +46,28 @@ export async function POST(request: NextRequest) {
         const windowStart = new Date(meetingDate.getTime() - 15 * 60 * 1000);
         const windowEnd = new Date(meetingDate.getTime() + 15 * 60 * 1000);
 
-        const { data } = await supabase
-          .from("bookings")
-          .select("id")
-          .gte("start_time", windowStart.toISOString())
-          .lte("start_time", windowEnd.toISOString())
-          .eq("status", "confirmed")
-          .order("start_time", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        booking = data;
+        const rows = await db
+          .select({ id: bookings.id })
+          .from(bookings)
+          .where(and(
+            gte(bookings.startTime, windowStart),
+            lte(bookings.startTime, windowEnd),
+            eq(bookings.status, "confirmed")
+          ))
+          .orderBy(bookings.startTime)
+          .limit(1);
+        booking = rows[0] ?? null;
       }
     }
 
     // 3. Match by event_id in google_event_ids JSONB array
     if (!booking && eventId) {
-      const { data } = await supabase
-        .from("bookings")
-        .select("id")
-        .contains("google_event_ids", [{ event_id: eventId }])
-        .maybeSingle();
-      booking = data;
+      const rows = await db
+        .select({ id: bookings.id })
+        .from(bookings)
+        .where(sql`${bookings.googleEventIds} @> ${JSON.stringify([{ event_id: eventId }])}::jsonb`)
+        .limit(1);
+      booking = rows[0] ?? null;
     }
 
     if (!booking) {
@@ -81,15 +84,15 @@ export async function POST(request: NextRequest) {
       parsedActionItems = actionItems.split("\n").map((s: string) => s.trim()).filter(Boolean);
     }
 
-    await supabase
-      .from("bookings")
-      .update({
+    await db
+      .update(bookings)
+      .set({
         notes: fullTranscript ?? summary,
-        notes_summary: summary,
-        notes_action_items: parsedActionItems,
+        notesSummary: summary,
+        notesActionItems: parsedActionItems,
         status: "completed",
       })
-      .eq("id", booking.id);
+      .where(eq(bookings.id, booking.id));
 
     return NextResponse.json({ received: true, matched: true, bookingId: booking.id });
   } catch (err) {

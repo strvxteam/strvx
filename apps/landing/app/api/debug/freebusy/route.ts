@@ -1,6 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
-import { supabase, type TeamMember } from "@/lib/supabase";
+import { db } from "@strvx/db";
+import { users } from "@strvx/db/schema";
+import { eq, and, isNotNull } from "drizzle-orm";
+import type { TeamMember } from "@/lib/types";
 import { google } from "googleapis";
 import { createOAuth2Client, calculateAvailability } from "@/lib/google-calendar";
 import type { BusySlot } from "@/lib/google-calendar";
@@ -22,11 +25,17 @@ export async function GET(request: NextRequest) {
   const BUFFER_MS = 10 * 60 * 1000;
 
   // ── 1. Fetch members ───────────────────────────────────────────────────────
-  const { data: members } = await supabase
-    .from("team_members")
-    .select("*")
-    .eq("is_active", true)
-    .not("google_refresh_token", "is", null);
+  const members = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      googleRefreshToken: users.googleRefreshToken,
+      calendarId: users.calendarId,
+      isActive: users.isActive,
+    })
+    .from(users)
+    .where(and(eq(users.isActive, true), isNotNull(users.googleRefreshToken)));
 
   if (!members || members.length === 0) {
     return NextResponse.json({ error: "No connected members found" });
@@ -41,11 +50,11 @@ export async function GET(request: NextRequest) {
       id: member.id,
       name: member.name,
       email: member.email,
-      hasToken: !!member.google_refresh_token,
+      hasToken: !!member.googleRefreshToken,
       status: "unknown",
     };
 
-    if (!member.google_refresh_token) {
+    if (!member.googleRefreshToken) {
       entry.status = "no_token — treated as fully busy";
       busyMap.set(member.id, [{ start: timeMin.toISOString(), end: timeMax.toISOString() }]);
       memberReport.push(entry);
@@ -54,7 +63,7 @@ export async function GET(request: NextRequest) {
 
     try {
       const oauth2Client = createOAuth2Client();
-      oauth2Client.setCredentials({ refresh_token: member.google_refresh_token });
+      oauth2Client.setCredentials({ refresh_token: member.googleRefreshToken });
       const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
       // Step A: list all calendars
