@@ -49,13 +49,19 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
 
   const editor = useEditor({
     extensions: createExtensions(ydoc, currentUser.name, userColor),
-    content: doc.content ?? { type: "doc", content: [{ type: "paragraph" }] },
     editorProps: {
       attributes: {
         class: "tiptap focus:outline-none min-h-[300px] text-[15px] leading-relaxed text-[#333]",
       },
     },
     immediatelyRender: false,
+    onCreate: ({ editor: ed }) => {
+      // Collaboration extension manages content via Y.Doc, ignoring the content prop.
+      // On fresh page load the Y.Doc is empty, so we must hydrate from the DB.
+      if (ed.isEmpty && doc.content) {
+        ed.commands.setContent(doc.content);
+      }
+    },
   });
 
   const saveContent = useCallback(async () => {
