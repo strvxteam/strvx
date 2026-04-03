@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Government Theme Direction — strvx</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Inter', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; }
+
+  .header {
+    text-align: center;
+    padding: 60px 24px 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .header h1 { font-size: 32px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .header p { color: #888; font-size: 14px; }
+
+  .themes { display: flex; flex-direction: column; gap: 0; }
+
+  .theme-section {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .theme-label {
+    position: absolute;
+    top: 32px;
+    left: 32px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .theme-label .letter {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(10px);
+  }
+  .theme-label .name {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(10px);
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* ===== THEME A: Dark Tactical / Cyber ===== */
+  .theme-a {
+    background: #030810;
+  }
+  .theme-a .bg-layer {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(0deg, transparent 49.5%, rgba(0, 180, 255, 0.03) 49.5%, rgba(0, 180, 255, 0.03) 50.5%, transparent 50.5%),
+      linear-gradient(90deg, transparent 49.5%, rgba(0, 180, 255, 0.03) 49.5%, rgba(0, 180, 255, 0.03) 50.5%, transparent 50.5%);
+    background-size: 40px 40px;
+  }
+  .theme-a .scanline {
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 180, 255, 0.015) 2px,
+      rgba(0, 180, 255, 0.015) 4px
+    );
+    pointer-events: none;
+  }
+  .theme-a .glow {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(0, 120, 255, 0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .theme-a .radar {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px; height: 300px;
+    border: 1px solid rgba(0, 180, 255, 0.1);
+    border-radius: 50%;
+  }
+  .theme-a .radar::before {
+    content: '';
+    position: absolute; inset: 30px;
+    border: 1px solid rgba(0, 180, 255, 0.07);
+    border-radius: 50%;
+  }
+  .theme-a .radar::after {
+    content: '';
+    position: absolute; inset: 60px;
+    border: 1px solid rgba(0, 180, 255, 0.04);
+    border-radius: 50%;
+  }
+  .theme-a .radar-sweep {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 150px; height: 2px;
+    background: linear-gradient(90deg, rgba(0, 180, 255, 0.6), transparent);
+    transform-origin: left center;
+    animation: sweep 4s linear infinite;
+  }
+  @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  .theme-a .content {
+    position: relative; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 80px 32px;
+    text-align: center;
+  }
+  .theme-a .hud-tag {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: rgba(0, 180, 255, 0.6);
+    border: 1px solid rgba(0, 180, 255, 0.2);
+    padding: 6px 16px;
+    margin-bottom: 24px;
+    text-transform: uppercase;
+  }
+  .theme-a h2 {
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin-bottom: 20px;
+    background: linear-gradient(180deg, #fff 30%, rgba(0, 180, 255, 0.7));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .theme-a .sub {
+    font-size: 16px;
+    color: rgba(0, 180, 255, 0.5);
+    max-width: 500px;
+    line-height: 1.7;
+    margin-bottom: 40px;
+  }
+  .theme-a .cta {
+    font-family: 'SF Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 14px 32px;
+    border: 1px solid rgba(0, 180, 255, 0.4);
+    color: rgba(0, 180, 255, 0.9);
+    background: rgba(0, 180, 255, 0.05);
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .theme-a .cta:hover {
+    background: rgba(0, 180, 255, 0.15);
+    box-shadow: 0 0 30px rgba(0, 180, 255, 0.15);
+  }
+  .theme-a .corner-tl, .theme-a .corner-br {
+    position: absolute;
+    width: 60px; height: 60px;
+    pointer-events: none;
+  }
+  .theme-a .corner-tl {
+    top: 80px; left: 32px;
+    border-top: 1px solid rgba(0, 180, 255, 0.2);
+    border-left: 1px solid rgba(0, 180, 255, 0.2);
+  }
+  .theme-a .corner-br {
+    bottom: 32px; right: 32px;
+    border-bottom: 1px solid rgba(0, 180, 255, 0.2);
+    border-right: 1px solid rgba(0, 180, 255, 0.2);
+  }
+  .theme-a .stat-row {
+    display: flex; gap: 48px; margin-top: 60px;
+    font-family: 'SF Mono', monospace;
+  }
+  .theme-a .stat-row .stat-val {
+    font-size: 28px; font-weight: 700; color: rgba(0, 180, 255, 0.8);
+  }
+  .theme-a .stat-row .stat-lbl {
+    font-size: 10px; color: rgba(0, 180, 255, 0.35); letter-spacing: 0.15em; text-transform: uppercase; margin-top: 4px;
+  }
+
+  /* ===== THEME B: Clean Defense Contractor ===== */
+  .theme-b {
+    background: #0c1220;
+  }
+  .theme-b .bg-layer {
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, #0c1220 0%, #141e33 50%, #0c1220 100%);
+  }
+  .theme-b .accent-line {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+    opacity: 0.4;
+  }
+  .theme-b .geo-pattern {
+    position: absolute;
+    top: 0; right: 0;
+    width: 50%; height: 100%;
+    opacity: 0.03;
+    background:
+      linear-gradient(60deg, transparent 45%, #fff 45%, #fff 45.5%, transparent 45.5%),
+      linear-gradient(-60deg, transparent 45%, #fff 45%, #fff 45.5%, transparent 45.5%);
+    background-size: 80px 140px;
+  }
+  .theme-b .content {
+    position: relative; z-index: 5;
+    display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+    min-height: 100vh; padding: 80px 80px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  .theme-b .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 32px;
+  }
+  .theme-b .badge-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #3b82f6;
+  }
+  .theme-b h2 {
+    font-size: 60px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin-bottom: 24px;
+    color: #e2e8f0;
+  }
+  .theme-b h2 span { color: #3b82f6; }
+  .theme-b .sub {
+    font-size: 18px;
+    color: #64748b;
+    max-width: 520px;
+    line-height: 1.7;
+    margin-bottom: 48px;
+  }
+  .theme-b .cta-row { display: flex; gap: 16px; }
+  .theme-b .cta-primary {
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 14px 36px;
+    background: #3b82f6;
+    color: #fff;
+    border: none; border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .theme-b .cta-primary:hover { background: #2563eb; }
+  .theme-b .cta-secondary {
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 14px 36px;
+    background: transparent;
+    color: #94a3b8;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .theme-b .cta-secondary:hover { border-color: rgba(148, 163, 184, 0.4); color: #e2e8f0; }
+  .theme-b .trust-bar {
+    display: flex; gap: 40px; margin-top: 80px;
+    padding-top: 32px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .theme-b .trust-item .trust-val {
+    font-size: 24px; font-weight: 700; color: #e2e8f0;
+  }
+  .theme-b .trust-item .trust-lbl {
+    font-size: 11px; color: #475569; margin-top: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* ===== THEME C: Space-Tech Forward ===== */
+  .theme-c {
+    background: #020205;
+  }
+  .theme-c .starfield {
+    position: absolute; inset: 0;
+    overflow: hidden;
+  }
+  .theme-c .star {
+    position: absolute;
+    width: 1px; height: 1px;
+    background: #fff;
+    border-radius: 50%;
+    animation: twinkle 3s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle {
+    0% { opacity: 0.2; }
+    100% { opacity: 0.8; }
+  }
+  .theme-c .orbit {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 50%;
+  }
+  .theme-c .orbit-1 { width: 400px; height: 400px; animation: spin 60s linear infinite; }
+  .theme-c .orbit-2 { width: 600px; height: 600px; animation: spin 90s linear infinite reverse; }
+  .theme-c .orbit-3 { width: 800px; height: 800px; animation: spin 120s linear infinite; }
+  @keyframes spin { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+  .theme-c .orbit-dot {
+    position: absolute;
+    top: -3px; left: 50%;
+    width: 6px; height: 6px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(255,255,255,0.5);
+  }
+  .theme-c .nebula {
+    position: absolute;
+    top: 20%; left: 60%;
+    width: 500px; height: 500px;
+    background: radial-gradient(ellipse, rgba(120, 80, 255, 0.06) 0%, rgba(40, 10, 120, 0.03) 40%, transparent 70%);
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .theme-c .nebula-2 {
+    position: absolute;
+    top: 60%; left: 20%;
+    width: 400px; height: 400px;
+    background: radial-gradient(ellipse, rgba(255, 100, 50, 0.04) 0%, transparent 60%);
+    filter: blur(50px);
+    pointer-events: none;
+  }
+  .theme-c .content {
+    position: relative; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 80px 32px;
+    text-align: center;
+  }
+  .theme-c .mission-tag {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.3);
+    margin-bottom: 32px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .theme-c .mission-tag::before, .theme-c .mission-tag::after {
+    content: '';
+    width: 30px; height: 1px;
+    background: rgba(255,255,255,0.15);
+  }
+  .theme-c h2 {
+    font-size: 64px;
+    font-weight: 600;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    margin-bottom: 20px;
+    color: #fff;
+  }
+  .theme-c h2 .fade { color: rgba(255,255,255,0.4); }
+  .theme-c .sub {
+    font-size: 16px;
+    color: rgba(255,255,255,0.35);
+    max-width: 460px;
+    line-height: 1.8;
+    margin-bottom: 48px;
+  }
+  .theme-c .cta {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 16px 40px;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #fff;
+    background: rgba(255,255,255,0.03);
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.4s;
+    backdrop-filter: blur(10px);
+  }
+  .theme-c .cta:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.3);
+    box-shadow: 0 0 40px rgba(255,255,255,0.05);
+  }
+  .theme-c .coordinates {
+    position: absolute;
+    bottom: 40px; left: 40px;
+    font-family: 'SF Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.15);
+    letter-spacing: 0.1em;
+  }
+  .theme-c .telemetry {
+    position: absolute;
+    bottom: 40px; right: 40px;
+    font-family: 'SF Mono', monospace;
+    font-size: 10px;
+    color: rgba(255,255,255,0.15);
+    text-align: right;
+    letter-spacing: 0.05em;
+    line-height: 1.8;
+  }
+
+  /* ===== THEME D: Blend ===== */
+  .theme-d {
+    background: #050a14;
+  }
+  .theme-d .bg-layer {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(0, 100, 255, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 70% 80%, rgba(100, 50, 255, 0.05) 0%, transparent 50%);
+  }
+  .theme-d .grid-overlay {
+    position: absolute; inset: 0;
+    background:
+      linear-gradient(0deg, transparent 49.8%, rgba(255,255,255,0.015) 49.8%, rgba(255,255,255,0.015) 50.2%, transparent 50.2%),
+      linear-gradient(90deg, transparent 49.8%, rgba(255,255,255,0.015) 49.8%, rgba(255,255,255,0.015) 50.2%, transparent 50.2%);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+  }
+  .theme-d .hex-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px; height: 400px;
+    border: 1px solid rgba(100, 150, 255, 0.06);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    animation: hex-rotate 30s linear infinite;
+  }
+  .theme-d .hex-ring-2 {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 500px; height: 500px;
+    border: 1px solid rgba(100, 150, 255, 0.03);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    animation: hex-rotate 40s linear infinite reverse;
+  }
+  @keyframes hex-rotate { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(360deg); } }
+  .theme-d .content {
+    position: relative; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 80px 32px;
+    text-align: center;
+  }
+  .theme-d .shield-badge {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: rgba(100, 180, 255, 0.6);
+    border: 1px solid rgba(100, 180, 255, 0.15);
+    padding: 8px 20px;
+    margin-bottom: 32px;
+    backdrop-filter: blur(10px);
+    background: rgba(100, 180, 255, 0.03);
+  }
+  .theme-d .shield-badge svg { opacity: 0.6; }
+  .theme-d h2 {
+    font-size: 58px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    margin-bottom: 20px;
+    background: linear-gradient(180deg, #e8edf5 20%, rgba(100, 160, 255, 0.6));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .theme-d .sub {
+    font-size: 16px;
+    color: rgba(180, 200, 230, 0.45);
+    max-width: 500px;
+    line-height: 1.8;
+    margin-bottom: 48px;
+  }
+  .theme-d .cta-row { display: flex; gap: 16px; margin-bottom: 80px; }
+  .theme-d .cta-primary {
+    font-size: 12px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 14px 36px;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: #fff; border: none; border-radius: 4px;
+    cursor: pointer; transition: all 0.3s;
+  }
+  .theme-d .cta-primary:hover { box-shadow: 0 0 30px rgba(99, 102, 241, 0.3); }
+  .theme-d .cta-ghost {
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 14px 36px;
+    background: transparent;
+    color: rgba(180, 200, 230, 0.5);
+    border: 1px solid rgba(100, 150, 255, 0.15);
+    border-radius: 4px;
+    cursor: pointer; transition: all 0.3s;
+  }
+  .theme-d .cta-ghost:hover { border-color: rgba(100, 150, 255, 0.3); color: #fff; }
+  .theme-d .capabilities {
+    display: flex; gap: 1px; background: rgba(255,255,255,0.04); border-radius: 8px; overflow: hidden;
+  }
+  .theme-d .cap-item {
+    flex: 1; padding: 24px 20px;
+    background: rgba(5, 10, 20, 0.8);
+    text-align: center;
+  }
+  .theme-d .cap-item .cap-icon { font-size: 20px; margin-bottom: 8px; opacity: 0.4; }
+  .theme-d .cap-item .cap-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(180, 200, 230, 0.7); }
+  .theme-d .cap-item .cap-desc { font-size: 11px; color: rgba(180, 200, 230, 0.3); margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Government Theme Direction</h1>
+  <p>Four visual directions for the Government/Military landing page variant. Scroll to compare.</p>
+</div>
+
+<div class="themes">
+
+  <!-- THEME A: Dark Tactical / Cyber -->
+  <div class="theme-section theme-a">
+    <div class="bg-layer"></div>
+    <div class="scanline"></div>
+    <div class="glow"></div>
+    <div class="radar">
+      <div class="radar-sweep"></div>
+    </div>
+    <div class="corner-tl"></div>
+    <div class="corner-br"></div>
+    <div class="theme-label">
+      <div class="letter">A</div>
+      <div class="name">Dark Tactical / Cyber</div>
+    </div>
+    <div class="content">
+      <div class="hud-tag">// Classified Operations</div>
+      <h2>Mission-Critical<br>AI Infrastructure</h2>
+      <div class="sub">Secure, air-gapped AI systems built for defense operations. Zero trust architecture. ITAR-compliant. Deployed on your terms.</div>
+      <button class="cta">[ Initialize Briefing ]</button>
+      <div class="stat-row">
+        <div><div class="stat-val">99.99%</div><div class="stat-lbl">Uptime SLA</div></div>
+        <div><div class="stat-val">FedRAMP</div><div class="stat-lbl">Compliant</div></div>
+        <div><div class="stat-val">IL-5</div><div class="stat-lbl">Cleared</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THEME B: Clean Defense Contractor -->
+  <div class="theme-section theme-b">
+    <div class="bg-layer"></div>
+    <div class="geo-pattern"></div>
+    <div class="accent-line"></div>
+    <div class="theme-label">
+      <div class="letter">B</div>
+      <div class="name">Clean Defense Contractor</div>
+    </div>
+    <div class="content">
+      <div class="badge"><div class="badge-dot"></div> Defense & Government Solutions</div>
+      <h2>AI Systems Built for<br><span>National Security</span></h2>
+      <div class="sub">Enterprise-grade AI tools designed for government workflows. Secure by design, compliant by default, built by cleared engineers.</div>
+      <div class="cta-row">
+        <button class="cta-primary">Request Briefing</button>
+        <button class="cta-secondary">View Capabilities</button>
+      </div>
+      <div class="trust-bar">
+        <div class="trust-item"><div class="trust-val">ITAR</div><div class="trust-lbl">Compliant</div></div>
+        <div class="trust-item"><div class="trust-val">SOC 2</div><div class="trust-lbl">Type II</div></div>
+        <div class="trust-item"><div class="trust-val">24/7</div><div class="trust-lbl">Operations</div></div>
+        <div class="trust-item"><div class="trust-val">US-Only</div><div class="trust-lbl">Engineering</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THEME C: Space-Tech Forward -->
+  <div class="theme-section theme-c">
+    <div class="starfield">
+      <div class="star" style="top:8%;left:15%;animation-delay:0s;"></div>
+      <div class="star" style="top:12%;left:45%;animation-delay:0.5s;"></div>
+      <div class="star" style="top:25%;left:80%;animation-delay:1s;"></div>
+      <div class="star" style="top:35%;left:20%;animation-delay:1.5s;"></div>
+      <div class="star" style="top:45%;left:65%;animation-delay:0.3s;"></div>
+      <div class="star" style="top:55%;left:35%;animation-delay:0.8s;"></div>
+      <div class="star" style="top:65%;left:90%;animation-delay:1.2s;"></div>
+      <div class="star" style="top:75%;left:10%;animation-delay:0.7s;"></div>
+      <div class="star" style="top:85%;left:55%;animation-delay:1.8s;"></div>
+      <div class="star" style="top:18%;left:72%;animation-delay:2s;"></div>
+      <div class="star" style="top:42%;left:8%;animation-delay:0.2s;"></div>
+      <div class="star" style="top:68%;left:48%;animation-delay:1.1s;"></div>
+      <div class="star" style="top:92%;left:30%;animation-delay:0.6s;"></div>
+      <div class="star" style="top:5%;left:60%;animation-delay:1.4s;"></div>
+      <div class="star" style="top:78%;left:75%;animation-delay:0.9s;"></div>
+      <div class="star" style="top:30%;left:50%;animation-delay:2.2s;width:2px;height:2px;"></div>
+      <div class="star" style="top:60%;left:25%;animation-delay:1.7s;width:2px;height:2px;"></div>
+      <div class="star" style="top:15%;left:88%;animation-delay:0.4s;width:2px;height:2px;"></div>
+    </div>
+    <div class="orbit orbit-1"><div class="orbit-dot"></div></div>
+    <div class="orbit orbit-2"><div class="orbit-dot"></div></div>
+    <div class="orbit orbit-3"><div class="orbit-dot"></div></div>
+    <div class="nebula"></div>
+    <div class="nebula-2"></div>
+    <div class="theme-label">
+      <div class="letter">C</div>
+      <div class="name">Space-Tech Forward</div>
+    </div>
+    <div class="content">
+      <div class="mission-tag">Mission Control</div>
+      <h2>Intelligence Systems<br><span class="fade">Beyond the Atmosphere</span></h2>
+      <div class="sub">Next-generation AI infrastructure for space operations, satellite analytics, and orbital decision systems. Built for agencies that look up.</div>
+      <button class="cta">Begin Transmission</button>
+      <div class="coordinates">32.7157&deg; N &middot; 117.1611&deg; W<br>San Diego, CA</div>
+      <div class="telemetry">SYS.STATUS: NOMINAL<br>UPLINK: ACTIVE<br>LATENCY: 12ms</div>
+    </div>
+  </div>
+
+  <!-- THEME D: Blend -->
+  <div class="theme-section theme-d">
+    <div class="bg-layer"></div>
+    <div class="grid-overlay"></div>
+    <div class="hex-ring"></div>
+    <div class="hex-ring-2"></div>
+    <div class="theme-label">
+      <div class="letter">D</div>
+      <div class="name">The Blend &mdash; Tactical + Space + Professional</div>
+    </div>
+    <div class="content">
+      <div class="shield-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Secure AI Infrastructure
+      </div>
+      <h2>AI That Defends.<br>Systems That Scale.</h2>
+      <div class="sub">From tactical operations to orbital analytics &mdash; mission-critical AI systems built by engineers with clearance and conviction.</div>
+      <div class="cta-row">
+        <button class="cta-primary">Request Briefing</button>
+        <button class="cta-ghost">View Capabilities</button>
+      </div>
+      <div class="capabilities">
+        <div class="cap-item">
+          <div class="cap-icon">&#x25A0;</div>
+          <div class="cap-title">Defense</div>
+          <div class="cap-desc">Tactical AI ops</div>
+        </div>
+        <div class="cap-item">
+          <div class="cap-icon">&#x25B2;</div>
+          <div class="cap-title">Space</div>
+          <div class="cap-desc">Orbital systems</div>
+        </div>
+        <div class="cap-item">
+          <div class="cap-icon">&#x25CF;</div>
+          <div class="cap-title">Intel</div>
+          <div class="cap-desc">Data pipelines</div>
+        </div>
+        <div class="cap-item">
+          <div class="cap-icon">&#x2699;</div>
+          <div class="cap-title">Infra</div>
+          <div class="cap-desc">Secure deploy</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
