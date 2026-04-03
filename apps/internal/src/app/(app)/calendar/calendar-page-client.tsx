@@ -118,6 +118,7 @@ export function CalendarPageClient({
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [defaultDate, setDefaultDate] = useState(formatDate(new Date()));
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const calendarRef = useRef<FullCalendar>(null);
 
   const fcEvents = useMemo(() => events.map(calendarEventToFC), [events]);
@@ -284,10 +285,11 @@ export function CalendarPageClient({
         const typeColor = selectedEvent.type === "client_call" ? "#1a73e8"
           : selectedEvent.type === "internal" ? "#8e24aa" : "#c0392b";
         const isGcal = isGoogleCalendarEvent(selectedEvent.id);
+        const isConfirmingDelete = confirmDeleteId === selectedEvent.id;
         return (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-[2px]"
-            onClick={() => setSelectedEventId(null)}
+            onClick={() => { setSelectedEventId(null); setConfirmDeleteId(null); }}
           >
             <div
               className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl"
@@ -300,35 +302,12 @@ export function CalendarPageClient({
                   <h2 className="text-[18px] font-bold text-[#111] leading-snug pr-4">
                     {selectedEvent.title}
                   </h2>
-                  <div className="flex items-center gap-1 shrink-0">
-                    {!isGcal && (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditingEvent(selectedEvent);
-                            setSelectedEventId(null);
-                          }}
-                          className="rounded-lg p-1.5 text-[#aaa] transition-colors hover:bg-[#f5f5f5] hover:text-[#555]"
-                          title="Edit event"
-                        >
-                          <Pencil size={16} strokeWidth={1.5} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEvent(selectedEvent.id)}
-                          className="rounded-lg p-1.5 text-[#aaa] transition-colors hover:bg-[#fde8e8] hover:text-[#c0392b]"
-                          title="Delete event"
-                        >
-                          <Trash2 size={16} strokeWidth={1.5} />
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => setSelectedEventId(null)}
-                      className="rounded-lg p-1.5 text-[#aaa] transition-colors hover:bg-[#f5f5f5] hover:text-[#555]"
-                    >
-                      <X size={18} strokeWidth={1.5} />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => { setSelectedEventId(null); setConfirmDeleteId(null); }}
+                    className="rounded-lg p-1.5 text-[#aaa] transition-colors hover:bg-[#f5f5f5] hover:text-[#555] shrink-0"
+                  >
+                    <X size={18} strokeWidth={1.5} />
+                  </button>
                 </div>
 
                 <div className="flex flex-col gap-4">
@@ -399,6 +378,52 @@ export function CalendarPageClient({
                     </p>
                   )}
                 </div>
+
+                {/* Action footer for non-Google Calendar events */}
+                {!isGcal && (
+                  <div className="mt-6 flex items-center justify-between border-t border-[#f0f0f0] pt-4">
+                    <div>
+                      {isConfirmingDelete ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] text-[#c0392b] font-medium">Delete this event?</span>
+                          <button
+                            onClick={() => { setConfirmDeleteId(null); handleDeleteEvent(selectedEvent.id); }}
+                            className="rounded-lg bg-[#c0392b] px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-[#a93226]"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="rounded-lg px-3 py-1.5 text-[12px] font-medium text-[#777] transition-colors hover:bg-[#f5f5f5]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDeleteId(selectedEvent.id)}
+                          className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-[#c0392b] transition-colors hover:bg-[#fde8e8]"
+                        >
+                          <Trash2 size={13} strokeWidth={1.5} />
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                    {!isConfirmingDelete && (
+                      <button
+                        onClick={() => {
+                          setEditingEvent(selectedEvent);
+                          setSelectedEventId(null);
+                          setConfirmDeleteId(null);
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] px-3 py-1.5 text-[12px] font-medium text-[#555] transition-colors hover:bg-[#f5f5f5]"
+                      >
+                        <Pencil size={13} strokeWidth={1.5} />
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
