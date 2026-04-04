@@ -553,7 +553,7 @@ const X_WORDS  = ["automation", "intelligence", "efficiency", "excellence", "inn
 const X_COLORS = ["#f97316", "#a855f7", "#22d3ee", "#4ade80", "#f43f5e"];
 
 // text-3xl = 1.875rem (30px) mobile · text-6xl = 3.75rem (60px) desktop
-const L      = "font-medium text-3xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-9xl leading-none";
+const L      = "font-medium text-3xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-9xl leading-[1.1]";
 const EASE   = [0.22, 1, 0.36, 1] as const;
 
 function SplashScreen({ onDone }: { onDone: () => void }) {
