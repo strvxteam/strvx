@@ -735,7 +735,7 @@ export default function Home() {
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse,rgba(255,255,255,0.04)_0%,transparent_65%)]" />
 
       {/* HERO */}
-      <motion.section ref={heroRef} style={{ y: heroY, opacity: heroOpacity }} className="relative min-h-0 md:min-h-screen flex flex-col justify-center pt-24 md:pt-16 overflow-hidden">
+      <motion.section ref={heroRef} style={{ y: heroY, opacity: heroOpacity }} className="relative min-h-screen flex flex-col justify-center pt-24 md:pt-16 overflow-hidden">
         {/* Hero background image */}
         <div
           className="absolute inset-0 bg-cover bg-center"
@@ -791,7 +791,7 @@ export default function Home() {
       </motion.section>
 
       {/* WHAT WE DO */}
-      <Section id="services" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section id="services" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <motion.p
           variants={m ? mobileFade : slideFromLeft}
           initial={m ? false : "hidden"}
@@ -883,7 +883,7 @@ export default function Home() {
       </Section>
 
       {/* WHO THIS IS FOR */}
-      <Section className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <motion.p
           variants={m ? mobileFade : slideFromLeft}
           initial={m ? false : "hidden"}
@@ -974,7 +974,7 @@ export default function Home() {
       </Section>
 
       {/* HOW WE WORK */}
-      <Section id="process" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section id="process" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <motion.p variants={m ? mobileFade : slideFromLeft} initial={m ? false : "hidden"} whileInView={m ? undefined : "visible"} viewport={{ once: true }} className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-[#888] mb-3 md:mb-6">
           How we work
         </motion.p>
@@ -988,7 +988,7 @@ export default function Home() {
       </Section>
 
       {/* TEAM */}
-      <Section id="team" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section id="team" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <motion.p variants={m ? mobileFade : slideFromLeft} initial={m ? false : "hidden"} whileInView={m ? undefined : "visible"} viewport={{ once: true }} className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-[#888] mb-3 md:mb-6">
           Team
         </motion.p>
@@ -1103,7 +1103,7 @@ export default function Home() {
       </Section>
 
       {/* CONTACT */}
-      <Section id="contact" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section id="contact" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <div
           className="rounded-xl p-px"
           style={{ background: "#0e0e0e" }}
