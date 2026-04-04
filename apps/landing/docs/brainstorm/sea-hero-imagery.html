@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Southeast Asia Hero — Image Options</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Inter', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; }
+
+  .header {
+    text-align: center;
+    padding: 60px 24px 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .header h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .header p { color: #666; font-size: 13px; max-width: 500px; margin: 0 auto; }
+
+  .option {
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .option .bg {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .option .overlay {
+    position: absolute; inset: 0;
+    background: rgba(5, 5, 5, 0.55);
+  }
+  .option .vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(5, 5, 5, 0.8) 100%);
+  }
+  .option .bottom-fade {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 200px;
+    background: linear-gradient(to top, #050505, transparent);
+  }
+
+  .option .label {
+    position: absolute; top: 24px; left: 24px; z-index: 20;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .option .label .num {
+    width: 32px; height: 32px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+  }
+  .option .label .name {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+    padding: 7px 14px; border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .option .nav-mock {
+    position: absolute; top: 24px; left: 0; right: 0; z-index: 15;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 32px;
+  }
+  .option .nav-mock .logo {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: rgba(255,255,255,0.9);
+  }
+
+  .option .content {
+    position: relative; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; text-align: center; padding: 0 32px;
+  }
+  .option h2 {
+    font-size: clamp(36px, 6vw, 80px);
+    font-weight: 700; letter-spacing: -0.03em;
+    line-height: 1.05; color: #fff; max-width: 800px;
+  }
+  .option .subtitle {
+    font-size: 15px; letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-top: 28px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Southeast Asia Hero — Image Options</h1>
+  <p>Same Starshield layout. Headline + subtitle only, no CTA. Scroll to compare.</p>
+</div>
+
+<!-- Option 1: Singapore Marina Bay Skyline Night -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.45);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">1</div><div class="name">Singapore Marina Bay</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 2: Aerial Night City (Bangkok / KL) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">2</div><div class="name">Bangkok Aerial</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 3: Satellite / Earth View of Asia at Night -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?w=1920&q=85&auto=format'); background-position: center 40%;"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.4);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">3</div><div class="name">Earth / Asia From Space</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 4: Kuala Lumpur Petronas Towers -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">4</div><div class="name">Kuala Lumpur / Petronas</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 5: Ho Chi Minh / Vietnam Modern -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">5</div><div class="name">Ho Chi Minh City</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 6: Container Port / Shipping (Trade) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1494412574643-ff11b0a5eb19?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.55);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">6</div><div class="name">Port / Trade Infrastructure</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+</body>
+</html>

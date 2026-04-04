@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Government Hero — Image Options</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Inter', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; }
+
+  .header {
+    text-align: center;
+    padding: 60px 24px 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .header h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .header p { color: #666; font-size: 13px; max-width: 500px; margin: 0 auto; }
+
+  .option {
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+
+  .option .bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+  }
+
+  /* Overlays to make text readable */
+  .option .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(3, 8, 16, 0.55);
+  }
+  .option .vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(3, 8, 16, 0.75) 100%);
+  }
+  .option .bottom-fade {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 200px;
+    background: linear-gradient(to top, #030810, transparent);
+  }
+
+  .option .label {
+    position: absolute;
+    top: 24px; left: 24px;
+    z-index: 20;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .option .label .num {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px);
+  }
+  .option .label .name {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px);
+    padding: 7px 14px;
+    border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .option .content {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 0 32px;
+  }
+
+  .option .subtitle {
+    font-size: 15px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-top: 28px;
+  }
+
+  .option h2 {
+    font-size: clamp(36px, 6vw, 80px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    color: #fff;
+    max-width: 800px;
+  }
+
+  .option .cta {
+    margin-top: 40px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 14px 32px;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.7);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .option .cta:hover {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.35);
+  }
+
+  /* Nav mockup */
+  .option .nav-mock {
+    position: absolute;
+    top: 24px; left: 0; right: 0;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+  }
+  .option .nav-mock .logo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.9);
+  }
+  .option .nav-mock .nav-cta {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+    color: rgba(255,255,255,0.7);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Government Hero — Image Direction</h1>
+  <p>Same layout (SpaceX Starshield style). Different background imagery. Scroll to compare all options.</p>
+</div>
+
+<!-- Option 1: Cyber Command Center -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=1920&q=85&auto=format'); background-position: center 40%;"></div>
+  <div class="overlay"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label">
+    <div class="num">1</div>
+    <div class="name">Cyber / Network Operations</div>
+  </div>
+  <div class="nav-mock">
+    <div class="logo">strvx</div>
+    <div></div>
+  </div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Supporting National Security</div>
+  </div>
+</div>
+
+<!-- Option 2: Earth From Orbit (Starshield-style) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&q=85&auto=format'); background-position: center 60%;"></div>
+  <div class="overlay" style="background: rgba(3, 8, 16, 0.4);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label">
+    <div class="num">2</div>
+    <div class="name">Earth From Orbit / Satellite</div>
+  </div>
+  <div class="nav-mock">
+    <div class="logo">strvx</div>
+    <div></div>
+  </div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Supporting National Security</div>
+  </div>
+</div>
+
+<!-- Option 3: Data Center / Server Room -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=1920&q=85&auto=format'); background-position: center;"></div>
+  <div class="overlay" style="background: rgba(3, 8, 16, 0.6);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label">
+    <div class="num">3</div>
+    <div class="name">Secure Data Center</div>
+  </div>
+  <div class="nav-mock">
+    <div class="logo">strvx</div>
+    <div></div>
+  </div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Supporting National Security</div>
+  </div>
+</div>
+
+<!-- Option 4: Abstract Dark Tech / Circuit -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=1920&q=85&auto=format'); background-position: center;"></div>
+  <div class="overlay" style="background: rgba(3, 8, 16, 0.65);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label">
+    <div class="num">4</div>
+    <div class="name">Matrix / Code Rain</div>
+  </div>
+  <div class="nav-mock">
+    <div class="logo">strvx</div>
+    <div></div>
+  </div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Supporting National Security</div>
+  </div>
+</div>
+
+<!-- Option 5: Aerial Night City (DC / Pentagon vibes) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1501466044931-62695aada8e9?w=1920&q=85&auto=format'); background-position: center 70%;"></div>
+  <div class="overlay" style="background: rgba(3, 8, 16, 0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label">
+    <div class="num">5</div>
+    <div class="name">DC / Capital at Night</div>
+  </div>
+  <div class="nav-mock">
+    <div class="logo">strvx</div>
+    <div></div>
+  </div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Supporting National Security</div>
+  </div>
+</div>
+
+<!-- Option 6: Pure Gradient (no photo — like current) -->
+<div class="option">
+  <div class="bg" style="background: #030810;"></div>
+  <div style="position:absolute;inset:0; background: radial-gradient(ellipse at 50% 30%, rgba(0, 80, 180, 0.18) 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, rgba(0, 40, 120, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, rgba(30, 0, 80, 0.08) 0%, transparent 50%);"></div>
+  <div class="label">
+    <div class="num">6</div>
+    <div class="name">Pure Gradient — No Photo</div>
+  </div>
+  <div class="nav-mock">
+    <div class="logo">strvx</div>
+    <div></div>
+  </div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Supporting National Security</div>
+  </div>
+</div>
+
+</body>
+</html>

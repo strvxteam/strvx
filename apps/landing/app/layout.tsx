@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { MotionProvider } from "./motion-provider";
 import { PostHogProvider } from "./posthog-provider";
+import Header from "../components/Header";
 
 const spaceGrotesk = Space_Grotesk({ variable: "--font-heading", subsets: ["latin"], weight: ["300", "400", "500", "600", "700"] });
 const inter = Inter({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"] });
@@ -34,9 +35,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} ${spaceGrotesk.variable} ${geistMono.variable} bg-[#050505] text-[#fafafa] antialiased`}>
         <PostHogProvider>
+          <Header />
           <MotionProvider>{children}</MotionProvider>
         </PostHogProvider>
         <Analytics />

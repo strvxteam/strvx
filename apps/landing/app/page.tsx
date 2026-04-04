@@ -14,6 +14,7 @@ import {
   type Variants,
 } from "framer-motion";
 import { useIsMobile } from "./motion-provider";
+import { GlowCard } from "../components/ui/spotlight-card";
 
 /* ------------------------------------------------------------------ */
 /*  Animation helpers                                                 */
@@ -452,99 +453,92 @@ function ProcessPipelineMockup() {
   ];
 
   const [activeStep, setActiveStep] = useState(0);
-  const [userClicked, setUserClicked] = useState(false);
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: "-80px" });
   const m = useIsMobile();
 
-  useEffect(() => {
-    if (!isInView || userClicked) return;
-    const interval = setInterval(() => {
-      setActiveStep(prev => (prev + 1) % steps.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [isInView, userClicked]);
-
   return (
     <motion.div
       ref={ref}
-      initial={m ? false : { opacity: 0, y: 40 }}
-      animate={m ? undefined : (isInView ? { opacity: 1, y: 0 } : {})}
-      transition={m ? undefined : { duration: 0.7 }}
-      className="mockup-shadow rounded-xl overflow-hidden max-w-6xl mx-auto"
+      initial={m ? false : { opacity: 0, y: 40, scale: 0.97 }}
+      animate={m ? undefined : (isInView ? { opacity: 1, y: 0, scale: 1 } : {})}
+      transition={m ? undefined : { duration: 0.8, ease: "easeOut" }}
+      className="rounded-2xl overflow-hidden max-w-6xl mx-auto"
       style={{
-        background: "linear-gradient(135deg, rgba(255, 255, 255, 0.02), rgba(10, 10, 10, 1))",
-        border: "1px solid rgba(255, 255, 255, 0.06)",
+        background: "#0a0a0a",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
+        boxShadow: "0 25px 60px rgba(0,0,0,0.4), 0 0 40px rgba(255,255,255,0.02)",
       }}
     >
-      <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] bg-[#111]">
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] font-medium text-[#999]">Project Pipeline</span>
-          <span className="text-[9px] text-[#555]">|</span>
-          <span className="text-[9px] text-white/40">Step {activeStep + 1} of 5</span>
-        </div>
-        <span className="text-[10px] text-[#555]">client-project-2026</span>
-      </div>
-      <div className="border-b border-white/[0.06]">
-        <div className="flex relative">
-          {/* Track line behind dots */}
-          <div
-            className="absolute top-[22px] left-[10%] right-[10%] h-px"
-            style={{ background: "rgba(255, 255, 255, 0.08)" }}
-          />
-          {/* Filled progress */}
-          <div
-            className="absolute top-[22px] left-[10%] h-px transition-all duration-500"
-            style={{
-              background: "rgba(255, 255, 255, 0.2)",
-              width: `${(activeStep / (steps.length - 1)) * 80}%`,
-            }}
-          />
+      {/* Step selector */}
+      <div className="px-4 md:px-8 pt-6 md:pt-10 pb-4 md:pb-6">
+        <div className="flex items-center gap-2 md:gap-0">
           {steps.map((step, i) => (
             <button
               key={step.num}
-              onClick={() => { setUserClicked(true); setActiveStep(i); }}
-              className={`flex-1 relative px-1 md:px-3 py-3 md:py-5 text-center transition-colors duration-200 cursor-pointer ${i === activeStep ? "bg-white/[0.04]" : "hover:bg-white/[0.02]"}`}
+              onClick={() => setActiveStep(i)}
+              className="flex-1 group relative cursor-pointer"
             >
-              <div
-                className={`w-3 h-3 rounded-full mx-auto mb-2 border transition-all duration-300 ${
-                  i === activeStep
-                    ? "bg-white border-white"
-                    : i < activeStep
-                    ? "bg-white border-white/50"
-                    : "bg-white/10 border-white/[0.1]"
-                } ${i === activeStep + 1 ? "animate-next-step-pulse" : ""}`}
-                style={i === activeStep ? { boxShadow: "0 0 12px rgba(255, 255, 255, 0.2)" } : undefined}
-              />
-              <span className={`text-[10px] md:text-sm tracking-wide transition-colors duration-200 ${i === activeStep ? "text-white font-semibold" : "text-[#888]"}`}>
-                {step.title}
-              </span>
-              {i === activeStep && (
-                <motion.div layoutId="activeStep" className="absolute bottom-0 left-0 right-0 h-[2px] bg-white" transition={{ type: "spring", stiffness: 400, damping: 30 }} />
-              )}
+              {/* Progress bar segment */}
+              <div className="h-1 rounded-full mx-1 mb-4 overflow-hidden bg-white/[0.06]">
+                <motion.div
+                  className="h-full rounded-full"
+                  initial={false}
+                  animate={{
+                    width: i < activeStep ? "100%" : i === activeStep ? "100%" : "0%",
+                    background: i <= activeStep ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.06)",
+                  }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+              </div>
+              <div className="text-center px-1">
+                <span className={`text-[10px] md:text-xs font-mono block mb-1 transition-all duration-300 ${i === activeStep ? "text-white" : "text-white/20"}`}>
+                  {step.num}
+                </span>
+                <span className={`text-[11px] md:text-sm font-medium block transition-all duration-300 ${i === activeStep ? "text-white" : "text-white/30 group-hover:text-white/50"}`}>
+                  {step.title}
+                </span>
+              </div>
             </button>
           ))}
         </div>
-        <p className="text-xs text-[#888] text-center mt-2">Click any step to explore</p>
       </div>
-      <div className="p-5 md:p-14 min-h-[240px] md:min-h-[320px]">
-        <motion.div key={activeStep} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease: "easeOut" }}>
-          <div className="flex items-center gap-3 mb-3 md:mb-5">
-            <span className="text-[10px] md:text-xs font-semibold tracking-widest text-[#888]">{steps[activeStep].num}</span>
-            <span className="text-[10px] text-[#555]">/</span>
-            <span className="text-[10px] text-[#555]">05</span>
-          </div>
-          <h3 className="text-xl md:text-3xl font-bold tracking-tight mb-3 md:mb-5">{steps[activeStep].title}</h3>
-          <p className="text-xs md:text-base text-[#999] leading-relaxed max-w-2xl mb-5 md:mb-10">{steps[activeStep].desc}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4">
-            {steps[activeStep].details.map((detail, i) => (
-              <motion.div key={detail} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.08, duration: 0.3 }} className="flex items-center gap-2 md:gap-3 px-3 md:px-5 py-2.5 md:py-4 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-                <div className="w-1.5 h-1.5 rounded-full bg-white/40 shrink-0" />
-                <span className="text-xs md:text-sm text-[#999]">{detail}</span>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+
+      <div className="h-px bg-white/[0.06]" />
+
+      {/* Content */}
+      <div className="p-6 md:p-14 min-h-[280px] md:min-h-[380px]">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeStep}
+            initial={{ opacity: 0, y: 20, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            exit={{ opacity: 0, y: -10, filter: "blur(4px)" }}
+            transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+          >
+            <div className="flex items-center gap-4 mb-6">
+              <span className="text-3xl md:text-5xl font-bold text-white/10 font-mono">{steps[activeStep].num}</span>
+              <div className="h-px flex-1 bg-white/[0.06]" />
+            </div>
+            <h3 className="text-2xl md:text-4xl font-bold tracking-tight mb-4 md:mb-6">{steps[activeStep].title}</h3>
+            <p className="text-sm md:text-lg text-[#999] leading-relaxed max-w-2xl mb-8 md:mb-12">{steps[activeStep].desc}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+              {steps[activeStep].details.map((detail, i) => (
+                <motion.div
+                  key={detail}
+                  initial={{ opacity: 0, x: -15 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.15 + i * 0.08, duration: 0.4, ease: "easeOut" }}
+                  className="flex items-center gap-3 px-4 md:px-6 py-3.5 md:py-5 rounded-xl"
+                  style={{ background: "#111", border: "1px solid rgba(255,255,255,0.06)" }}
+                >
+                  <div className="w-2 h-2 rounded-full bg-white/30 shrink-0" />
+                  <span className="text-xs md:text-sm text-white/70">{detail}</span>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </div>
     </motion.div>
   );
@@ -719,7 +713,6 @@ export default function Home() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   const [splashDone, setSplashDone] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (sessionStorage.getItem('strvx-splash-seen')) {
@@ -737,72 +730,29 @@ export default function Home() {
       <AnimatePresence>
         {!splashDone && <SplashScreen key="splash" onDone={handleSplashDone} />}
       </AnimatePresence>
-    <main className="relative overflow-x-hidden">
+    <main className="relative overflow-x-hidden usa-grid-bg">
       {/* Subtle radial glow behind hero */}
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse,rgba(255,255,255,0.04)_0%,transparent_65%)]" />
 
-      {/* NAV */}
-      <motion.nav
-        initial={m ? false : { y: -20, opacity: 0 }}
-        animate={m ? undefined : { y: 0, opacity: 1 }}
-        transition={m ? undefined : { duration: 0.5, delay: 0.1 }}
-        className="fixed top-0 left-0 right-0 z-50 px-6 md:px-12 py-4 border-b border-white/[0.06] bg-[#050505]/80 backdrop-blur-xl"
-      >
-        <div className="max-w-7xl mx-auto flex items-center justify-between md:justify-center gap-10">
-          <span className="text-sm font-bold tracking-[0.12em] uppercase md:mr-4">
-            strvx
-          </span>
-          <ul className="hidden md:flex items-center gap-8 list-none">
-            {[
-              ["Services", "/services"],
-              ["Process", "/process"],
-            ].map(([label, href]) => (
-              <li key={href}>
-                <Link
-                  href={href}
-                  className="text-sm text-[#aaa] tracking-wide hover:text-[#0a0a0a] hover:bg-white px-3 py-1.5 rounded-full transition-all duration-200"
-                >
-                  {label}
-                </Link>
-              </li>
-            ))}
-            <li>
-              <Link
-                href="/book"
-                className="text-xs tracking-[0.06em] uppercase px-5 py-2.5 rounded-lg bg-white text-[#0a0a0a] font-semibold hover:bg-white/90 transition-colors duration-200"
-              >
-                Book a call
-              </Link>
-            </li>
-          </ul>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white" aria-label="Toggle menu">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d={mobileMenuOpen ? "M5 5l10 10M15 5L5 15" : "M3 6h14M3 10h14M3 14h14"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          </button>
-        </div>
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="md:hidden overflow-hidden">
-              <div className="flex flex-col gap-4 pt-4 pb-2">
-                {[["Services", "/services"], ["Process", "/process"]].map(([label, href]) => (
-                  <Link key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="text-sm text-[#888] hover:text-white transition-colors">{label}</Link>
-                ))}
-                <Link href="/book" onClick={() => setMobileMenuOpen(false)} className="text-xs tracking-[0.06em] uppercase px-5 py-2.5 rounded-lg bg-white text-[#0a0a0a] font-semibold text-center">Book a call</Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.nav>
-
       {/* HERO */}
-      <motion.section ref={heroRef} style={{ y: heroY, opacity: heroOpacity, background: "radial-gradient(ellipse at center 40%, rgba(255, 255, 255, 0.03) 0%, transparent 60%)" }} className="relative max-w-7xl mx-auto px-6 md:px-12 min-h-0 md:min-h-screen flex flex-col justify-center pt-24 md:pt-16">
-        <div className="text-center mb-8 md:mb-12">
+      <motion.section ref={heroRef} style={{ y: heroY, opacity: heroOpacity }} className="relative min-h-0 md:min-h-screen flex flex-col justify-center pt-24 md:pt-16 overflow-hidden">
+        {/* Hero background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&q=85&auto=format')" }}
+        />
+        <div className="absolute inset-0 bg-[#050505]/70" />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, transparent 30%, rgba(5,5,5,0.85) 100%)" }} />
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#050505] to-transparent" />
+
+        <div className="relative z-10 text-center mb-8 md:mb-12 px-6 md:px-12 max-w-7xl mx-auto">
           <motion.div
             initial={m ? false : { opacity: 0, scale: 0.9 }}
             animate={m ? undefined : { opacity: 1, scale: 1 }}
             transition={m ? undefined : { duration: 0.5, delay: 0.2 }}
-            className="inline-flex items-center border border-white/[0.08] rounded-full px-4 py-1.5 mb-5 md:mb-8"
+            className="inline-flex items-center border border-white/[0.15] rounded-full px-4 py-1.5 mb-5 md:mb-8 bg-black/30 backdrop-blur-sm"
           >
-            <span className="text-[11px] text-[#888] tracking-[0.08em]">
+            <span className="text-[11px] text-white/70 tracking-[0.08em]">
               AI Consulting, San Diego
             </span>
           </motion.div>
@@ -819,7 +769,7 @@ export default function Home() {
             initial={m ? false : { opacity: 0, y: 20 }}
             animate={m ? undefined : { opacity: 1, y: 0 }}
             transition={m ? undefined : { duration: 0.6, delay: 0.45 }}
-            className="text-base md:text-xl text-[#aaa] max-w-xl mx-auto leading-relaxed mb-8 md:mb-12"
+            className="text-base md:text-xl text-white/70 max-w-xl mx-auto leading-relaxed mb-8 md:mb-12"
           >
             For businesses with real technical problems and no time to solve them manually.
           </motion.p>
@@ -886,30 +836,22 @@ export default function Home() {
             <motion.div
               key={item.title}
               variants={m ? mobileFade : staggerScaleItem}
-              whileHover={m ? {} : {
-                y: -6,
-                scale: 1.02,
-                borderColor: "rgba(255, 255, 255, 0.15)",
-                boxShadow: "0 8px 32px rgba(255, 255, 255, 0.06)",
-              }}
-              transition={{ duration: 0.25 }}
-              className="rounded-xl border p-5 md:p-10"
-              style={{
-                background: "linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02))",
-                borderColor: "rgba(255, 255, 255, 0.08)",
-              }}
             >
-              <div
-                className="mb-3 md:mb-5"
-                style={{
-                  height: "2px",
-                  width: "48px",
-                  background: "linear-gradient(90deg, rgba(255, 255, 255, 0.25), transparent)",
-                  borderRadius: "1px",
-                }}
-              />
-              <h3 className="text-sm md:text-lg font-semibold mb-1 md:mb-3">{item.title}</h3>
-              <p className="text-xs md:text-base text-[#aaa] leading-relaxed">{item.desc}</p>
+              <GlowCard glowColor="white" customSize className="w-full h-full">
+                <div className="p-5 md:p-10">
+                  <div
+                    className="mb-3 md:mb-5"
+                    style={{
+                      height: "2px",
+                      width: "48px",
+                      background: "linear-gradient(90deg, rgba(255, 255, 255, 0.25), transparent)",
+                      borderRadius: "1px",
+                    }}
+                  />
+                  <h3 className="text-sm md:text-lg font-semibold mb-1 md:mb-3">{item.title}</h3>
+                  <p className="text-xs md:text-base text-[#aaa] leading-relaxed">{item.desc}</p>
+                </div>
+              </GlowCard>
             </motion.div>
           ))}
         </motion.div>
@@ -985,14 +927,22 @@ export default function Home() {
             <motion.div
               key={item.title}
               variants={m ? mobileFade : staggerScaleItem}
-              className="rounded-xl border p-5 md:p-10"
-              style={{
-                background: "linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02))",
-                borderColor: "rgba(255, 255, 255, 0.08)",
-              }}
             >
-              <h3 className="text-sm md:text-lg font-semibold mb-2 md:mb-4">{item.title}</h3>
-              <p className="text-xs md:text-base text-[#aaa] leading-relaxed">{item.desc}</p>
+              <GlowCard glowColor="white" customSize className="w-full h-full">
+                <div className="p-5 md:p-10">
+                  <div
+                    className="mb-3 md:mb-5"
+                    style={{
+                      height: "2px",
+                      width: "48px",
+                      background: "linear-gradient(90deg, rgba(255, 255, 255, 0.25), transparent)",
+                      borderRadius: "1px",
+                    }}
+                  />
+                  <h3 className="text-sm md:text-lg font-semibold mb-2 md:mb-4">{item.title}</h3>
+                  <p className="text-xs md:text-base text-[#aaa] leading-relaxed">{item.desc}</p>
+                </div>
+              </GlowCard>
             </motion.div>
           ))}
         </motion.div>
@@ -1106,7 +1056,7 @@ export default function Home() {
               transition={{ duration: 0.25 }}
               className="rounded-xl border p-5 md:p-10 text-center flex flex-col"
               style={{
-                background: "linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02))",
+                background: "#0e0e0e",
                 borderColor: "rgba(255, 255, 255, 0.08)",
               }}
             >
@@ -1156,7 +1106,7 @@ export default function Home() {
       <Section id="contact" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <div
           className="rounded-xl p-px"
-          style={{ background: "linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))" }}
+          style={{ background: "#0e0e0e" }}
         >
         <div className="rounded-xl bg-[#fafafa] text-[#0a0a0a] p-8 md:p-16 text-center">
           <motion.p initial={m ? false : { opacity: 0 }} whileInView={m ? undefined : { opacity: 1 }} viewport={{ once: true }} transition={m ? undefined : { duration: 0.5 }} className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-[#555] mb-3 md:mb-6">

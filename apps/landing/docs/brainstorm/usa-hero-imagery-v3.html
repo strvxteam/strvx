@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>USA Hero — v3 (Glass Architecture + Aerial Cities)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Inter', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; }
+
+  .header {
+    text-align: center;
+    padding: 60px 24px 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .header h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .header p { color: #666; font-size: 13px; max-width: 550px; margin: 0 auto; line-height: 1.6; }
+  .header .saved { color: #4ade80; font-size: 11px; margin-top: 12px; letter-spacing: 0.05em; }
+
+  .option {
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .option .bg {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+  }
+  .option .overlay { position: absolute; inset: 0; }
+  .option .vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(5,5,5,0.85) 100%);
+  }
+  .option .bottom-fade {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 200px;
+    background: linear-gradient(to top, #050505, transparent);
+  }
+
+  .option .label {
+    position: absolute; top: 24px; left: 24px; z-index: 20;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .option .label .num {
+    width: 32px; height: 32px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+  }
+  .option .label .num.saved {
+    border-color: #4ade80; color: #4ade80;
+  }
+  .option .label .name {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+    padding: 7px 14px; border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .option .label .name.saved {
+    border-color: rgba(74,222,128,0.3); color: #4ade80;
+  }
+
+  .option .content {
+    position: relative; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; text-align: center; padding: 0 32px;
+  }
+  .option .tag {
+    font-size: 11px; letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 100px; padding: 6px 16px; margin-bottom: 28px;
+  }
+  .option h2 {
+    font-size: clamp(36px, 6vw, 86px);
+    font-weight: 500; letter-spacing: -0.04em;
+    line-height: 1.0; color: #fff; max-width: 900px;
+  }
+  .option h2 .underline {
+    text-decoration: underline;
+    text-decoration-color: rgba(255,255,255,0.2);
+    text-underline-offset: 6px;
+  }
+  .option .sub {
+    font-size: 16px; color: rgba(255,255,255,0.5);
+    max-width: 500px; line-height: 1.7; margin-top: 24px;
+  }
+  .option .cta {
+    margin-top: 36px; font-size: 12px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 14px 32px; background: #fff; color: #0a0a0a;
+    border: none; border-radius: 8px; cursor: pointer;
+    text-decoration: none; display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>USA Hero — v3</h1>
+  <p>Focused on two directions: dark glass architecture (looking up) and aerial city grids at night. Inspired by Starshield / Palantir heroes.</p>
+  <div class="saved">SAVED: #1 (Dark Glass Skyscraper from v2) &bull; #2 (Aerial City Grid from v2)</div>
+</div>
+
+<!-- SAVED: Option 1 — Dark Glass Skyscraper (v2 #4) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&q=85&auto=format'); background-position: center 30%;"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.6);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num saved">&#10003;</div><div class="name saved">Saved — Dark Glass Skyscraper</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- SAVED: Option 2 — Aerial City Grid Night (v2 #8) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.55);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num saved">&#10003;</div><div class="name saved">Saved — Aerial City Grid Night</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- NEW 3: Glass Tower Reflections (looking up, geometric) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1545893835-abaa50cbe628?w=1920&q=85&auto=format'); background-position: center;"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.55);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">3</div><div class="name">Glass Reflections / Looking Up</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- NEW 4: Dark Blue Glass Facade -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1487958449943-2429e8be8625?w=1920&q=85&auto=format'); background-position: center;"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.6);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">4</div><div class="name">Dark Blue Glass Facade</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- NEW 5: Aerial Downtown Night (dense grid, warm lights) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">5</div><div class="name">Aerial Downtown Dense Grid</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- NEW 6: Skyscraper Converging Lines (dramatic perspective) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1462899006636-339e08d1844e?w=1920&q=85&auto=format'); background-position: center;"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.55);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">6</div><div class="name">Skyscrapers Converging</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- NEW 7: City Lights From Above (bird's eye, abstract) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1444723121867-7a241cacace9?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">7</div><div class="name">City Lights Bird's Eye</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- NEW 8: Minimal Dark Tower (single building, monolithic) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1512756290469-ec264b7fbf87?w=1920&q=85&auto=format'); background-position: center 20%;"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.6);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">8</div><div class="name">Dark Monolith Tower</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- NEW 9: Highway Long Exposure + Skyline -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">9</div><div class="name">Highway + Skyline Night</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+<!-- NEW 10: Abstract Steel & Glass Pattern -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1478860409698-8707f313ee8b?w=1920&q=85&auto=format'); background-position: center;"></div>
+  <div class="overlay" style="background: rgba(5,5,5,0.55);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">10</div><div class="name">Steel & Glass Pattern</div></div>
+  <div class="content">
+    <div class="tag">AI Consulting, San Diego</div>
+    <h2>We build internal AI tools that <span class="underline">work.</span></h2>
+    <div class="sub">For businesses with real technical problems and no time to solve them manually.</div>
+    <a class="cta" href="#">Book a free call</a>
+  </div>
+</div>
+
+</body>
+</html>

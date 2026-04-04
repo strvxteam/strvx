@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Southeast Asia Hero — Image Options v2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', 'Inter', system-ui, sans-serif; background: #0a0a0a; color: #fafafa; }
+
+  .header {
+    text-align: center;
+    padding: 60px 24px 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .header h1 { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .header p { color: #666; font-size: 13px; max-width: 550px; margin: 0 auto; }
+
+  .option {
+    position: relative;
+    height: 100vh;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .option .bg {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+  }
+  .option .overlay {
+    position: absolute; inset: 0;
+  }
+  .option .vignette {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(5, 5, 5, 0.8) 100%);
+  }
+  .option .bottom-fade {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 200px;
+    background: linear-gradient(to top, #050505, transparent);
+  }
+
+  .option .label {
+    position: absolute; top: 24px; left: 24px; z-index: 20;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .option .label .num {
+    width: 32px; height: 32px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+  }
+  .option .label .name {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
+    padding: 7px 14px; border-radius: 5px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .option .nav-mock {
+    position: absolute; top: 24px; left: 0; right: 0; z-index: 15;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 32px;
+  }
+  .option .nav-mock .logo {
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: rgba(255,255,255,0.9);
+  }
+
+  .option .content {
+    position: relative; z-index: 10;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; text-align: center; padding: 0 32px;
+  }
+  .option h2 {
+    font-size: clamp(36px, 6vw, 80px);
+    font-weight: 700; letter-spacing: -0.03em;
+    line-height: 1.05; color: #fff; max-width: 800px;
+  }
+  .option .subtitle {
+    font-size: 15px; letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-top: 28px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Southeast Asia Hero — Focused on Singapore</h1>
+  <p>Mapletree Business City / Singapore business district vibes. All Singapore-focused imagery. Scroll to compare.</p>
+</div>
+
+<!-- Option 1: Singapore CBD Skyline Dusk (Marina Bay area) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1496939376851-89342e90adcd?w=1920&q=85&auto=format'); background-position: center 60%;"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.45);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">1</div><div class="name">Singapore CBD / Marina Bay Dusk</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 2: Singapore Financial District Night (glass towers) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1565967511849-76a60a516170?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">2</div><div class="name">Singapore Financial District</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 3: Singapore Marina Bay Evening (kcHkbytoiSQ) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1497568959540-kcHkbytoiSQ?w=1920&q=85&auto=format'); background-position: center;"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">3</div><div class="name">SG Marina Bay Evening</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 4: Singapore City Night (GlvGtKMXqUk) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1565538810643-b5bdb714032a?w=1920&q=85&auto=format'); background-position: center;"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.45);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">4</div><div class="name">SG City Night Wide</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 5: Singapore Business Park / Mapletree style (modern low-rise campus) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1525625293386-3f8f99389edd?w=1920&q=85&auto=format');"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.45);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">5</div><div class="name">Marina Bay Sands Night</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+<!-- Option 6: Singapore Harbour / Pasir Panjang (near Mapletree) -->
+<div class="option">
+  <div class="bg" style="background-image: url('https://images.unsplash.com/photo-1541690090176-17a95f0a5a3c?w=1920&q=85&auto=format'); background-position: center 40%;"></div>
+  <div class="overlay" style="background: rgba(5, 5, 5, 0.5);"></div>
+  <div class="vignette"></div>
+  <div class="bottom-fade"></div>
+  <div class="label"><div class="num">6</div><div class="name">Singapore Skyline Wide</div></div>
+  <div class="nav-mock"><div class="logo">strvx</div></div>
+  <div class="content">
+    <h2>AI Powered Workflow Automation</h2>
+    <div class="subtitle">Powering Southeast Asian Enterprise</div>
+  </div>
+</div>
+
+</body>
+</html>
