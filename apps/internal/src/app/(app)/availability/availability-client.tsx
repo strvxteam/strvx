@@ -389,23 +389,38 @@ export function AvailabilityClient() {
             </div>
             {days.map((day, i) => {
               const key = day.toLocaleDateString("en-CA");
-              const events = allDayByDay.get(key) ?? [];
+              const dayEvents = allDayByDay.get(key) ?? [];
+              const memberCount = Math.max(members.length, 1);
               return (
-                <div key={i} className="flex-1 border-l border-[#e0e0e0] min-h-[24px] py-0.5 px-0.5">
-                  {events.map(({ event, member }) => (
-                    <div
-                      key={event.id}
-                      className="rounded px-1 py-0 text-[10px] font-medium truncate mb-0.5"
-                      style={{
-                        backgroundColor: member.color + "22",
-                        color: member.color,
-                        borderLeft: `2px solid ${member.color}`,
-                      }}
-                      title={event.title}
-                    >
-                      {event.title}
-                    </div>
-                  ))}
+                <div key={i} className="flex-1 border-l border-[#e0e0e0] flex min-h-[24px]">
+                  {members.map((member, mi) => {
+                    const memberEvents = dayEvents.filter((e) => e.member.email === member.email);
+                    return (
+                      <div
+                        key={member.email}
+                        className="relative py-0.5 px-0.5"
+                        style={{ width: `${100 / memberCount}%` }}
+                      >
+                        {mi > 0 && (
+                          <div className="absolute left-0 top-0 bottom-0 border-l border-dashed border-[#f0f0f0]" />
+                        )}
+                        {memberEvents.map(({ event }) => (
+                          <div
+                            key={event.id}
+                            className="rounded px-1 py-0 text-[10px] font-medium truncate mb-0.5"
+                            style={{
+                              backgroundColor: member.color + "22",
+                              color: member.color,
+                              borderLeft: `2px solid ${member.color}`,
+                            }}
+                            title={event.title}
+                          >
+                            {event.title}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })}
