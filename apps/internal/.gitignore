@@ -43,3 +43,4 @@ next-env.d.ts
 .gstack/
 qa-screenshots
 qa-screenshots/
+.env*.local
