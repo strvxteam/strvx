@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import { getAuthedClient } from "./google-calendar";
+import { getAuthedDriveClient, isDriveConnected } from "./google-calendar";
 
 // Full Drive scope — allows read, write, create, and move for all files
 export const DRIVE_SCOPES = [
@@ -62,10 +62,10 @@ export async function listDriveFiles(
   folderId?: string,
   pageToken?: string,
 ): Promise<{ files: DriveFile[]; nextPageToken: string | null }> {
-  const authed = await getAuthedClient(userId);
-  if (!authed) return { files: [], nextPageToken: null };
+  const oauth2Client = await getAuthedDriveClient(userId);
+  if (!oauth2Client) return { files: [], nextPageToken: null };
 
-  const drive = google.drive({ version: "v3", auth: authed.oauth2Client });
+  const drive = google.drive({ version: "v3", auth: oauth2Client });
 
   const query = folderId
     ? `'${folderId}' in parents and trashed = false`
@@ -100,10 +100,10 @@ export async function listDriveFiles(
 }
 
 export async function getDriveFolderTree(userId: string): Promise<DriveFolder[]> {
-  const authed = await getAuthedClient(userId);
-  if (!authed) return [];
+  const oauth2Client = await getAuthedDriveClient(userId);
+  if (!oauth2Client) return [];
 
-  const drive = google.drive({ version: "v3", auth: authed.oauth2Client });
+  const drive = google.drive({ version: "v3", auth: oauth2Client });
 
   // Fetch all folders
   const folders: Array<{ id: string; name: string; parents: string[] }> = [];
@@ -161,10 +161,10 @@ export async function createDriveFolder(
   name: string,
   parentId?: string,
 ): Promise<{ id: string; name: string } | null> {
-  const authed = await getAuthedClient(userId);
-  if (!authed) return null;
+  const oauth2Client = await getAuthedDriveClient(userId);
+  if (!oauth2Client) return null;
 
-  const drive = google.drive({ version: "v3", auth: authed.oauth2Client });
+  const drive = google.drive({ version: "v3", auth: oauth2Client });
 
   const response = await drive.files.create({
     requestBody: {
@@ -186,10 +186,10 @@ export async function uploadDriveFile(
   file: { name: string; mimeType: string; body: Buffer },
   parentId?: string,
 ): Promise<DriveFile | null> {
-  const authed = await getAuthedClient(userId);
-  if (!authed) return null;
+  const oauth2Client = await getAuthedDriveClient(userId);
+  if (!oauth2Client) return null;
 
-  const drive = google.drive({ version: "v3", auth: authed.oauth2Client });
+  const drive = google.drive({ version: "v3", auth: oauth2Client });
 
   const { Readable } = await import("stream");
 
@@ -226,10 +226,10 @@ export async function moveDriveFile(
   fileId: string,
   newParentId: string,
 ): Promise<boolean> {
-  const authed = await getAuthedClient(userId);
-  if (!authed) return false;
+  const oauth2Client = await getAuthedDriveClient(userId);
+  if (!oauth2Client) return false;
 
-  const drive = google.drive({ version: "v3", auth: authed.oauth2Client });
+  const drive = google.drive({ version: "v3", auth: oauth2Client });
 
   // Get current parents so we can remove them
   const file = await drive.files.get({ fileId, fields: "parents" });
@@ -246,15 +246,5 @@ export async function moveDriveFile(
 }
 
 export async function isGoogleDriveConnected(userId: string): Promise<boolean> {
-  const authed = await getAuthedClient(userId);
-  if (!authed) return false;
-
-  // Verify the token actually has Drive scope by making a minimal API call
-  try {
-    const drive = google.drive({ version: "v3", auth: authed.oauth2Client });
-    await drive.about.get({ fields: "user" });
-    return true;
-  } catch {
-    return false;
-  }
+  return isDriveConnected(userId);
 }

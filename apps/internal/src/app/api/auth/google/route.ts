@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUrl } from "@/lib/google-calendar";
+import { getAuthUrl, getDriveAuthUrl } from "@/lib/google-calendar";
 import { DRIVE_SCOPES } from "@/lib/google-drive";
 import { createClient } from "@/lib/supabase/server";
 import { getUserByEmail } from "@/lib/queries";
@@ -22,30 +22,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Check if this is a Drive connection request (include Drive scopes)
   const returnTo = request.nextUrl.searchParams.get("returnTo") || "/calendar";
-  const extraScopes = returnTo === "/assets" ? DRIVE_SCOPES : [];
+  const isDrive = returnTo === "/assets";
 
-  const googleAuthUrl = getAuthUrl(extraScopes);
+  // Drive connections use a separate auth URL that forces account selection,
+  // so the user can pick a different Google account than the one used for Calendar.
+  const googleAuthUrl = isDrive ? getDriveAuthUrl(DRIVE_SCOPES) : getAuthUrl();
   const response = NextResponse.redirect(googleAuthUrl);
 
   const isSecure = process.env.NODE_ENV === "production";
+  const cookieOpts = { httpOnly: true, secure: isSecure, sameSite: "lax" as const, maxAge: 600, path: "/" };
 
-  response.cookies.set("google_auth_user_id", dbUser.id, {
-    httpOnly: true,
-    secure: isSecure,
-    sameSite: "lax",
-    maxAge: 600,
-    path: "/",
-  });
-
-  response.cookies.set("google_auth_return_to", returnTo, {
-    httpOnly: true,
-    secure: isSecure,
-    sameSite: "lax",
-    maxAge: 600,
-    path: "/",
-  });
+  response.cookies.set("google_auth_user_id", dbUser.id, cookieOpts);
+  response.cookies.set("google_auth_return_to", returnTo, cookieOpts);
+  response.cookies.set("google_auth_type", isDrive ? "drive" : "calendar", cookieOpts);
 
   return response;
 }
