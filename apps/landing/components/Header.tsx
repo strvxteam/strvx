@@ -30,6 +30,7 @@ export default function Header() {
   const borderRadius = useTransform(smoothProgress, [0, 1], [20, 50]);
   const paddingX = useTransform(smoothProgress, [0, 1], [28, 16]);
   const paddingY = useTransform(smoothProgress, [0, 1], [14, 8]);
+  const width = useTransform(smoothProgress, [0, 1], ["min(92vw, 1100px)", "min(88vw, 780px)"]);
   const top = useTransform(smoothProgress, [0, 1], [16, 12]);
 
   useEffect(() => {
@@ -81,7 +82,7 @@ export default function Header() {
   return (
     <motion.header
       className="fixed left-1/2 z-[60]"
-      style={{ top, width: "min(92vw, 1100px)", x: "-50%" }}
+      style={{ top, width, x: "-50%" }}
     >
       <motion.div
         className="relative flex items-center justify-between gap-3 md:gap-5 overflow-hidden"
