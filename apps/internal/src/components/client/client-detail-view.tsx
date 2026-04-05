@@ -555,7 +555,7 @@ export function ClientDetailView({
   return (
     <div className="pb-24">
       {/* Header */}
-      <div className="relative z-50 mb-6 flex items-center justify-between">
+      <div className="relative z-50 mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold">{engagement.companyName}</h1>
           <div className="mt-1 text-[12px] text-muted-foreground">
@@ -602,8 +602,8 @@ export function ClientDetailView({
       </div>
 
       {/* Section headers row */}
-      <div className="mb-3 grid grid-cols-3 gap-5">
-        <div className="col-span-2 flex items-center justify-between">
+      <div className="mb-3 grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <div className="flex items-center justify-between lg:col-span-2">
           <h2 className="text-sm font-semibold">Timeline</h2>
           <button
             onClick={() => setShowAddTimeline(!showAddTimeline)}
@@ -613,15 +613,15 @@ export function ClientDetailView({
             Add Entry
           </button>
         </div>
-        <div>
+        <div className="hidden lg:block">
           <h2 className="text-sm font-semibold">Details</h2>
         </div>
       </div>
 
       {/* Add timeline form (above grid) */}
       {showAddTimeline && (
-        <div className="mb-3 grid grid-cols-3 gap-5">
-          <div className="col-span-2">
+        <div className="mb-3 grid grid-cols-1 gap-5 lg:grid-cols-3">
+          <div className="lg:col-span-2">
             <AddTimelineForm
               onAdd={addTimelineEntry}
               onCancel={() => setShowAddTimeline(false)}
@@ -632,10 +632,10 @@ export function ClientDetailView({
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-5">
-        {/* Timeline (2/3) — fixed height, scrollable */}
-        <div className="col-span-2">
-          <div className="h-[calc(100vh-220px)] overflow-y-auto rounded-lg border border-border bg-white">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+        {/* Timeline — full width on mobile, 2/3 on desktop */}
+        <div className="lg:col-span-2">
+          <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-border bg-white lg:h-[calc(100vh-220px)] lg:max-h-none">
             {timeline.length === 0 ? (
               <div className="py-12 text-center text-sm text-muted-foreground">
                 No interactions yet.
@@ -694,8 +694,8 @@ export function ClientDetailView({
           </div>
         </div>
 
-        {/* Right column (1/3) — stretch to match timeline height */}
-        <div className="flex h-[calc(100vh-220px)] flex-col gap-4 overflow-y-auto">
+        {/* Right column — stacks below timeline on mobile */}
+        <div className="flex flex-col gap-4 lg:h-[calc(100vh-220px)] lg:overflow-y-auto">
           {/* Details — editable */}
           <div className="rounded-lg border border-border bg-white p-4">
             <div className="space-y-0.5 text-[13px]">

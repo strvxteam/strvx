@@ -32,7 +32,7 @@ export function TeamStatus({
   }
 
   return (
-    <div className="mt-6 grid grid-cols-3 gap-4">
+    <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-4">
       {members.map((m) => {
         const isAvailable = m.status === "available";
         const isMe = m.id === currentUserId;
@@ -43,7 +43,7 @@ export function TeamStatus({
             key={m.id}
             onClick={() => handleToggle(m.id)}
             disabled={!isMe || isPending}
-            className={`flex flex-col items-center gap-2 rounded-xl border border-[#e0e0e0] bg-white px-4 py-4 transition-all ${
+            className={`flex flex-col items-center gap-2 rounded-xl border border-[#e0e0e0] bg-white px-2 py-3 sm:px-4 sm:py-4 transition-all ${
               isMe
                 ? "cursor-pointer hover:border-[#ccc] hover:shadow-sm"
                 : "cursor-default"

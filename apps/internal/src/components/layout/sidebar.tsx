@@ -201,7 +201,7 @@ export function Sidebar() {
             aria-hidden="true"
           />
           {/* Slide-in sidebar */}
-          <aside className="absolute inset-y-0 left-0 flex w-[260px] flex-col overflow-y-auto bg-white px-3 py-4 shadow-xl animate-in slide-in-from-left duration-200">
+          <aside className="absolute inset-y-0 left-0 flex w-[min(260px,85vw)] flex-col overflow-y-auto bg-white px-3 py-4 shadow-xl animate-in slide-in-from-left duration-200">
             {sidebarContent}
           </aside>
         </div>

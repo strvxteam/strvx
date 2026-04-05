@@ -45,7 +45,8 @@ export function WeekView({
   const nowTimeStr = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true }).toLowerCase();
 
   return (
-    <div className="rounded-lg border border-[#e0e0e0] bg-white">
+    <div className="overflow-x-auto rounded-lg border border-[#e0e0e0] bg-white">
+      <div className="min-w-[560px]">
       {/* Day headers */}
       <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-[#e0e0e0]">
         <div />
@@ -143,6 +144,7 @@ export function WeekView({
           })}
         </div>
       ))}
+      </div>
     </div>
   );
 }

@@ -310,9 +310,9 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
   return (
     <div>
       {/* Header */}
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Tasks</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <TaskFilters
             assigneeFilter={assigneeFilter}
             onAssigneeChange={setAssigneeFilter}
@@ -339,7 +339,8 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-4 gap-5">
+        <div className="overflow-x-auto pb-2">
+        <div className="grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4">
           {TASK_STATUS_COLUMNS.map((status) => (
             <KanbanColumn
               key={status}
@@ -359,6 +360,7 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
             </div>
           ) : null}
         </DragOverlay>
+        </div>
       </DndContext>
 
       {/* Add Task Modal */}
