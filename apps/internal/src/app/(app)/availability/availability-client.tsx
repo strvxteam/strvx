@@ -293,6 +293,35 @@ export function AvailabilityClient() {
         </div>
       )}
 
+      {/* ── Connect prompts for disconnected members ── */}
+      {members.some((m) => !m.connected) && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {members
+            .filter((m) => !m.connected)
+            .map((m) => (
+              <div
+                key={m.email}
+                className="flex items-center gap-2 rounded-lg border border-[#e0e0e0] bg-[#fafafa] px-3 py-2 text-[12px]"
+              >
+                <span
+                  className="h-2 w-2 rounded-full shrink-0"
+                  style={{ backgroundColor: m.color }}
+                />
+                <span className="text-[#555]">
+                  <span className="font-semibold">{m.name}</span> hasn&apos;t connected their calendar
+                </span>
+                <a
+                  href={`/api/auth/google?returnTo=/availability`}
+                  className="ml-1 rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors hover:opacity-80"
+                  style={{ backgroundColor: m.color + "18", color: m.color }}
+                >
+                  Connect →
+                </a>
+              </div>
+            ))}
+        </div>
+      )}
+
       {/* ── Grid ── */}
       <div className="flex-1 overflow-hidden rounded-lg border border-[#e0e0e0] bg-white">
         {/* Day headers (sticky) */}
