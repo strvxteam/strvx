@@ -9,7 +9,6 @@ import {
   useTransform,
   useSpring,
   useMotionValueEvent,
-  AnimatePresence,
 } from "framer-motion";
 import type { MotionValue } from "framer-motion";
 import { useIsMobile } from "../motion-provider";

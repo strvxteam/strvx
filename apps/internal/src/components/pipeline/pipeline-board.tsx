@@ -179,9 +179,9 @@ export function PipelineBoard({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px]">
-          <div className="grid auto-cols-fr grid-flow-col gap-2">
+      <div className="overflow-x-auto pb-2">
+        <div>
+          <div className="grid auto-cols-[minmax(200px,1fr)] grid-flow-col gap-2">
             {KANBAN_STAGES.map((stage) => (
               <PipelineColumn
                 key={stage}

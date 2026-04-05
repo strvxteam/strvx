@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence, LayoutGroup, useMotionValue, useTransform, useSpring } from "framer-motion";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
 
 const regions = [
   { label: "USA", href: "/" },
@@ -17,6 +17,7 @@ const navLinks = [
 ];
 
 const springConfig = { stiffness: 200, damping: 30, mass: 0.8 };
+const pillSpring = { type: "spring" as const, stiffness: 350, damping: 30 };
 
 export default function Header() {
   const pathname = usePathname();
@@ -29,7 +30,6 @@ export default function Header() {
   const borderRadius = useTransform(smoothProgress, [0, 1], [20, 50]);
   const paddingX = useTransform(smoothProgress, [0, 1], [28, 16]);
   const paddingY = useTransform(smoothProgress, [0, 1], [14, 8]);
-  const width = useTransform(smoothProgress, [0, 1], ["min(92vw, 1100px)", "min(88vw, 780px)"]);
   const top = useTransform(smoothProgress, [0, 1], [16, 12]);
 
   useEffect(() => {
@@ -45,10 +45,43 @@ export default function Header() {
     return pathname.startsWith(href);
   }
 
+  // Measured pill position
+  const regionRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pillRect, setPillRect] = useState<{ left: number; width: number } | null>(null);
+  const [hasAnimated, setHasAnimated] = useState(false);
+
+  const measure = useCallback(() => {
+    const activeIdx = regions.findIndex(r => isActiveRegion(r.href));
+    const el = regionRefs.current[activeIdx];
+    const container = containerRef.current;
+    if (el && container) {
+      const elRect = el.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      setPillRect({
+        left: elRect.left - containerRect.left,
+        width: elRect.width,
+      });
+    }
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    measure();
+    // Enable animation after first measurement
+    const t = requestAnimationFrame(() => setHasAnimated(true));
+    return () => cancelAnimationFrame(t);
+  }, [measure]);
+
+  // Re-measure on resize
+  useEffect(() => {
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [measure]);
+
   return (
     <motion.header
       className="fixed left-1/2 z-[60]"
-      style={{ top, width, x: "-50%" }}
+      style={{ top, width: "min(92vw, 1100px)", x: "-50%" }}
     >
       <motion.div
         className="relative flex items-center justify-between gap-3 md:gap-5 overflow-hidden"
@@ -66,11 +99,20 @@ export default function Header() {
         }}
       >
         {/* Left: Region selector with sliding pill */}
-        <LayoutGroup id="region-selector">
-        <div className="hidden md:flex items-center gap-1 relative">
-          {regions.map(({ label, href }) => (
+        <div ref={containerRef} className="hidden md:flex items-center gap-1 relative">
+          {/* Sliding pill background */}
+          {pillRect && (
+            <motion.div
+              className="absolute top-0 bottom-0 rounded-full bg-white/[0.1]"
+              initial={false}
+              animate={{ left: pillRect.left, width: pillRect.width }}
+              transition={hasAnimated ? pillSpring : { duration: 0 }}
+            />
+          )}
+          {regions.map(({ label, href }, i) => (
             <Link
               key={href}
+              ref={(el) => { regionRefs.current[i] = el; }}
               href={href}
               className={`relative z-10 text-sm tracking-wide px-3 py-1 rounded-full transition-colors duration-300 ease-out whitespace-nowrap ${
                 isActiveRegion(href)
@@ -78,18 +120,10 @@ export default function Header() {
                   : "text-[#aaa] hover:text-white"
               }`}
             >
-              {isActiveRegion(href) && (
-                <motion.div
-                  layoutId="region-pill"
-                  className="absolute inset-0 rounded-full bg-white/[0.1]"
-                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{label}</span>
+              {label}
             </Link>
           ))}
         </div>
-        </LayoutGroup>
 
         {/* Center: Logo */}
         <Link
@@ -112,7 +146,7 @@ export default function Header() {
           ))}
           <Link
             href="/book"
-            className="text-[11px] tracking-[0.06em] uppercase px-5 py-2 rounded-full bg-white text-[#0a0a0a] font-semibold hover:bg-white/90 transition-all duration-300 ease-out whitespace-nowrap"
+            className="text-[11px] tracking-[0.06em] uppercase px-4 py-1.5 rounded-full bg-white text-[#0a0a0a] font-semibold hover:bg-white/90 transition-all duration-300 ease-out whitespace-nowrap"
           >
             Book a call
           </Link>

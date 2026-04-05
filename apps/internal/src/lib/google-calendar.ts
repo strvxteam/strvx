@@ -16,6 +16,16 @@ export const googleTokens = pgTable("google_tokens", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const driveTokens = pgTable("drive_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().unique(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token").notNull(),
+  expiryDate: bigint("expiry_date", { mode: "number" }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 function getOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -34,6 +44,16 @@ export function getAuthUrl(extraScopes: string[] = []) {
     access_type: "offline",
     prompt: "consent",
     scope: scopes,
+  });
+}
+
+export function getDriveAuthUrl(driveScopes: string[]) {
+  const oauth2Client = getOAuth2Client();
+  return oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    // Force account chooser so user can sign in with a different Google account
+    prompt: "select_account consent",
+    scope: driveScopes,
   });
 }
 
@@ -228,4 +248,75 @@ export async function saveGoogleTokens(
 
 export async function disconnectGoogleCalendar(userId: string) {
   await db.delete(googleTokens).where(eq(googleTokens.userId, userId));
+}
+
+// ── Drive token helpers ────────────────────────────────────────────────────────
+
+export async function saveDriveTokens(
+  userId: string,
+  tokens: { access_token?: string | null; refresh_token?: string | null; expiry_date?: number | null }
+) {
+  if (!tokens.access_token || !tokens.refresh_token) {
+    throw new Error("Missing access_token or refresh_token");
+  }
+
+  await db
+    .insert(driveTokens)
+    .values({
+      userId,
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiryDate: tokens.expiry_date || 0,
+    })
+    .onConflictDoUpdate({
+      target: driveTokens.userId,
+      set: {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        expiryDate: tokens.expiry_date || 0,
+        updatedAt: new Date(),
+      },
+    });
+}
+
+export async function getAuthedDriveClient(userId: string) {
+  const [token] = await db
+    .select()
+    .from(driveTokens)
+    .where(eq(driveTokens.userId, userId));
+
+  if (!token) return null;
+
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({
+    access_token: token.accessToken,
+    refresh_token: token.refreshToken,
+    expiry_date: token.expiryDate,
+  });
+
+  oauth2Client.on("tokens", async (newTokens) => {
+    await db
+      .update(driveTokens)
+      .set({
+        accessToken: newTokens.access_token || token.accessToken,
+        refreshToken: newTokens.refresh_token || token.refreshToken,
+        expiryDate: newTokens.expiry_date || token.expiryDate,
+        updatedAt: new Date(),
+      })
+      .where(eq(driveTokens.userId, userId));
+  });
+
+  return oauth2Client;
+}
+
+export async function isDriveConnected(userId: string): Promise<boolean> {
+  const [token] = await db
+    .select({ id: driveTokens.id })
+    .from(driveTokens)
+    .where(eq(driveTokens.userId, userId));
+  return !!token;
+}
+
+export async function disconnectDrive(userId: string) {
+  await db.delete(driveTokens).where(eq(driveTokens.userId, userId));
 }

@@ -93,16 +93,10 @@ const GlowCard: React.FC<GlowCardProps> = ({
       backgroundAttachment: 'fixed',
       border: 'var(--border-size) solid var(--backup-border)',
       position: 'relative' as const,
-      touchAction: 'none' as const,
+      touchAction: 'pan-y' as const,
+      ...(width !== undefined && { width: typeof width === 'number' ? `${width}px` : width }),
+      ...(height !== undefined && { height: typeof height === 'number' ? `${height}px` : height }),
     };
-
-    // Add width and height if provided
-    if (width !== undefined) {
-      baseStyles.width = typeof width === 'number' ? `${width}px` : width;
-    }
-    if (height !== undefined) {
-      baseStyles.height = typeof height === 'number' ? `${height}px` : height;
-    }
 
     return baseStyles;
   };

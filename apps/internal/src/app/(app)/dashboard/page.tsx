@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Target,
-} from "lucide-react";
+import { Target } from "lucide-react";
+import { google } from "googleapis";
+import { inArray } from "drizzle-orm";
 import { EVENT_TYPE_COLORS } from "@/lib/mock-calendar";
 import { formatHour } from "@/lib/calendar-utils";
 import {
@@ -13,8 +13,57 @@ import {
   getUsers,
   getCurrentUserForPage,
 } from "@/lib/queries";
+import { db } from "@/lib/db";
+import { googleTokens } from "@/lib/google-calendar";
 import { QuickAddBar } from "@/components/quick-add-bar";
 import { TeamStatus } from "./team-status";
+
+async function getTeamCalendarBusy(userIds: string[]): Promise<Map<string, boolean>> {
+  if (userIds.length === 0) return new Map();
+
+  const tokenRows = await db
+    .select({ userId: googleTokens.userId, refreshToken: googleTokens.refreshToken })
+    .from(googleTokens)
+    .where(inArray(googleTokens.userId, userIds));
+
+  if (tokenRows.length === 0) return new Map();
+
+  const now = new Date();
+  const timeMin = now.toISOString();
+  const timeMax = new Date(now.getTime() + 60_000).toISOString(); // 1-min window
+
+  const busyMap = new Map<string, boolean>();
+
+  await Promise.all(
+    tokenRows.map(async ({ userId, refreshToken }) => {
+      try {
+        const oauth2 = new google.auth.OAuth2(
+          process.env.GOOGLE_CLIENT_ID,
+          process.env.GOOGLE_CLIENT_SECRET,
+          process.env.GOOGLE_REDIRECT_URI,
+        );
+        oauth2.setCredentials({ refresh_token: refreshToken });
+        const cal = google.calendar({ version: "v3", auth: oauth2 });
+        const res = await cal.events.list({
+          calendarId: "primary",
+          timeMin,
+          timeMax,
+          singleEvents: true,
+          maxResults: 5,
+        });
+        // Only count timed events (not all-day) as making someone "busy"
+        const busy = (res.data.items ?? []).some(
+          (e) => e.status !== "cancelled" && !!e.start?.dateTime,
+        );
+        busyMap.set(userId, busy);
+      } catch {
+        // Token unavailable — don't override stored status
+      }
+    }),
+  );
+
+  return busyMap;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -73,6 +122,8 @@ export default async function DashboardPage() {
       getCurrentUserForPage(),
     ]);
 
+  const calendarBusy = await getTeamCalendarBusy(dbUsers.map((u) => u.id));
+
   const recentActivity = recentActivityRaw as ActivityItem[];
 
   const allEngagements = engData.map((e) => ({
@@ -129,7 +180,7 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-[#111]">
-          {greeting}, team
+          {greeting}, {currentUser?.name ?? "team"}
         </h1>
         <span className="text-[13px] text-[#999]">
           {now.toLocaleDateString("en-US", {
@@ -330,7 +381,8 @@ export default async function DashboardPage() {
         members={dbUsers.map((u) => ({
           id: u.id,
           name: u.name,
-          status: u.status,
+          // Calendar presence overrides "available"; manual "busy" is always respected
+          status: calendarBusy.get(u.id) ? "busy" : u.status,
         }))}
         currentUserId={currentUser?.id ?? null}
       />

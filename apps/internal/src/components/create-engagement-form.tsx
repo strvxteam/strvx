@@ -37,8 +37,8 @@ export function CreateEngagementForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
-      <div className="w-full max-w-md rounded-lg border border-[#e0e0e0] bg-white p-6 shadow-lg">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4">
+      <div className="w-full max-w-md rounded-lg border border-[#e0e0e0] bg-white p-5 sm:p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-base font-semibold">New Engagement</h2>
           <button
@@ -86,7 +86,7 @@ export function CreateEngagementForm({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                 Contact Email

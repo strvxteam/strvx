@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { exchangeCodeForTokens, saveGoogleTokens } from "@/lib/google-calendar";
+import { exchangeCodeForTokens, saveGoogleTokens, saveDriveTokens } from "@/lib/google-calendar";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -7,6 +7,7 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get("error");
 
   const returnTo = request.cookies.get("google_auth_return_to")?.value || "/calendar";
+  const authType = request.cookies.get("google_auth_type")?.value || "calendar";
 
   if (error || !code) {
     return NextResponse.redirect(`${origin}${returnTo}?error=google_auth_denied`);
@@ -29,11 +30,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${origin}${returnTo}?error=missing_tokens`);
     }
 
-    await saveGoogleTokens(userId, tokens);
+    // Route tokens to the correct table based on auth type
+    if (authType === "drive") {
+      await saveDriveTokens(userId, tokens);
+    } else {
+      await saveGoogleTokens(userId, tokens);
+    }
 
     const response = NextResponse.redirect(`${origin}${returnTo}?connected=true`);
     response.cookies.delete("google_auth_user_id");
     response.cookies.delete("google_auth_return_to");
+    response.cookies.delete("google_auth_type");
     return response;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
