@@ -11,9 +11,9 @@ import { inArray } from "drizzle-orm";
 // ── Team member config ────────────────────────────────────────────────────────
 
 export const TEAM_MEMBERS = [
-  { email: "alex.battikha@gmail.com", name: "Alex", color: "#1a73e8" },
-  { email: "ndossantos@ucsd.edu", name: "Nick", color: "#0f9d58" },
-  { email: "hariharan7natarajan@gmail.com", name: "Hari", color: "#e91e63" },
+  { email: "alex@strvx.com", name: "Alex", color: "#1a73e8" },
+  { email: "strvxteam@strvx.com", name: "Nick", color: "#0f9d58" },
+  { email: "hari@strvx.com", name: "Hari", color: "#e91e63" },
 ] as const;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
