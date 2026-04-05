@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import {
   LayoutDashboard,
@@ -20,7 +20,9 @@ import {
   FolderOpen,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type NavSection = {
   label: string;
@@ -76,8 +78,15 @@ const navSections: NavSection[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [prevPathname, setPrevPathname] = useState(pathname);
+
+  const handleSignOut = useCallback(async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  }, [router]);
 
   // Close sidebar on route change (mobile)
   if (prevPathname !== pathname) {
@@ -151,6 +160,17 @@ export function Sidebar() {
           </nav>
         </div>
       ))}
+
+      <div className="mt-auto pt-3 border-t border-[#e0e0e0]">
+        <button
+          type="button"
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] text-[#888] transition-colors hover:bg-[#f5f5f5] hover:text-[#555]"
+        >
+          <LogOut size={15} strokeWidth={1.5} />
+          Sign out
+        </button>
+      </div>
     </>
   );
 
