@@ -11,7 +11,7 @@ const VIDEOS = [
 export function HeroVideoCarousel() {
   const [activeIndex, setActiveIndex] = useState(0);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Schedule next clip based on current clip's duration
   useEffect(() => {
