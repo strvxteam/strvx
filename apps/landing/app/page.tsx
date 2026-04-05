@@ -15,6 +15,11 @@ import {
 } from "framer-motion";
 import { useIsMobile } from "./motion-provider";
 import { GlowCard } from "../components/ui/spotlight-card";
+// Hero background options (saved):
+// import { ParticleField } from "../components/ParticleField";
+// import { AuroraWaves } from "../components/AuroraWaves";
+// import { FluidBackground } from "../components/FluidBackground";
+import { HeroVideoCarousel } from "../components/HeroVideoCarousel";
 
 /* ------------------------------------------------------------------ */
 /*  Animation helpers                                                 */
@@ -93,6 +98,69 @@ function Section({ children, className = "", delay = 0, id }: { children: React.
     >
       {children}
     </motion.section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Hero mockup helpers                                               */
+/* ------------------------------------------------------------------ */
+
+function HeroTypingMessage({ text, delay }: { text: string; delay: number }) {
+  const [displayed, setDisplayed] = useState("");
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setStarted(true), delay * 1000);
+    return () => clearTimeout(timeout);
+  }, [delay]);
+
+  useEffect(() => {
+    if (!started) return;
+    let i = 0;
+    const interval = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) clearInterval(interval);
+    }, 25);
+    return () => clearInterval(interval);
+  }, [started, text]);
+
+  if (!started) return null;
+  return (
+    <div className="flex items-start gap-2">
+      <span className="text-indigo-400 text-[10px] mt-0.5 shrink-0">▸</span>
+      <span className="text-[11px] md:text-xs text-white/70 font-mono leading-relaxed">
+        {displayed}
+        {displayed.length < text.length && <span className="animate-blink text-indigo-400">|</span>}
+      </span>
+    </div>
+  );
+}
+
+function HeroCounter({ target, delay, decimals = 0, suffix = "" }: { target: number; delay: number; decimals?: number; suffix?: string }) {
+  const [display, setDisplay] = useState("0");
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      const duration = 1000;
+      const start = performance.now();
+      const tick = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const val = target * eased;
+        setDisplay(decimals > 0 ? val.toFixed(decimals) : Math.round(val).toString());
+        if (progress < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, delay * 1000);
+    return () => clearTimeout(timeout);
+  }, [target, delay, decimals]);
+
+  return (
+    <span className="text-lg md:text-2xl font-bold tracking-tight text-white">
+      {display}{suffix}
+    </span>
   );
 }
 
@@ -553,7 +621,7 @@ const X_WORDS  = ["automation", "intelligence", "efficiency", "excellence", "inn
 const X_COLORS = ["#f97316", "#a855f7", "#22d3ee", "#4ade80", "#f43f5e"];
 
 // text-3xl = 1.875rem (30px) mobile · text-6xl = 3.75rem (60px) desktop
-const L      = "font-medium text-3xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-9xl leading-none";
+const L      = "font-medium text-3xl sm:text-5xl md:text-6xl lg:text-8xl xl:text-9xl leading-[1.1]";
 const EASE   = [0.22, 1, 0.36, 1] as const;
 
 function SplashScreen({ onDone }: { onDone: () => void }) {
@@ -735,14 +803,11 @@ export default function Home() {
       <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-[radial-gradient(ellipse,rgba(255,255,255,0.04)_0%,transparent_65%)]" />
 
       {/* HERO */}
-      <motion.section ref={heroRef} style={{ y: heroY, opacity: heroOpacity }} className="relative min-h-0 md:min-h-screen flex flex-col justify-center pt-24 md:pt-16 overflow-hidden">
-        {/* Hero background image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=1920&q=85&auto=format')" }}
-        />
-        <div className="absolute inset-0 bg-[#050505]/70" />
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse at center, transparent 30%, rgba(5,5,5,0.85) 100%)" }} />
+      <motion.section ref={heroRef} style={{ y: heroY, opacity: heroOpacity }} className="relative min-h-screen flex flex-col justify-center pt-24 md:pt-16 overflow-hidden">
+        {/* Cycling video background */}
+        <HeroVideoCarousel />
+        {/* Edge vignette */}
+        <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at center, transparent 30%, rgba(5,5,5,0.85) 100%)" }} />
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[#050505] to-transparent" />
 
         <div className="relative z-10 text-center mb-8 md:mb-12 px-6 md:px-12 max-w-7xl mx-auto">
@@ -788,10 +853,27 @@ export default function Home() {
           </motion.div>
         </div>
 
+        {/* Scroll prompt */}
+        <motion.div
+          initial={m ? false : { opacity: 0 }}
+          animate={m ? undefined : { opacity: 1 }}
+          transition={m ? undefined : { duration: 0.6, delay: 1.2 }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2"
+        >
+          <span className="text-[10px] text-white/40 tracking-[0.15em] uppercase">Scroll</span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            className="w-5 h-8 rounded-full border border-white/20 flex items-start justify-center pt-1.5"
+          >
+            <div className="w-1 h-1.5 rounded-full bg-white/50" />
+          </motion.div>
+        </motion.div>
+
       </motion.section>
 
       {/* WHAT WE DO */}
-      <Section id="services" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section id="services" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <motion.p
           variants={m ? mobileFade : slideFromLeft}
           initial={m ? false : "hidden"}
@@ -883,7 +965,7 @@ export default function Home() {
       </Section>
 
       {/* WHO THIS IS FOR */}
-      <Section className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <motion.p
           variants={m ? mobileFade : slideFromLeft}
           initial={m ? false : "hidden"}
@@ -974,7 +1056,7 @@ export default function Home() {
       </Section>
 
       {/* HOW WE WORK */}
-      <Section id="process" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section id="process" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <motion.p variants={m ? mobileFade : slideFromLeft} initial={m ? false : "hidden"} whileInView={m ? undefined : "visible"} viewport={{ once: true }} className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-[#888] mb-3 md:mb-6">
           How we work
         </motion.p>
@@ -988,7 +1070,7 @@ export default function Home() {
       </Section>
 
       {/* TEAM */}
-      <Section id="team" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section id="team" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <motion.p variants={m ? mobileFade : slideFromLeft} initial={m ? false : "hidden"} whileInView={m ? undefined : "visible"} viewport={{ once: true }} className="text-[10px] md:text-xs font-semibold tracking-[0.2em] uppercase text-[#888] mb-3 md:mb-6">
           Team
         </motion.p>
@@ -1103,7 +1185,7 @@ export default function Home() {
       </Section>
 
       {/* CONTACT */}
-      <Section id="contact" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-0 md:min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
+      <Section id="contact" className="max-w-7xl mx-auto px-6 md:px-12 py-12 md:py-20 min-h-screen flex flex-col justify-center border-t border-white/[0.06] md:border-t-0">
         <div
           className="rounded-xl p-px"
           style={{ background: "#0e0e0e" }}

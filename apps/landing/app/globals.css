@@ -95,6 +95,7 @@ body:has(> * > * > .usa-grid-bg) {
   animation: blink-cursor 1s ease-in-out infinite;
 }
 
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
