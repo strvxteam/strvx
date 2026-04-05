@@ -14,7 +14,7 @@ import {
   type Variants,
 } from "framer-motion";
 import { useIsMobile } from "./motion-provider";
-import { GlowCard } from "../components/ui/spotlight-card";
+// spotlight-card removed — using plain cards
 // Hero background options (saved):
 // import { ParticleField } from "../components/ParticleField";
 // import { AuroraWaves } from "../components/AuroraWaves";
@@ -919,7 +919,7 @@ export default function Home() {
               key={item.title}
               variants={m ? mobileFade : staggerScaleItem}
             >
-              <GlowCard glowColor="white" customSize className="w-full h-full">
+              <div className="w-full h-full rounded-2xl border border-white/[0.08] bg-white/[0.03] transition-all duration-300 hover:scale-[1.03] hover:border-white/[0.15] hover:bg-white/[0.06] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
                 <div className="p-5 md:p-10">
                   <div
                     className="mb-3 md:mb-5"
@@ -933,7 +933,7 @@ export default function Home() {
                   <h3 className="text-sm md:text-lg font-semibold mb-1 md:mb-3">{item.title}</h3>
                   <p className="text-xs md:text-base text-[#aaa] leading-relaxed">{item.desc}</p>
                 </div>
-              </GlowCard>
+              </div>
             </motion.div>
           ))}
         </motion.div>
@@ -1010,7 +1010,7 @@ export default function Home() {
               key={item.title}
               variants={m ? mobileFade : staggerScaleItem}
             >
-              <GlowCard glowColor="white" customSize className="w-full h-full">
+              <div className="w-full h-full rounded-2xl border border-white/[0.08] bg-white/[0.03] transition-all duration-300 hover:scale-[1.03] hover:border-white/[0.15] hover:bg-white/[0.06] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)]">
                 <div className="p-5 md:p-10">
                   <div
                     className="mb-3 md:mb-5"
@@ -1024,7 +1024,7 @@ export default function Home() {
                   <h3 className="text-sm md:text-lg font-semibold mb-2 md:mb-4">{item.title}</h3>
                   <p className="text-xs md:text-base text-[#aaa] leading-relaxed">{item.desc}</p>
                 </div>
-              </GlowCard>
+              </div>
             </motion.div>
           ))}
         </motion.div>

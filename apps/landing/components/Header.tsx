@@ -27,9 +27,9 @@ export default function Header() {
   const smoothProgress = useSpring(progress, springConfig);
 
   const borderRadius = useTransform(smoothProgress, [0, 1], [20, 50]);
-  const paddingX = useTransform(smoothProgress, [0, 1], [28, 20]);
-  const paddingY = useTransform(smoothProgress, [0, 1], [14, 10]);
-  const width = useTransform(smoothProgress, [0, 1], ["min(92vw, 1100px)", "min(80vw, 700px)"]);
+  const paddingX = useTransform(smoothProgress, [0, 1], [28, 16]);
+  const paddingY = useTransform(smoothProgress, [0, 1], [14, 8]);
+  const width = useTransform(smoothProgress, [0, 1], ["min(92vw, 1100px)", "min(88vw, 780px)"]);
   const top = useTransform(smoothProgress, [0, 1], [16, 12]);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function Header() {
       style={{ top, width, x: "-50%" }}
     >
       <motion.div
-        className="relative flex items-center justify-between gap-3 md:gap-5"
+        className="relative flex items-center justify-between gap-3 md:gap-5 overflow-hidden"
         style={{
           borderRadius,
           paddingLeft: paddingX,

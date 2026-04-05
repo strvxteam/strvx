@@ -186,7 +186,6 @@ function TimelineStep({
 }
 
 export default function ProcessPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const m = useIsMobile();
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -200,47 +199,6 @@ export default function ProcessPage() {
 
   return (
     <main className="min-h-screen">
-      {/* Nav */}
-      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-[#050505]/80 border-b border-white/[0.06] px-6 md:px-12 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between md:justify-center gap-10">
-          <Link href="/" className="text-sm font-bold tracking-[0.12em] uppercase md:mr-4">
-            strvx
-          </Link>
-          <ul className="hidden md:flex items-center gap-8 list-none">
-            <li>
-              <Link href="/services" className="text-sm text-[#777] tracking-wide hover:text-[#0a0a0a] hover:bg-white px-3 py-1.5 rounded-full transition-all duration-200">
-                Services
-              </Link>
-            </li>
-            <li>
-              <Link href="/process" className="text-sm text-[#777] tracking-wide hover:text-[#0a0a0a] hover:bg-white px-3 py-1.5 rounded-full transition-all duration-200">
-                Process
-              </Link>
-            </li>
-            <li>
-              <Link href="/book" className="text-xs tracking-[0.06em] uppercase px-5 py-2.5 rounded-lg bg-white text-[#0a0a0a] font-semibold hover:bg-white/90 transition-colors duration-200">
-                Book a call
-              </Link>
-            </li>
-          </ul>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-white" aria-label="Toggle menu">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d={mobileMenuOpen ? "M5 5l10 10M15 5L5 15" : "M3 6h14M3 10h14M3 14h14"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
-          </button>
-        </div>
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="md:hidden overflow-hidden">
-              <div className="flex flex-col gap-4 pt-4 pb-2">
-                {[["Services", "/services"], ["Process", "/process"]].map(([label, href]) => (
-                  <Link key={href} href={href as string} onClick={() => setMobileMenuOpen(false)} className="text-sm text-[#888] hover:text-white transition-colors">{label}</Link>
-                ))}
-                <Link href="/book" onClick={() => setMobileMenuOpen(false)} className="text-xs tracking-[0.06em] uppercase px-5 py-2.5 rounded-lg bg-white text-[#0a0a0a] font-semibold text-center">Book a call</Link>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </nav>
-
       {/* Header */}
       <section className="max-w-7xl mx-auto px-6 md:px-12 pt-20 md:pt-32 pb-16">
         <motion.p

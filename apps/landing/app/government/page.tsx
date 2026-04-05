@@ -25,19 +25,19 @@ function RevealText({
   delay?: number;
 }) {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-10%" });
+  const isInView = useInView(ref, { once: true, margin: "-15%" });
 
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 24, filter: "blur(8px)" }}
+      initial={{ opacity: 0, y: 30, filter: "blur(10px)" }}
       animate={
         isInView
           ? { opacity: 1, y: 0, filter: "blur(0px)" }
-          : { opacity: 0, y: 24, filter: "blur(8px)" }
+          : { opacity: 0, y: 30, filter: "blur(10px)" }
       }
       transition={{
-        duration: 0.8,
+        duration: 0.9,
         delay,
         ease: [0.25, 0.1, 0.25, 1],
       }}
@@ -58,7 +58,7 @@ function StaggerReveal({
   delay?: number;
 }) {
   const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-10%" });
+  const isInView = useInView(ref, { once: true, margin: "-15%" });
 
   return (
     <motion.div
@@ -67,7 +67,7 @@ function StaggerReveal({
       animate={isInView ? "visible" : "hidden"}
       variants={{
         hidden: {},
-        visible: { transition: { staggerChildren: 0.1, delayChildren: delay } },
+        visible: { transition: { staggerChildren: 0.15, delayChildren: delay } },
       }}
       className={className}
     >
@@ -86,11 +86,12 @@ function StaggerChild({
   return (
     <motion.div
       variants={{
-        hidden: { opacity: 0, y: 20 },
+        hidden: { opacity: 0, y: 30, filter: "blur(10px)" },
         visible: {
           opacity: 1,
           y: 0,
-          transition: { duration: 0.6, ease: [0.25, 0.1, 0.25, 1] },
+          filter: "blur(0px)",
+          transition: { duration: 0.7, ease: [0.25, 0.1, 0.25, 1] },
         },
       }}
       className={className}
@@ -113,7 +114,7 @@ interface CapabilityProps {
 
 function CapabilityCard({ icon, codename, title, description }: CapabilityProps) {
   return (
-    <div className="group relative p-6 md:p-8 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04] transition-all duration-500">
+    <div className="group relative h-full p-6 md:p-8 rounded-2xl bg-white/[0.03] border border-white/[0.08] hover:scale-[1.03] hover:border-white/[0.15] hover:bg-white/[0.06] hover:shadow-[0_8px_30px_rgba(0,0,0,0.4)] transition-all duration-300">
       {/* Subtle corner glow on hover */}
       <div className="absolute top-0 left-0 w-24 h-24 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
         style={{
@@ -302,7 +303,7 @@ export default function GovernmentPage() {
       {/* ============================================================ */}
       {/*  CAPABILITIES — Named product cards in grid                   */}
       {/* ============================================================ */}
-      <section id="capabilities" className="relative py-32 px-6">
+      <section id="capabilities" className="relative min-h-[80vh] flex flex-col justify-center py-32 px-6">
         {/* Ambient glow */}
         <div
           className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] pointer-events-none"
@@ -346,7 +347,7 @@ export default function GovernmentPage() {
       {/* ============================================================ */}
       {/*  PRODUCT — Dashboard screenshot with context                  */}
       {/* ============================================================ */}
-      <section className="relative py-24 px-6 overflow-hidden">
+      <section className="relative min-h-[80vh] flex flex-col justify-center py-24 px-6 overflow-hidden">
         {/* Ambient glow behind screenshot */}
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[600px] pointer-events-none"
@@ -416,7 +417,7 @@ export default function GovernmentPage() {
       {/* ============================================================ */}
       {/*  TYPOGRAPHY — Air-gapped. Auditable. Automated.               */}
       {/* ============================================================ */}
-      <section className="relative py-40 px-6">
+      <section className="relative min-h-[80vh] flex flex-col justify-center py-40 px-6">
         <div className="max-w-4xl mx-auto text-center">
           <RevealText>
             <p className="text-4xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight">
@@ -447,7 +448,7 @@ export default function GovernmentPage() {
       {/* ============================================================ */}
       {/*  CTA — Stronger close                                         */}
       {/* ============================================================ */}
-      <section className="relative py-32 px-6">
+      <section className="relative min-h-[80vh] flex flex-col justify-center py-32 px-6">
         <div className="max-w-2xl mx-auto text-center">
           <RevealText>
             <h2 className="text-2xl md:text-4xl font-bold tracking-tight text-white mb-4">
