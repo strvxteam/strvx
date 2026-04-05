@@ -38,6 +38,7 @@ export type TeamMemberAvailability = {
 
 export type TeamAvailabilityResponse = {
   members: TeamMemberAvailability[];
+  currentUserEmail: string | null;
 };
 
 // ── Google Calendar fetch (all calendars, deduplicated) ───────────────────────
@@ -88,8 +89,11 @@ async function fetchEventsWithRefreshToken(
         for (const e of res.data.items ?? []) {
           if (e.status === "cancelled") continue;
 
-          // Deduplicate: same event invited across multiple calendars shares iCalUID
-          const uid = e.iCalUID ?? e.id ?? "";
+          // Deduplicate by instance ID (not iCalUID — recurring events share iCalUID
+          // across all instances, so using iCalUID would drop Wed/Fri of a Mon/Wed/Fri series).
+          // e.id is unique per instance AND per calendar, so it correctly deduplicates
+          // the same event instance that appears in multiple of this user's calendars.
+          const uid = e.id ?? e.iCalUID ?? "";
           if (uid && seenUids.has(uid)) continue;
           if (uid) seenUids.add(uid);
 
@@ -182,5 +186,5 @@ export async function GET(req: NextRequest) {
     }),
   );
 
-  return NextResponse.json({ members } satisfies TeamAvailabilityResponse);
+  return NextResponse.json({ members, currentUserEmail: user.email ?? null } satisfies TeamAvailabilityResponse);
 }

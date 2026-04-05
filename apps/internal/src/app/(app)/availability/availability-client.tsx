@@ -8,7 +8,7 @@ import type { TeamAvailabilityResponse, TeamMemberAvailability, MemberEvent } fr
 
 const HOUR_HEIGHT = 64; // px per hour
 const GRID_START = 8;   // 8 AM Pacific
-const GRID_END = 21;    // 9 PM Pacific
+const GRID_END = 23;    // 11 PM Pacific
 const TOTAL_HOURS = GRID_END - GRID_START;
 const TIMELINE_HEIGHT = TOTAL_HOURS * HOUR_HEIGHT;
 const TIME_COL_WIDTH = 52;
@@ -196,6 +196,7 @@ export function AvailabilityClient() {
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const members = data?.members ?? [];
+  const currentUserEmail = data?.currentUserEmail ?? null;
 
   // Build a lookup: dayStr → memberEmail → events[]
   const eventsByDayAndMember = new Map<string, Map<string, MemberEvent[]>>();
@@ -310,13 +311,15 @@ export function AvailabilityClient() {
                 <span className="text-[#555]">
                   <span className="font-semibold">{m.name}</span> hasn&apos;t connected their calendar
                 </span>
-                <a
-                  href={`/api/auth/google?returnTo=/availability`}
-                  className="ml-1 rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors hover:opacity-80"
-                  style={{ backgroundColor: m.color + "18", color: m.color }}
-                >
-                  Connect →
-                </a>
+                {currentUserEmail === m.email && (
+                  <a
+                    href={`/api/auth/google?returnTo=/availability`}
+                    className="ml-1 rounded-md px-2 py-0.5 text-[11px] font-semibold transition-colors hover:opacity-80"
+                    style={{ backgroundColor: m.color + "18", color: m.color }}
+                  >
+                    Connect →
+                  </a>
+                )}
               </div>
             ))}
         </div>
