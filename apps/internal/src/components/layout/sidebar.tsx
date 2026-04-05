@@ -10,6 +10,7 @@ import {
   CheckSquare,
   FolderKanban,
   CalendarDays,
+  Users,
   FileText,
   Wallet,
   BookOpen,
@@ -41,6 +42,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/projects", label: "Projects", icon: FolderKanban },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
+      { href: "/availability", label: "Availability", icon: Users },
     ],
   },
   {
