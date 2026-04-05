@@ -217,9 +217,16 @@ export function AvailabilityClient() {
   members.forEach((member) => {
     member.events.forEach((evt) => {
       if (!evt.isAllDay) return;
-      const dayStr = evt.start.slice(0, 10); // all-day events use date strings
-      if (!allDayByDay.has(dayStr)) allDayByDay.set(dayStr, []);
-      allDayByDay.get(dayStr)!.push({ event: evt, member });
+      // Google Calendar all-day end dates are exclusive (end = day after last day),
+      // so iterate [start, end) and add the event to each day in the span.
+      const cursor = new Date(evt.start + "T00:00:00");
+      const endDate = new Date(evt.end + "T00:00:00");
+      while (cursor < endDate) {
+        const dayStr = cursor.toLocaleDateString("en-CA");
+        if (!allDayByDay.has(dayStr)) allDayByDay.set(dayStr, []);
+        allDayByDay.get(dayStr)!.push({ event: evt, member });
+        cursor.setDate(cursor.getDate() + 1);
+      }
     });
   });
 
