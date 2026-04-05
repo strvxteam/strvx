@@ -381,10 +381,8 @@ export default async function DashboardPage() {
         members={dbUsers.map((u) => ({
           id: u.id,
           name: u.name,
-          // Calendar presence overrides "available"; manual "busy" is always respected
-          status: calendarBusy.get(u.id) ? "busy" : u.status,
+          status: calendarBusy.get(u.id) === true ? "busy" : "available",
         }))}
-        currentUserId={currentUser?.id ?? null}
       />
 
       <QuickAddBar engagements={allEngagements} />

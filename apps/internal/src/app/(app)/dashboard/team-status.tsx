@@ -1,8 +1,3 @@
-"use client";
-
-import { useTransition } from "react";
-import { toggleUserStatus } from "@/app/actions";
-
 const TEAM_AVATARS: Record<string, string> = {
   Nick: "/avatars/nick.png",
   Hari: "/avatars/hari.png",
@@ -15,39 +10,17 @@ interface TeamMember {
   status: string;
 }
 
-export function TeamStatus({
-  members,
-  currentUserId,
-}: {
-  members: TeamMember[];
-  currentUserId: string | null;
-}) {
-  const [isPending, startTransition] = useTransition();
-
-  function handleToggle(userId: string) {
-    if (userId !== currentUserId) return;
-    startTransition(async () => {
-      await toggleUserStatus(userId);
-    });
-  }
-
+export function TeamStatus({ members }: { members: TeamMember[] }) {
   return (
     <div className="mt-6 grid grid-cols-3 gap-2 sm:gap-4">
       {members.map((m) => {
         const isAvailable = m.status === "available";
-        const isMe = m.id === currentUserId;
         const avatar = TEAM_AVATARS[m.name];
 
         return (
-          <button
+          <div
             key={m.id}
-            onClick={() => handleToggle(m.id)}
-            disabled={!isMe || isPending}
-            className={`flex flex-col items-center gap-2 rounded-xl border border-[#e0e0e0] bg-white px-2 py-3 sm:px-4 sm:py-4 transition-all ${
-              isMe
-                ? "cursor-pointer hover:border-[#ccc] hover:shadow-sm"
-                : "cursor-default"
-            } ${isPending && isMe ? "opacity-60" : ""}`}
+            className="flex flex-col items-center gap-2 rounded-xl border border-[#e0e0e0] bg-white px-2 py-3 sm:px-4 sm:py-4"
           >
             <div className="relative">
               {avatar ? (
@@ -84,7 +57,7 @@ export function TeamStatus({
                 {isAvailable ? "Available" : "Busy"}
               </p>
             </div>
-          </button>
+          </div>
         );
       })}
     </div>
