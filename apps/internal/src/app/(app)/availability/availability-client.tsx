@@ -197,9 +197,9 @@ export function AvailabilityClient() {
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const members = data?.members ?? [];
 
-  // Build a lookup: dayStr → memberIndex → events[]
-  const eventsByDayAndMember = new Map<string, Map<number, MemberEvent[]>>();
-  members.forEach((member, mi) => {
+  // Build a lookup: dayStr → memberEmail → events[]
+  const eventsByDayAndMember = new Map<string, Map<string, MemberEvent[]>>();
+  members.forEach((member) => {
     member.events.forEach((evt) => {
       if (evt.isAllDay) return;
       const dayStr = getPacificDateStr(evt.start);
@@ -207,8 +207,8 @@ export function AvailabilityClient() {
         eventsByDayAndMember.set(dayStr, new Map());
       }
       const dayMap = eventsByDayAndMember.get(dayStr)!;
-      if (!dayMap.has(mi)) dayMap.set(mi, []);
-      dayMap.get(mi)!.push(evt);
+      if (!dayMap.has(member.email)) dayMap.set(member.email, []);
+      dayMap.get(member.email)!.push(evt);
     });
   });
 
@@ -323,10 +323,10 @@ export function AvailabilityClient() {
       )}
 
       {/* ── Grid ── */}
-      <div className="flex-1 overflow-hidden rounded-lg border border-[#e0e0e0] bg-white">
-        {/* Day headers (sticky) */}
+      <div className="flex-1 overflow-hidden rounded-lg border border-[#e0e0e0] bg-white flex flex-col min-h-0">
+        {/* Day headers */}
         <div
-          className="flex border-b border-[#e0e0e0] bg-white sticky top-0 z-10"
+          className="flex border-b border-[#e0e0e0] bg-white shrink-0 z-10"
           style={{ paddingLeft: TIME_COL_WIDTH }}
         >
           {days.map((day, i) => {
@@ -368,7 +368,7 @@ export function AvailabilityClient() {
         {/* All-day events strip */}
         {days.some((d) => allDayByDay.has(d.toLocaleDateString("en-CA"))) && (
           <div
-            className="flex border-b border-[#e0e0e0] bg-[#fafafa]"
+            className="flex border-b border-[#e0e0e0] bg-[#fafafa] shrink-0"
             style={{ paddingLeft: TIME_COL_WIDTH }}
           >
             <div
@@ -403,7 +403,7 @@ export function AvailabilityClient() {
         )}
 
         {/* Scrollable timeline */}
-        <div ref={scrollRef} className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 260px)" }}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
           <div className="flex" style={{ height: TIMELINE_HEIGHT }}>
             {/* Time labels column */}
             <div
@@ -425,7 +425,7 @@ export function AvailabilityClient() {
             {days.map((day, di) => {
               const dayStr = day.toLocaleDateString("en-CA");
               const isToday = isSameDay(day, today);
-              const dayEventsMap = eventsByDayAndMember.get(dayStr) ?? new Map<number, MemberEvent[]>();
+              const dayEventsMap = eventsByDayAndMember.get(dayStr) ?? new Map<string, MemberEvent[]>();
               const memberCount = Math.max(members.length, 1);
 
               return (
@@ -469,7 +469,7 @@ export function AvailabilityClient() {
 
                   {/* Member sub-columns with events */}
                   {members.map((member, mi) => {
-                    const events = dayEventsMap.get(mi) ?? [];
+                    const events = dayEventsMap.get(member.email) ?? [];
                     const colWidth = 100 / memberCount;
                     return (
                       <div
