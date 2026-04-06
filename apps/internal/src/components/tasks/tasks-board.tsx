@@ -68,6 +68,8 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const dragStartStatusRef = useRef<TaskStatus | null>(null);
+  // Tracks current column during drag synchronously (avoids stale React state reads in handleDragEnd)
+  const dragCurrentColumnRef = useRef<TaskStatus | null>(null);
 
   const projectNameMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -145,7 +147,9 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
   function handleDragStart(event: DragStartEvent) {
     const taskId = String(event.active.id);
     setActiveId(taskId);
-    dragStartStatusRef.current = findColumn(taskId);
+    const col = findColumn(taskId);
+    dragStartStatusRef.current = col;
+    dragCurrentColumnRef.current = col;
   }
 
   function handleDragOver(event: DragOverEvent) {
@@ -155,7 +159,7 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
     const activeTaskId = String(active.id);
     const overId = String(over.id);
 
-    const activeColumn = findColumn(activeTaskId);
+    const activeColumn = dragCurrentColumnRef.current ?? findColumn(activeTaskId);
     const overColumn =
       TASK_STATUS_COLUMNS.includes(overId as TaskStatus)
         ? (overId as TaskStatus)
@@ -163,6 +167,7 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
 
     if (!activeColumn || !overColumn || activeColumn === overColumn) return;
 
+    dragCurrentColumnRef.current = overColumn;
     setTasks((prev) =>
       prev.map((t) =>
         t.id === activeTaskId ? { ...t, status: overColumn } : t
@@ -173,14 +178,27 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     const originalStatus = dragStartStatusRef.current;
+    const currentColumn = dragCurrentColumnRef.current;
     setActiveId(null);
     dragStartStatusRef.current = null;
+    dragCurrentColumnRef.current = null;
 
-    if (!over) return;
+    if (!over) {
+      // Dropped outside — revert optimistic move
+      if (originalStatus && currentColumn && originalStatus !== currentColumn) {
+        setTasks((prev) =>
+          prev.map((t) =>
+            t.id === String(active.id) ? { ...t, status: originalStatus } : t
+          )
+        );
+      }
+      return;
+    }
 
     const activeTaskId = String(active.id);
     const overId = String(over.id);
 
+    // Dropped directly on a column droppable
     if (TASK_STATUS_COLUMNS.includes(overId as TaskStatus)) {
       const targetStatus = overId as TaskStatus;
       setTasks((prev) =>
@@ -188,31 +206,42 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
           t.id === activeTaskId ? { ...t, status: targetStatus } : t
         )
       );
-      updateTaskAction(activeTaskId, { status: targetStatus })
-        .then(() => { toast.success("Task updated"); })
-        .catch((err) => { console.error(err); toast.error("Failed to update task"); });
+      if (targetStatus !== originalStatus) {
+        updateTaskAction(activeTaskId, { status: targetStatus })
+          .then(() => { toast.success("Task updated"); })
+          .catch((err) => { console.error(err); toast.error("Failed to update task"); });
+      }
       return;
     }
 
-    const activeColumn = findColumn(activeTaskId);
-    const overColumn = findColumn(overId);
+    // Dropped on a card — determine the target column via ref (avoids stale state)
+    const overCardColumn = findColumn(overId);
+    const finalColumn = currentColumn ?? overCardColumn;
 
-    if (activeColumn && overColumn && activeColumn === overColumn) {
+    if (finalColumn && finalColumn === overCardColumn) {
+      // Same-column reorder: ensure task is in finalColumn first, then reorder
       setTasks((prev) => {
-        const columnTasks = prev.filter((t) => t.status === activeColumn);
-        const otherTasks = prev.filter((t) => t.status !== activeColumn);
+        const withMoved = prev.map((t) =>
+          t.id === activeTaskId ? { ...t, status: finalColumn } : t
+        );
+        const columnTasks = withMoved.filter((t) => t.status === finalColumn);
+        const otherTasks = withMoved.filter((t) => t.status !== finalColumn);
         const oldIndex = columnTasks.findIndex((t) => t.id === activeTaskId);
         const newIndex = columnTasks.findIndex((t) => t.id === overId);
-        if (oldIndex === -1 || newIndex === -1) return prev;
-        const reordered = arrayMove(columnTasks, oldIndex, newIndex);
-        return [...otherTasks, ...reordered];
+        if (oldIndex === -1 || newIndex === -1) return withMoved;
+        return [...otherTasks, ...arrayMove(columnTasks, oldIndex, newIndex)];
       });
+    } else if (finalColumn) {
+      // Cross-column: ensure task is in the right place
+      setTasks((prev) =>
+        prev.map((t) =>
+          t.id === activeTaskId ? { ...t, status: finalColumn } : t
+        )
+      );
     }
 
-    // Persist status change if column changed during drag (handleDragOver moved it)
-    const finalStatus = findColumn(activeTaskId);
-    if (finalStatus && originalStatus && finalStatus !== originalStatus) {
-      updateTaskAction(activeTaskId, { status: finalStatus })
+    if (finalColumn && originalStatus && finalColumn !== originalStatus) {
+      updateTaskAction(activeTaskId, { status: finalColumn })
         .then(() => { toast.success("Task updated"); })
         .catch((err) => { console.error(err); toast.error("Failed to update task"); });
     }
