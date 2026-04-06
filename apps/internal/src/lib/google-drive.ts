@@ -69,7 +69,7 @@ export async function listDriveFiles(
 
   const query = folderId
     ? `'${folderId}' in parents and trashed = false`
-    : "trashed = false";
+    : `'root' in parents and trashed = false`;
 
   const response = await drive.files.list({
     q: query,
