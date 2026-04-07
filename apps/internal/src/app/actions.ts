@@ -1300,6 +1300,37 @@ export async function deleteDocument(docId: string) {
   revalidatePath("/docs");
 }
 
+// ── Monitoring ───────────────────────────────────────
+
+export async function addMonitoredSite(data: { name: string; url: string; type: "internal" | "client" }) {
+  await getCurrentUser();
+  if (!data.name.trim() || !data.url.trim()) throw new Error("Name and URL required");
+
+  try { new URL(data.url); } catch { throw new Error("Invalid URL"); }
+
+  const { monitoredSites } = await import("@/lib/db/schema");
+  const [site] = await db
+    .insert(monitoredSites)
+    .values({
+      name: data.name.trim(),
+      url: data.url.trim(),
+      type: data.type,
+    })
+    .returning();
+  revalidatePath("/maintenance");
+  return site;
+}
+
+export async function removeMonitoredSite(siteId: string) {
+  await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(siteId);
+  if (!parsedId.success) throw new Error("Invalid site ID");
+
+  const { monitoredSites } = await import("@/lib/db/schema");
+  await db.delete(monitoredSites).where(eq(monitoredSites.id, parsedId.data));
+  revalidatePath("/maintenance");
+}
+
 // ── Company Actions ──────────────────────────────────
 
 export async function getCompaniesAction() {

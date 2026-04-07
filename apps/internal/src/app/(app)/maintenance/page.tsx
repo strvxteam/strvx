@@ -1,30 +1,41 @@
 import type { Metadata } from "next";
-import { getMaintenanceClients, getMRR } from "@/lib/queries";
+import { getAllSitesLatestStatus, getSiteCheckHistory } from "@/lib/queries";
 import MaintenanceClient from "./maintenance-client";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Maintenance" };
+export const metadata: Metadata = { title: "Monitoring" };
 
 export default async function MaintenancePage() {
-  const [clients, mrr] = await Promise.all([
-    getMaintenanceClients(),
-    getMRR(),
-  ]);
+  const sites = await getAllSitesLatestStatus();
 
-  const serialized = clients.map((c) => ({
-    id: c.id,
-    engagementName: c.engagement_name,
-    companyName: c.company_name,
-    monthlyFee: c.maintenance_monthly_fee ? Number(c.maintenance_monthly_fee) : null,
-    nextCheckin: c.maintenance_next_checkin,
-    daysInMaintain: Math.round(Number(c.days_in_maintain)),
-    daysSinceInteraction: Math.round(Number(c.days_since_interaction)),
-    lastInteraction: c.last_interaction,
-    openActions: c.open_actions,
-    overdueActions: c.overdue_actions,
-    projectId: c.project_id,
-    projectName: c.project_name,
+  // Get check history for each site (for sparkline)
+  const historyMap: Record<string, { status: string; responseMs: number | null; checkedAt: string }[]> = {};
+  await Promise.all(
+    sites.map(async (site) => {
+      const history = await getSiteCheckHistory(site.site_id);
+      historyMap[site.site_id] = history.map((h) => ({
+        status: h.status,
+        responseMs: h.response_ms,
+        checkedAt: h.checked_at,
+      }));
+    })
+  );
+
+  const serialized = sites.map((s) => ({
+    id: s.site_id,
+    name: s.name,
+    url: s.url,
+    type: s.type as "internal" | "client",
+    isActive: s.is_active,
+    status: (s.status as "up" | "down") ?? null,
+    statusCode: s.status_code,
+    responseMs: s.response_ms,
+    errorMessage: s.error_message,
+    lastChecked: s.checked_at,
+    uptime24h: s.uptime_24h ? Math.round(s.uptime_24h * 10) / 10 : null,
+    avgResponse1h: s.avg_response_1h ? Number(s.avg_response_1h) : null,
+    history: historyMap[s.site_id] ?? [],
   }));
 
-  return <MaintenanceClient clients={serialized} totalMRR={mrr} />;
+  return <MaintenanceClient sites={serialized} />;
 }

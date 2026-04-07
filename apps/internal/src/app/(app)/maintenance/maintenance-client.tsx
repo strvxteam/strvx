@@ -1,237 +1,321 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
-  AlertTriangle,
   CheckCircle2,
+  XCircle,
   Clock,
-  DollarSign,
-  ExternalLink,
+  Plus,
+  Trash2,
+  RefreshCw,
+  Globe,
+  Server,
   Loader2,
-  Wifi,
-  WifiOff,
+  X,
 } from "lucide-react";
+import { toast } from "sonner";
+import { addMonitoredSite, removeMonitoredSite } from "@/app/actions";
 
-interface MaintenanceClientData {
-  id: string;
-  engagementName: string;
-  companyName: string;
-  monthlyFee: number | null;
-  nextCheckin: string | null;
-  daysInMaintain: number;
-  daysSinceInteraction: number;
-  lastInteraction: string | null;
-  openActions: number;
-  overdueActions: number;
-  projectId: string | null;
-  projectName: string | null;
-}
-
-interface UptimeResult {
-  url: string;
-  status: "up" | "down" | "unknown";
+interface HistoryPoint {
+  status: string;
   responseMs: number | null;
+  checkedAt: string;
 }
 
-function getCheckinStatus(nextCheckin: string | null): { label: string; color: string } {
-  if (!nextCheckin) return { label: "Not scheduled", color: "text-[#888]" };
-  const diff = Math.ceil((new Date(nextCheckin).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: "text-[#c0392b]" };
-  if (diff === 0) return { label: "Today", color: "text-[#e65100]" };
-  if (diff <= 3) return { label: `In ${diff}d`, color: "text-[#e67e22]" };
-  return { label: `In ${diff}d`, color: "text-[#27ae60]" };
+interface SiteData {
+  id: string;
+  name: string;
+  url: string;
+  type: "internal" | "client";
+  isActive: boolean;
+  status: "up" | "down" | null;
+  statusCode: number | null;
+  responseMs: number | null;
+  errorMessage: string | null;
+  lastChecked: string | null;
+  uptime24h: number | null;
+  avgResponse1h: number | null;
+  history: HistoryPoint[];
 }
 
-function getHealthColor(daysSinceInteraction: number, overdueActions: number): string {
-  if (overdueActions > 0 || daysSinceInteraction > 14) return "border-l-[#c0392b]";
-  if (daysSinceInteraction > 7) return "border-l-[#e67e22]";
-  return "border-l-[#27ae60]";
+function StatusDot({ status }: { status: "up" | "down" | null }) {
+  if (!status) return <div className="h-3 w-3 rounded-full bg-[#e0e0e0]" />;
+  return (
+    <div className={`h-3 w-3 rounded-full ${status === "up" ? "bg-[#27ae60]" : "bg-[#c0392b]"}`}>
+      <div className={`h-3 w-3 animate-ping rounded-full opacity-30 ${status === "up" ? "bg-[#27ae60]" : "bg-[#c0392b]"}`} />
+    </div>
+  );
 }
 
-export default function MaintenanceClient({
-  clients,
-  totalMRR,
-}: {
-  clients: MaintenanceClientData[];
-  totalMRR: number;
-}) {
-  const [uptimeResults, setUptimeResults] = useState<Record<string, UptimeResult>>({});
-  const [pinging, setPinging] = useState<string | null>(null);
+function UptimeBar({ history }: { history: HistoryPoint[] }) {
+  if (history.length === 0) return <div className="h-6 rounded bg-[#f0f0f0]" />;
 
-  const checkinsDue = clients.filter((c) => {
-    if (!c.nextCheckin) return false;
-    const diff = Math.ceil((new Date(c.nextCheckin).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return diff <= 3;
-  }).length;
+  // Show last 50 checks as a bar
+  const checks = history.slice(-50);
+  return (
+    <div className="flex h-6 gap-px overflow-hidden rounded">
+      {checks.map((h, i) => (
+        <div
+          key={i}
+          className={`flex-1 ${h.status === "up" ? "bg-[#27ae60]" : "bg-[#c0392b]"}`}
+          title={`${new Date(h.checkedAt).toLocaleTimeString()} — ${h.status} ${h.responseMs ? `(${h.responseMs}ms)` : ""}`}
+        />
+      ))}
+    </div>
+  );
+}
 
-  const staleCount = clients.filter((c) => c.daysSinceInteraction > 14).length;
+function ResponseChart({ history }: { history: HistoryPoint[] }) {
+  const upChecks = history.filter((h) => h.status === "up" && h.responseMs);
+  if (upChecks.length < 2) return null;
 
-  async function pingUrl(clientId: string, url: string) {
-    setPinging(clientId);
+  const maxMs = Math.max(...upChecks.map((h) => h.responseMs!));
+  const points = upChecks.map((h, i) => {
+    const x = (i / (upChecks.length - 1)) * 100;
+    const y = 100 - (h.responseMs! / maxMs) * 80;
+    return `${x},${y}`;
+  }).join(" ");
+
+  return (
+    <div className="mt-2">
+      <p className="mb-1 text-[10px] text-[#888]">Response time (24h)</p>
+      <svg viewBox="0 0 100 100" className="h-10 w-full" preserveAspectRatio="none">
+        <polyline points={points} fill="none" stroke="#1a73e8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+      </svg>
+    </div>
+  );
+}
+
+export default function MaintenanceClient({ sites }: { sites: SiteData[] }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [checking, setChecking] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newUrl, setNewUrl] = useState("");
+  const [newType, setNewType] = useState<"internal" | "client">("client");
+
+  const upCount = sites.filter((s) => s.status === "up").length;
+  const downCount = sites.filter((s) => s.status === "down").length;
+  const unchecked = sites.filter((s) => !s.status).length;
+
+  async function runChecks() {
+    setChecking(true);
     try {
-      const start = Date.now();
-      const res = await fetch(url, { mode: "no-cors", cache: "no-store" });
-      const ms = Date.now() - start;
-      setUptimeResults((prev) => ({
-        ...prev,
-        [clientId]: { url, status: "up", responseMs: ms },
-      }));
+      await fetch("/api/monitor/check", { method: "POST" });
+      router.refresh();
+      toast.success("All sites checked");
     } catch {
-      setUptimeResults((prev) => ({
-        ...prev,
-        [clientId]: { url, status: "down", responseMs: null },
-      }));
+      toast.error("Failed to run checks");
     } finally {
-      setPinging(null);
+      setChecking(false);
     }
+  }
+
+  function handleAdd() {
+    if (!newName.trim() || !newUrl.trim()) return;
+    startTransition(async () => {
+      try {
+        await addMonitoredSite({ name: newName.trim(), url: newUrl.trim(), type: newType });
+        setNewName("");
+        setNewUrl("");
+        setShowAdd(false);
+        router.refresh();
+        toast.success("Site added");
+      } catch {
+        toast.error("Failed to add site");
+      }
+    });
+  }
+
+  function handleRemove(siteId: string) {
+    startTransition(async () => {
+      try {
+        await removeMonitoredSite(siteId);
+        router.refresh();
+        toast.success("Site removed");
+      } catch {
+        toast.error("Failed to remove");
+      }
+    });
   }
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Maintenance</h1>
-        <span className="text-[13px] text-[#888]">{clients.length} active client{clients.length !== 1 ? "s" : ""}</span>
+        <h1 className="text-xl font-semibold">Monitoring</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={runChecks}
+            disabled={checking}
+            className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] px-3 py-1.5 text-[13px] font-medium text-[#555] transition-colors hover:bg-[#f5f5f5] disabled:opacity-40"
+          >
+            {checking ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            {checking ? "Checking..." : "Check All"}
+          </button>
+          <button
+            onClick={() => setShowAdd(!showAdd)}
+            className="flex items-center gap-1.5 rounded-lg bg-[#111] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[#333]"
+          >
+            <Plus size={14} />
+            Add Site
+          </button>
+        </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-4">
+      {/* Summary */}
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className={`rounded-lg border border-[#e0e0e0] border-l-[3px] bg-white p-4 ${downCount > 0 ? "border-l-[#c0392b]" : "border-l-[#27ae60]"}`}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Status</p>
+          <p className={`mt-1 text-xl font-semibold ${downCount > 0 ? "text-[#c0392b]" : "text-[#27ae60]"}`}>
+            {downCount > 0 ? `${downCount} Down` : "All Operational"}
+          </p>
+        </div>
         <div className="rounded-lg border border-[#e0e0e0] border-l-[3px] border-l-[#1a73e8] bg-white p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Total MRR</p>
-          <p className="mt-1 text-xl font-semibold text-[#1a73e8]">${totalMRR.toLocaleString()}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Monitored</p>
+          <p className="mt-1 text-xl font-semibold text-[#222]">
+            {sites.length} site{sites.length !== 1 ? "s" : ""}
+          </p>
+          <p className="mt-0.5 text-[11px] text-[#888]">
+            {upCount} up{unchecked > 0 ? ` · ${unchecked} not checked` : ""}
+          </p>
         </div>
-        <div className="rounded-lg border border-[#e0e0e0] border-l-[3px] border-l-[#27ae60] bg-white p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Active Clients</p>
-          <p className="mt-1 text-xl font-semibold text-[#222]">{clients.length}</p>
-        </div>
-        <div className={`rounded-lg border border-[#e0e0e0] border-l-[3px] bg-white p-4 ${checkinsDue > 0 ? "border-l-[#e67e22]" : "border-l-[#e0e0e0]"}`}>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Check-ins Due</p>
-          <p className={`mt-1 text-xl font-semibold ${checkinsDue > 0 ? "text-[#e67e22]" : "text-[#222]"}`}>{checkinsDue}</p>
-        </div>
-        <div className={`rounded-lg border border-[#e0e0e0] border-l-[3px] bg-white p-4 ${staleCount > 0 ? "border-l-[#c0392b]" : "border-l-[#e0e0e0]"}`}>
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stale (&gt;14d)</p>
-          <p className={`mt-1 text-xl font-semibold ${staleCount > 0 ? "text-[#c0392b]" : "text-[#222]"}`}>{staleCount}</p>
+        <div className="rounded-lg border border-[#e0e0e0] border-l-[3px] border-l-[#e0e0e0] bg-white p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Avg Response</p>
+          <p className="mt-1 text-xl font-semibold text-[#222]">
+            {(() => {
+              const withResponse = sites.filter((s) => s.avgResponse1h);
+              if (withResponse.length === 0) return "—";
+              const avg = Math.round(withResponse.reduce((sum, s) => sum + s.avgResponse1h!, 0) / withResponse.length);
+              return `${avg}ms`;
+            })()}
+          </p>
         </div>
       </div>
 
-      {/* Client list */}
-      {clients.length === 0 ? (
-        <div style={{ minHeight: "calc(100vh - 280px)" }} className="flex items-center justify-center rounded-lg border border-dashed border-[#e0e0e0] bg-white">
+      {/* Add site form */}
+      {showAdd && (
+        <div className="mb-6 rounded-lg border border-[#1a73e8] bg-white p-4">
+          <div className="flex gap-2">
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Site name"
+              className="w-40 rounded-md border border-[#e0e0e0] px-3 py-2 text-[13px] outline-none focus:border-[#1a73e8]"
+              autoFocus
+            />
+            <input
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              placeholder="https://example.com"
+              className="flex-1 rounded-md border border-[#e0e0e0] px-3 py-2 text-[13px] outline-none focus:border-[#1a73e8]"
+            />
+            <select
+              value={newType}
+              onChange={(e) => setNewType(e.target.value as "internal" | "client")}
+              className="rounded-md border border-[#e0e0e0] px-3 py-2 text-[13px] outline-none"
+            >
+              <option value="internal">Internal</option>
+              <option value="client">Client</option>
+            </select>
+            <button
+              onClick={handleAdd}
+              disabled={!newName.trim() || !newUrl.trim() || isPending}
+              className="rounded-md bg-[#111] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#333] disabled:opacity-40"
+            >
+              Add
+            </button>
+            <button onClick={() => setShowAdd(false)} className="rounded-md p-2 text-[#888] hover:bg-[#f0f0f0]">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Sites list */}
+      {sites.length === 0 ? (
+        <div style={{ minHeight: "calc(100vh - 300px)" }} className="flex items-center justify-center rounded-lg border border-dashed border-[#e0e0e0] bg-white">
           <div className="text-center">
-            <p className="text-[15px] font-medium text-[#aaa]">No maintenance clients yet</p>
-            <p className="mt-1 text-[13px] text-[#ccc]">Clients in the &quot;maintain&quot; stage will appear here.</p>
+            <p className="text-[15px] font-medium text-[#aaa]">No sites monitored yet</p>
+            <p className="mt-1 text-[13px] text-[#ccc]">Click &quot;Add Site&quot; to start monitoring.</p>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {clients.map((client) => {
-            const checkin = getCheckinStatus(client.nextCheckin);
-            const healthBorder = getHealthColor(client.daysSinceInteraction, client.overdueActions);
-            const uptime = uptimeResults[client.id];
-
+          {/* Group by type */}
+          {(["internal", "client"] as const).map((type) => {
+            const typeSites = sites.filter((s) => s.type === type);
+            if (typeSites.length === 0) return null;
             return (
-              <div key={client.id} className={`rounded-lg border border-[#e0e0e0] border-l-[3px] ${healthBorder} bg-white p-5`}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <Link href={`/clients/${client.id}`} className="text-[15px] font-semibold text-[#222] hover:text-[#1a73e8]">
-                      {client.companyName}
-                    </Link>
-                    <p className="mt-0.5 text-[12px] text-[#888]">
-                      {client.engagementName}
-                      {client.projectName && (
-                        <> · <Link href={`/projects/${client.projectId}`} className="text-[#1a73e8] hover:underline">{client.projectName}</Link></>
-                      )}
-                    </p>
-                  </div>
-                  {client.monthlyFee && (
-                    <div className="flex items-center gap-1 rounded-full bg-[#e8f0fe] px-2.5 py-1 text-[12px] font-semibold text-[#1a73e8]">
-                      <DollarSign size={12} />
-                      {client.monthlyFee.toLocaleString()}/mo
+              <div key={type}>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#888]">
+                  {type === "internal" ? "strvx Internal" : "Client Apps"}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {typeSites.map((site) => (
+                    <div key={site.id} className="rounded-lg border border-[#e0e0e0] bg-white p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <StatusDot status={site.status} />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[14px] font-semibold text-[#222]">{site.name}</span>
+                              {site.type === "internal" ? (
+                                <Server size={12} className="text-[#888]" />
+                              ) : (
+                                <Globe size={12} className="text-[#888]" />
+                              )}
+                            </div>
+                            <a href={site.url} target="_blank" rel="noopener noreferrer"
+                              className="text-[12px] text-[#1a73e8] hover:underline">{site.url}</a>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {site.responseMs && (
+                            <span className="text-[13px] font-medium text-[#555]">{site.responseMs}ms</span>
+                          )}
+                          {site.uptime24h !== null && (
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              site.uptime24h >= 99 ? "bg-[#e6f9e6] text-[#27ae60]" :
+                              site.uptime24h >= 95 ? "bg-[#fff3e0] text-[#e65100]" :
+                              "bg-[#fde8e8] text-[#c0392b]"
+                            }`}>
+                              {site.uptime24h}% uptime
+                            </span>
+                          )}
+                          <button
+                            onClick={() => handleRemove(site.id)}
+                            className="rounded p-1 text-[#ccc] hover:bg-[#fde8e8] hover:text-[#c0392b]"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Uptime bar */}
+                      <div className="mt-3">
+                        <UptimeBar history={site.history} />
+                      </div>
+
+                      {/* Response time chart */}
+                      <ResponseChart history={site.history} />
+
+                      {/* Meta */}
+                      <div className="mt-2 flex items-center gap-4 text-[11px] text-[#888]">
+                        {site.lastChecked && (
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} />
+                            {new Date(site.lastChecked).toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                          </span>
+                        )}
+                        {site.statusCode && <span>HTTP {site.statusCode}</span>}
+                        {site.errorMessage && (
+                          <span className="text-[#c0392b]">{site.errorMessage.slice(0, 60)}</span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-4 text-[12px]">
-                  {/* Check-in status */}
-                  <div className="flex items-center gap-1.5">
-                    <Clock size={13} className="text-[#888]" />
-                    <span className="text-[#888]">Next check-in:</span>
-                    <span className={`font-medium ${checkin.color}`}>{checkin.label}</span>
-                  </div>
-
-                  {/* Last interaction */}
-                  <div className="flex items-center gap-1.5">
-                    <span className={`h-2 w-2 rounded-full ${client.daysSinceInteraction > 14 ? "bg-[#c0392b]" : client.daysSinceInteraction > 7 ? "bg-[#e67e22]" : "bg-[#27ae60]"}`} />
-                    <span className="text-[#888]">Last contact:</span>
-                    <span className="font-medium text-[#555]">
-                      {client.daysSinceInteraction === 0 ? "Today" : `${client.daysSinceInteraction}d ago`}
-                    </span>
-                  </div>
-
-                  {/* Open actions */}
-                  {client.openActions > 0 && (
-                    <div className="flex items-center gap-1.5">
-                      {client.overdueActions > 0 ? (
-                        <AlertTriangle size={13} className="text-[#c0392b]" />
-                      ) : (
-                        <CheckCircle2 size={13} className="text-[#888]" />
-                      )}
-                      <span className={client.overdueActions > 0 ? "font-medium text-[#c0392b]" : "text-[#555]"}>
-                        {client.openActions} action{client.openActions !== 1 ? "s" : ""}
-                        {client.overdueActions > 0 && ` (${client.overdueActions} overdue)`}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Uptime check */}
-                  {uptime && (
-                    <div className="flex items-center gap-1.5">
-                      {uptime.status === "up" ? (
-                        <Wifi size={13} className="text-[#27ae60]" />
-                      ) : (
-                        <WifiOff size={13} className="text-[#c0392b]" />
-                      )}
-                      <span className={`font-medium ${uptime.status === "up" ? "text-[#27ae60]" : "text-[#c0392b]"}`}>
-                        {uptime.status === "up" ? `Up (${uptime.responseMs}ms)` : "Down"}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Maintained for */}
-                  <span className="text-[#aaa]">{client.daysInMaintain}d in maintenance</span>
-                </div>
-
-                {/* Quick actions */}
-                <div className="mt-3 flex items-center gap-2">
-                  <Link
-                    href={`/clients/${client.id}`}
-                    className="rounded-md border border-[#e0e0e0] px-2.5 py-1 text-[11px] font-medium text-[#555] hover:bg-[#f5f5f5]"
-                  >
-                    View Client
-                  </Link>
-                  {client.projectId && (
-                    <Link
-                      href={`/projects/${client.projectId}`}
-                      className="rounded-md border border-[#e0e0e0] px-2.5 py-1 text-[11px] font-medium text-[#555] hover:bg-[#f5f5f5]"
-                    >
-                      View Project
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => {
-                      const url = prompt("Enter the client's app URL to check uptime (e.g., https://app.example.com)");
-                      if (url) pingUrl(client.id, url);
-                    }}
-                    disabled={pinging === client.id}
-                    className="flex items-center gap-1 rounded-md border border-[#e0e0e0] px-2.5 py-1 text-[11px] font-medium text-[#555] hover:bg-[#f5f5f5] disabled:opacity-40"
-                  >
-                    {pinging === client.id ? (
-                      <Loader2 size={11} className="animate-spin" />
-                    ) : (
-                      <ExternalLink size={11} />
-                    )}
-                    Ping
-                  </button>
+                  ))}
                 </div>
               </div>
             );

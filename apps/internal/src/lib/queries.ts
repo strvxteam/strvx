@@ -16,6 +16,8 @@ import {
   marketingPosts,
   documents,
   timeEntries,
+  monitoredSites,
+  uptimeChecks,
 } from "./db/schema";
 import { eq, desc, and, lte, isNull, sql, count } from "drizzle-orm";
 
@@ -782,6 +784,79 @@ export async function getDocument(id: string) {
     .from(documents)
     .where(eq(documents.id, id));
   return doc;
+}
+
+// ── Monitoring Queries ────────────────────────────────
+
+export async function getMonitoredSites() {
+  return db.select().from(monitoredSites).orderBy(monitoredSites.name);
+}
+
+export async function getSiteUptimeHistory(siteId: string, hours = 24) {
+  return db.execute(sql`
+    SELECT status, status_code, response_ms, error_message, checked_at
+    FROM uptime_checks
+    WHERE site_id = ${siteId}
+      AND checked_at > NOW() - INTERVAL '${sql.raw(String(hours))} hours'
+    ORDER BY checked_at DESC
+    LIMIT 200
+  `);
+}
+
+export async function getAllSitesLatestStatus() {
+  const result = await db.execute(sql`
+    SELECT DISTINCT ON (uc.site_id)
+      ms.id as site_id,
+      ms.name,
+      ms.url,
+      ms.type,
+      ms.is_active,
+      uc.status,
+      uc.status_code,
+      uc.response_ms,
+      uc.error_message,
+      uc.checked_at,
+      (SELECT COUNT(*) FILTER (WHERE u2.status = 'up')::float /
+       NULLIF(COUNT(*)::float, 0) * 100
+       FROM uptime_checks u2
+       WHERE u2.site_id = ms.id
+         AND u2.checked_at > NOW() - INTERVAL '24 hours'
+      ) as uptime_24h,
+      (SELECT ROUND(AVG(u3.response_ms))
+       FROM uptime_checks u3
+       WHERE u3.site_id = ms.id
+         AND u3.status = 'up'
+         AND u3.checked_at > NOW() - INTERVAL '1 hour'
+      ) as avg_response_1h
+    FROM monitored_sites ms
+    LEFT JOIN uptime_checks uc ON uc.site_id = ms.id
+    ORDER BY uc.site_id, uc.checked_at DESC
+  `);
+  return result as unknown as {
+    site_id: string;
+    name: string;
+    url: string;
+    type: string;
+    is_active: boolean;
+    status: string | null;
+    status_code: number | null;
+    response_ms: number | null;
+    error_message: string | null;
+    checked_at: string | null;
+    uptime_24h: number | null;
+    avg_response_1h: number | null;
+  }[];
+}
+
+export async function getSiteCheckHistory(siteId: string) {
+  const result = await db.execute(sql`
+    SELECT status, response_ms, checked_at
+    FROM uptime_checks
+    WHERE site_id = ${siteId}
+      AND checked_at > NOW() - INTERVAL '24 hours'
+    ORDER BY checked_at ASC
+  `);
+  return result as unknown as { status: string; response_ms: number | null; checked_at: string }[];
 }
 
 // ── Maintenance Queries ───────────────────────────────

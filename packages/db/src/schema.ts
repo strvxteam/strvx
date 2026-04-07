@@ -178,6 +178,32 @@ export const nextActions = pgTable("next_actions", {
 
 // ── Projects ──────────────────────────────────────────
 
+// ── Monitored Sites ──────────────────────────────────
+
+export const monitoredSites = pgTable("monitored_sites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  type: text("type").notNull().default("client"), // "internal" | "client"
+  checkIntervalMinutes: integer("check_interval_minutes").notNull().default(5),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const uptimeChecks = pgTable("uptime_checks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  siteId: uuid("site_id")
+    .notNull()
+    .references(() => monitoredSites.id, { onDelete: "cascade" }),
+  status: text("status").notNull(), // "up" | "down"
+  statusCode: integer("status_code"),
+  responseMs: integer("response_ms"),
+  errorMessage: text("error_message"),
+  checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Projects ──────────────────────────────────────────
+
 export const projects = pgTable("projects", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
