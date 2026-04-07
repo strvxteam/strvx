@@ -6,8 +6,10 @@ import {
   contacts,
   engagements,
   interactions,
+  invoiceReconciliations,
   invoices,
   nextActions,
+  recurringInvoiceSchedules,
   stageEnum,
   stageHistory,
   users,
@@ -40,6 +42,9 @@ import {
   updateDocumentSchema,
   searchQuerySchema,
   uuidSchema,
+  createRecurringScheduleSchema,
+  updateRecurringScheduleSchema,
+  manualReconciliationSchema,
 } from "@/lib/validations";
 
 async function getCurrentUser() {
@@ -1589,4 +1594,109 @@ export async function toggleUserStatus(userId: string) {
 
   revalidatePath("/dashboard");
   return newStatus;
+}
+
+// ── Recurring Schedule Actions ──────────────────────
+
+export async function createRecurringScheduleAction(data: {
+  engagementId: string;
+  type: "retainer" | "milestone" | "commission";
+  frequency: "weekly" | "biweekly" | "monthly" | "quarterly";
+  nextRunDate: string;
+  autoSend: boolean;
+  notes?: string;
+  lineItemTemplate?: { description: string; quantity: number; rate: number }[];
+  commissionRate?: number;
+  commissionSourceUrl?: string;
+  milestoneSchedule?: { date: string; description: string; amount: number }[];
+}) {
+  await getCurrentUser();
+  const parsed = createRecurringScheduleSchema.safeParse(data);
+  if (!parsed.success) throw new Error(parsed.error.issues[0].message);
+
+  const [schedule] = await db
+    .insert(recurringInvoiceSchedules)
+    .values({
+      engagementId: parsed.data.engagementId,
+      type: parsed.data.type,
+      frequency: parsed.data.frequency,
+      nextRunDate: parsed.data.nextRunDate,
+      autoSend: parsed.data.autoSend,
+      notes: parsed.data.notes || null,
+      lineItemTemplate: parsed.data.lineItemTemplate || null,
+      commissionRate: parsed.data.commissionRate != null ? String(parsed.data.commissionRate) : null,
+      commissionSourceUrl: parsed.data.commissionSourceUrl || null,
+      milestoneSchedule: parsed.data.milestoneSchedule || null,
+    })
+    .returning();
+
+  revalidatePath("/invoices");
+  return schedule;
+}
+
+export async function updateRecurringScheduleAction(
+  scheduleId: string,
+  data: { status?: "active" | "paused" | "cancelled"; frequency?: string; nextRunDate?: string; autoSend?: boolean; notes?: string }
+) {
+  await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(scheduleId);
+  if (!parsedId.success) throw new Error("Invalid schedule ID");
+
+  const updates: Record<string, unknown> = {};
+  if (data.status) updates.status = data.status;
+  if (data.frequency) updates.frequency = data.frequency;
+  if (data.nextRunDate) updates.nextRunDate = data.nextRunDate;
+  if (data.autoSend !== undefined) updates.autoSend = data.autoSend;
+  if (data.notes !== undefined) updates.notes = data.notes;
+
+  if (Object.keys(updates).length === 0) return;
+
+  await db
+    .update(recurringInvoiceSchedules)
+    .set(updates)
+    .where(eq(recurringInvoiceSchedules.id, scheduleId));
+
+  revalidatePath("/invoices");
+}
+
+// ── Manual Reconciliation ───────────────────────────
+
+export async function manualReconcileAction(data: {
+  invoiceId: string;
+  mercuryTransactionId: string;
+  mercuryAmount: number;
+}) {
+  await getCurrentUser();
+  const parsed = manualReconciliationSchema.safeParse(data);
+  if (!parsed.success) throw new Error(parsed.error.issues[0].message);
+
+  const [existing] = await db
+    .select()
+    .from(invoiceReconciliations)
+    .where(eq(invoiceReconciliations.invoiceId, parsed.data.invoiceId));
+
+  if (existing) {
+    await db
+      .update(invoiceReconciliations)
+      .set({
+        mercuryTransactionId: parsed.data.mercuryTransactionId,
+        mercuryAmount: String(parsed.data.mercuryAmount),
+        status: "manual",
+        matchedAt: new Date(),
+        matchMethod: "manual",
+      })
+      .where(eq(invoiceReconciliations.id, existing.id));
+  } else {
+    await db.insert(invoiceReconciliations).values({
+      invoiceId: parsed.data.invoiceId,
+      mercuryTransactionId: parsed.data.mercuryTransactionId,
+      mercuryAmount: String(parsed.data.mercuryAmount),
+      status: "manual",
+      matchedAt: new Date(),
+      matchMethod: "manual",
+    });
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath("/finances");
 }
