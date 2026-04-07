@@ -18,8 +18,10 @@ import {
   timeEntries,
   monitoredSites,
   uptimeChecks,
+  recurringInvoiceSchedules,
+  invoiceReconciliations,
 } from "./db/schema";
-import { eq, desc, and, lte, isNull, sql, count } from "drizzle-orm";
+import { eq, desc, and, lte, isNull, isNotNull, sql, count } from "drizzle-orm";
 
 // ── Dashboard Queries ──────────────────────────────────
 
@@ -742,6 +744,94 @@ export async function getInvoice(id: string) {
     .from(invoices)
     .where(eq(invoices.id, id));
   return invoice;
+}
+
+// ── Recurring Invoice Schedule Queries ───────────────
+
+export async function getRecurringSchedules() {
+  return db
+    .select({
+      id: recurringInvoiceSchedules.id,
+      type: recurringInvoiceSchedules.type,
+      status: recurringInvoiceSchedules.status,
+      frequency: recurringInvoiceSchedules.frequency,
+      nextRunDate: recurringInvoiceSchedules.nextRunDate,
+      autoSend: recurringInvoiceSchedules.autoSend,
+      commissionRate: recurringInvoiceSchedules.commissionRate,
+      engagementId: recurringInvoiceSchedules.engagementId,
+      engagementName: engagements.name,
+      companyName: companies.name,
+      createdAt: recurringInvoiceSchedules.createdAt,
+    })
+    .from(recurringInvoiceSchedules)
+    .innerJoin(engagements, eq(recurringInvoiceSchedules.engagementId, engagements.id))
+    .innerJoin(companies, eq(engagements.companyId, companies.id))
+    .orderBy(recurringInvoiceSchedules.nextRunDate);
+}
+
+export async function getRecurringSchedule(id: string) {
+  const [schedule] = await db
+    .select()
+    .from(recurringInvoiceSchedules)
+    .where(eq(recurringInvoiceSchedules.id, id));
+  return schedule;
+}
+
+export async function getDueSchedules() {
+  const today = new Date().toISOString().split("T")[0];
+  return db
+    .select()
+    .from(recurringInvoiceSchedules)
+    .where(
+      and(
+        eq(recurringInvoiceSchedules.status, "active"),
+        lte(recurringInvoiceSchedules.nextRunDate, today)
+      )
+    );
+}
+
+// ── Reconciliation Queries ───────────────────────────
+
+export async function getReconciliationForInvoice(invoiceId: string) {
+  const [rec] = await db
+    .select()
+    .from(invoiceReconciliations)
+    .where(eq(invoiceReconciliations.invoiceId, invoiceId));
+  return rec;
+}
+
+export async function getUnmatchedReconciliations() {
+  return db
+    .select({
+      id: invoiceReconciliations.id,
+      invoiceId: invoiceReconciliations.invoiceId,
+      invoiceNumber: invoices.invoiceNumber,
+      clientName: invoices.clientName,
+      stripePayoutId: invoiceReconciliations.stripePayoutId,
+      stripeAmount: invoiceReconciliations.stripeAmount,
+      status: invoiceReconciliations.status,
+      createdAt: invoiceReconciliations.createdAt,
+    })
+    .from(invoiceReconciliations)
+    .innerJoin(invoices, eq(invoiceReconciliations.invoiceId, invoices.id))
+    .where(eq(invoiceReconciliations.status, "unmatched"))
+    .orderBy(desc(invoiceReconciliations.createdAt));
+}
+
+export async function getOverdueUnremindedInvoices() {
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+  return db
+    .select()
+    .from(invoices)
+    .where(
+      and(
+        eq(invoices.status, "sent"),
+        lte(invoices.dueDate, threeDaysAgo),
+        isNull(invoices.reminderSentAt)
+      )
+    );
 }
 
 // ── Expense Queries ───────────────────────────────────
