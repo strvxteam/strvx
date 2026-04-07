@@ -1,8 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let _anthropic: Anthropic | null = null;
+function getAnthropic(): Anthropic {
+  if (!_anthropic) {
+    if (!process.env.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is not set");
+    _anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  }
+  return _anthropic;
+}
 
 interface SentimentInput {
   companyName: string;
@@ -24,7 +29,7 @@ export async function analyzeSentiment(input: SentimentInput): Promise<Sentiment
     .map((i) => `[${i.date}] ${i.author} (${i.type}): ${i.content.slice(0, 300)}`)
     .join("\n");
 
-  const message = await anthropic.messages.create({
+  const message = await getAnthropic().messages.create({
     model: "claude-sonnet-4-20250514",
     max_tokens: 500,
     messages: [{

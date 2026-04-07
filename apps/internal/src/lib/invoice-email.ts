@@ -1,6 +1,22 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is not set");
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 interface InvoiceEmailData {
   invoiceNumber: string;
@@ -23,7 +39,7 @@ function buildInvoiceHtml(data: InvoiceEmailData): string {
     .map(
       (item) => `
       <tr>
-        <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #333;">${item.description}</td>
+        <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #333;">${escapeHtml(item.description)}</td>
         <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #555; text-align: center;">${item.quantity}</td>
         <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #555; text-align: right;">$${item.rate.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
         <td style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #222; text-align: right; font-weight: 500;">$${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
@@ -58,11 +74,11 @@ function buildInvoiceHtml(data: InvoiceEmailData): string {
           <tr>
             <td style="vertical-align: top;">
               <p style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Bill to</p>
-              <p style="margin: 0; font-size: 15px; font-weight: 600; color: #222;">${data.clientName}</p>
-              <p style="margin: 2px 0 0; font-size: 13px; color: #555;">${data.clientEmail}</p>
+              <p style="margin: 0; font-size: 15px; font-weight: 600; color: #222;">${escapeHtml(data.clientName)}</p>
+              <p style="margin: 2px 0 0; font-size: 13px; color: #555;">${escapeHtml(data.clientEmail)}</p>
             </td>
             <td style="vertical-align: top; text-align: right;">
-              <p style="margin: 0 0 4px; font-size: 12px; color: #888;">${data.invoiceNumber}</p>
+              <p style="margin: 0 0 4px; font-size: 12px; color: #888;">${escapeHtml(data.invoiceNumber)}</p>
               <p style="margin: 0; font-size: 13px; color: #555;">Issued: ${data.issuedDate}</p>
               <p style="margin: 2px 0 0; font-size: 13px; color: #555;">Due: ${data.dueDate}</p>
             </td>
@@ -91,7 +107,7 @@ function buildInvoiceHtml(data: InvoiceEmailData): string {
 
         ${payButton}
 
-        ${data.notes ? `<div style="margin-top: 20px; padding: 12px 16px; background: #f9f9f9; border-radius: 8px; font-size: 13px; color: #555;">${data.notes}</div>` : ""}
+        ${data.notes ? `<div style="margin-top: 20px; padding: 12px 16px; background: #f9f9f9; border-radius: 8px; font-size: 13px; color: #555;">${escapeHtml(data.notes)}</div>` : ""}
       </div>
 
       <!-- Footer -->
@@ -110,7 +126,7 @@ export async function sendInvoiceEmail(data: InvoiceEmailData) {
   const taxAmount = data.amount * (data.taxRate / 100);
   const total = data.amount + taxAmount;
 
-  const result = await resend.emails.send({
+  const result = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL || "strvx <invoices@strvx.com>",
     to: [data.clientEmail],
     subject: `Invoice ${data.invoiceNumber} — $${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,

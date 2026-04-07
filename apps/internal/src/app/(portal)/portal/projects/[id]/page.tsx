@@ -13,11 +13,12 @@ async function getPortalCompany() {
   if (!token) return null;
 
   const [portalToken] = await db
-    .select({ companyId: portalTokens.companyId })
+    .select({ companyId: portalTokens.companyId, expiresAt: portalTokens.expiresAt })
     .from(portalTokens)
     .where(eq(portalTokens.token, token));
 
   if (!portalToken) return null;
+  if (portalToken.expiresAt && new Date(portalToken.expiresAt) < new Date()) return null;
 
   const [company] = await db
     .select({ id: companies.id, name: companies.name })

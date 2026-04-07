@@ -1067,6 +1067,8 @@ export async function createTimeEntry(data: {
   billable?: boolean;
 }) {
   const user = await getCurrentUser();
+  const parsedProjectId = uuidSchema.safeParse(data.projectId);
+  if (!parsedProjectId.success) throw new Error("Invalid project ID");
   if (!data.description.trim()) throw new Error("Description is required");
   if (data.hours <= 0 || data.hours > 24) throw new Error("Hours must be between 0 and 24");
 
@@ -1075,22 +1077,27 @@ export async function createTimeEntry(data: {
     .insert(timeEntries)
     .values({
       userId: user.id,
-      projectId: data.projectId,
+      projectId: parsedProjectId.data,
       date: data.date,
       hours: String(data.hours),
       description: data.description.trim(),
       billable: data.billable ?? true,
     })
     .returning();
-  revalidatePath(`/projects/${data.projectId}`);
+  revalidatePath(`/projects/${parsedProjectId.data}`);
   return entry;
 }
 
 export async function deleteTimeEntry(entryId: string, projectId: string) {
   await getCurrentUser();
+  const parsedEntryId = uuidSchema.safeParse(entryId);
+  const parsedProjectId = uuidSchema.safeParse(projectId);
+  if (!parsedEntryId.success) throw new Error("Invalid entry ID");
+  if (!parsedProjectId.success) throw new Error("Invalid project ID");
+
   const { timeEntries } = await import("@/lib/db/schema");
-  await db.delete(timeEntries).where(eq(timeEntries.id, entryId));
-  revalidatePath(`/projects/${projectId}`);
+  await db.delete(timeEntries).where(eq(timeEntries.id, parsedEntryId.data));
+  revalidatePath(`/projects/${parsedProjectId.data}`);
 }
 
 // ── Goals ─────────────────────────────────────────────
