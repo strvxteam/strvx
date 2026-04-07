@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/monitor/check?secret=${MONITOR_SECRET}",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/reports/weekly?secret=${WEEKLY_REPORT_SECRET}",
+      "schedule": "0 14 * * 1"
+    }
+  ]
+}

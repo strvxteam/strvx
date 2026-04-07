@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
@@ -95,6 +95,30 @@ export default function MaintenanceClient({ sites }: { sites: SiteData[] }) {
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
   const [newType, setNewType] = useState<"internal" | "client">("client");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [nextCheck, setNextCheck] = useState(300); // 5 min countdown
+
+  // Auto-check every 5 minutes when page is open
+  const silentCheck = useCallback(async () => {
+    try {
+      await fetch("/api/monitor/check", { method: "POST" });
+      router.refresh();
+    } catch { /* silent */ }
+  }, [router]);
+
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const countdown = setInterval(() => {
+      setNextCheck((prev) => {
+        if (prev <= 1) {
+          silentCheck();
+          return 300;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(countdown);
+  }, [autoRefresh, silentCheck]);
 
   const upCount = sites.filter((s) => s.status === "up").length;
   const downCount = sites.filter((s) => s.status === "down").length;
@@ -146,6 +170,14 @@ export default function MaintenanceClient({ sites }: { sites: SiteData[] }) {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Monitoring</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-medium transition-colors ${
+              autoRefresh ? "border-[#27ae60] bg-[#e6f9e6] text-[#27ae60]" : "border-[#e0e0e0] text-[#888]"
+            }`}
+          >
+            {autoRefresh ? `Auto ${Math.floor(nextCheck / 60)}:${String(nextCheck % 60).padStart(2, "0")}` : "Auto off"}
+          </button>
           <button
             onClick={runChecks}
             disabled={checking}
