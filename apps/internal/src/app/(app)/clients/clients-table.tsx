@@ -9,8 +9,10 @@ import {
   updateCompanyName,
   updateCompany,
   toggleAction as serverToggleAction,
+  deleteAction as serverDeleteAction,
   quickAdd,
   deleteEngagement,
+  createFollowUpLink,
 } from "@/app/actions";
 import { stageEnum } from "@/lib/db/schema";
 import { toast } from "sonner";
@@ -38,6 +40,9 @@ import {
   ChevronDown,
   Plus,
   Trash2,
+  Copy,
+  Link2,
+  Sparkles,
 } from "lucide-react";
 import {
   Table,
@@ -477,10 +482,12 @@ function ActionsPreview({
   actions,
   onToggle,
   onAdd,
+  onDelete,
 }: {
   actions: ActionEntry[];
   onToggle: (id: string) => void;
   onAdd: (description: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const [tab, setTab] = useState<"pending" | "completed">("pending");
   const [adding, setAdding] = useState(false);
@@ -578,7 +585,7 @@ function ActionsPreview({
             return (
               <div
                 key={action.id}
-                className="flex items-start gap-2 px-1 py-1 text-[13px]"
+                className="group flex items-start gap-2 px-1 py-1 text-[13px]"
               >
                 <button
                   onClick={() => onToggle(action.id)}
@@ -613,6 +620,12 @@ function ActionsPreview({
                     })}
                   </span>
                 )}
+                <button
+                  onClick={() => onDelete(action.id)}
+                  className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+                >
+                  <X size={12} />
+                </button>
               </div>
             );
           })}
@@ -630,7 +643,7 @@ function ActionsPreview({
           {completed.map((action) => (
             <div
               key={action.id}
-              className="flex items-start gap-2 px-1 py-1 text-[13px] opacity-60"
+              className="group flex items-start gap-2 px-1 py-1 text-[13px] opacity-60"
             >
               <button
                 onClick={() => onToggle(action.id)}
@@ -638,9 +651,15 @@ function ActionsPreview({
               >
                 <Check size={10} className="text-white" />
               </button>
-              <span className="text-[12px] line-through">
+              <span className="min-w-0 flex-1 text-[12px] line-through">
                 {action.description}
               </span>
+              <button
+                onClick={() => onDelete(action.id)}
+                className="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+              >
+                <X size={12} />
+              </button>
             </div>
           ))}
         </div>
@@ -726,22 +745,34 @@ function StageDropdown({
 
 // ── Main Component ───────────────────────────────────────
 
+type FollowUpLink = {
+  id: string;
+  token: string;
+  engagementId: string;
+  meetingType: string;
+  createdBy: string | null;
+  createdAt: Date;
+};
+
 export function ClientsTable({
   initialEngagements,
   initialContacts,
   initialTimeline,
   initialActions,
+  initialFollowUpLinks,
   teamMembers,
 }: {
   initialEngagements: Engagement[];
   initialContacts: Record<string, Contact[]>;
   initialTimeline: Record<string, TimelineEntry[]>;
   initialActions: Record<string, ActionEntry[]>;
+  initialFollowUpLinks: Record<string, FollowUpLink[]>;
   teamMembers: { id: string; name: string }[];
 }) {
   const [engagements, setEngagements] = useState<Engagement[]>(initialEngagements);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [actions, setActions] = useState(initialActions);
+  const [followUpLinks, setFollowUpLinks] = useState(initialFollowUpLinks);
   const [showNewEngagement, setShowNewEngagement] = useState(false);
 
   const selectedEng = selectedId
@@ -758,6 +789,10 @@ export function ClientsTable({
 
   const engActions = selectedId
     ? actions[selectedId as keyof typeof actions] || []
+    : [];
+
+  const engFollowUpLinks = selectedId
+    ? followUpLinks[selectedId] || []
     : [];
 
   const updateEngagement = useCallback(
@@ -791,6 +826,24 @@ export function ClientsTable({
         await serverToggleAction(actionId);
       } catch {
         toast.error("Failed to toggle action");
+      }
+    });
+  }, []);
+
+  const deleteAction = useCallback((actionId: string) => {
+    setActions((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        const k = key as keyof typeof next;
+        next[k] = next[k].filter((a) => a.id !== actionId);
+      }
+      return next;
+    });
+    startTransition(async () => {
+      try {
+        await serverDeleteAction(actionId);
+      } catch {
+        toast.error("Failed to delete action");
       }
     });
   }, []);
@@ -1128,6 +1181,7 @@ export function ClientsTable({
                     <ActionsPreview
                       actions={engActions}
                       onToggle={toggleAction}
+                      onDelete={deleteAction}
                       onAdd={(desc) => {
                         if (!selectedId) return;
                         const k = selectedId as keyof typeof actions;
@@ -1157,6 +1211,72 @@ export function ClientsTable({
                         });
                       }}
                     />
+                  </SectionCard>
+
+                  {/* Follow-up Links */}
+                  <SectionCard icon={<Link2 size={13} />} title="Booking Links">
+                    <div className="space-y-2">
+                      {engFollowUpLinks.length === 0 && (
+                        <p className="px-1 py-1 text-[12px] text-muted-foreground">
+                          No booking links yet.
+                        </p>
+                      )}
+                      {engFollowUpLinks.map((link) => {
+                        const url = `https://strvx.com/book/${link.token}`;
+                        return (
+                          <div key={link.id} className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
+                            <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+                              {link.meetingType === "proposal" ? "Proposal" : "Revision"} · strvx.com/book/{link.token.slice(0, 8)}…
+                            </span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(url);
+                                toast.success("Link copied!");
+                              }}
+                              className="shrink-0 text-muted-foreground hover:text-foreground"
+                              title="Copy link"
+                            >
+                              <Copy size={12} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      <div className="flex gap-1.5 pt-1">
+                        {(["proposal", "revision"] as const).map((type) => (
+                          <button
+                            key={type}
+                            onClick={() => {
+                              if (!selectedId) return;
+                              startTransition(async () => {
+                                try {
+                                  const token = await createFollowUpLink(selectedId, type);
+                                  const newLink: FollowUpLink = {
+                                    id: `fl-${Date.now()}`,
+                                    token,
+                                    engagementId: selectedId,
+                                    meetingType: type,
+                                    createdBy: null,
+                                    createdAt: new Date(),
+                                  };
+                                  setFollowUpLinks((prev) => ({
+                                    ...prev,
+                                    [selectedId]: [newLink, ...(prev[selectedId] || [])],
+                                  }));
+                                  await navigator.clipboard.writeText(`https://strvx.com/book/${token}`);
+                                  toast.success(`${type === "proposal" ? "Proposal" : "Revision"} link created & copied!`);
+                                } catch {
+                                  toast.error("Failed to create link");
+                                }
+                              });
+                            }}
+                            className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-[#1a73e8] hover:text-[#1a73e8]"
+                          >
+                            <Sparkles size={10} />
+                            New {type === "proposal" ? "Proposal" : "Revision"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </SectionCard>
                 </div>
               </ScrollArea>

@@ -1288,6 +1288,10 @@ export async function getFollowUpLinksForEngagement(engagementId: string) {
     .orderBy(desc(followUpLinks.createdAt));
 }
 
+export async function getAllFollowUpLinks() {
+  return db.select().from(followUpLinks).orderBy(desc(followUpLinks.createdAt));
+}
+
 // ── Credit Cards ─────────────────────────────────────
 
 export async function getCreditCards() {
