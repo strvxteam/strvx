@@ -101,7 +101,8 @@ export async function getGoogleCalendarEvents(userId: string, timeMin: string, t
   const calendar = google.calendar({ version: "v3", auth: authed.oauth2Client });
 
   try {
-    const allItems: NonNullable<Awaited<ReturnType<typeof calendar.events.list>>["data"]["items"]> = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allItems: any[] = [];
     let pageToken: string | undefined;
 
     do {
@@ -127,7 +128,7 @@ export async function getGoogleCalendarEvents(userId: string, timeMin: string, t
       end: event.end?.dateTime || event.end?.date || "",
       location: event.location || "",
       meetLink: event.hangoutLink || event.conferenceData?.entryPoints?.[0]?.uri || "",
-      attendees: (event.attendees || []).map((a) => a.email || ""),
+      attendees: (event.attendees || []).map((a: any) => a.email || ""),
       isAllDay: !event.start?.dateTime,
       htmlLink: event.htmlLink || "",
     }));

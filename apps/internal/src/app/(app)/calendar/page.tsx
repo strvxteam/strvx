@@ -49,7 +49,8 @@ export default async function CalendarPage() {
           const gEvents = await getGoogleCalendarEvents(dbUser.id, timeMin, timeMax);
 
           // Convert Google events to CalendarEvent format (Central Time)
-          googleEvents = gEvents.map((ge) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          googleEvents = gEvents.map((ge: any) => {
             // Convert to Central Time by formatting in that timezone
             const start = new Date(ge.start);
             const end = new Date(ge.end);
