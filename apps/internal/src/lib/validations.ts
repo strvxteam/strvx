@@ -232,3 +232,31 @@ export const manualReconciliationSchema = z.object({
   mercuryTransactionId: z.string().min(1, "Mercury transaction ID required"),
   mercuryAmount: z.number().positive("Amount must be positive"),
 });
+
+// ── Credit Cards ─────────────────────────────────────
+
+export const upsertCardConfigSchema = z.object({
+  mercuryCardId: z.string().min(1, "Mercury card ID is required"),
+  cardNickname: z.string().max(100).optional(),
+  assignedEmployee: z.string().max(200).optional(),
+  creditLimit: z.number().min(0).optional(),
+  rewardRate: z.number().min(0).max(100).optional(),
+});
+
+export const createCardBudgetSchema = z.object({
+  creditCardId: z.string().uuid("Invalid card ID"),
+  category: z.string().min(1, "Category is required").max(100),
+  monthlyLimit: z.number().positive("Budget must be positive"),
+});
+
+export const updateCardBudgetSchema = z.object({
+  category: z.string().min(1).max(100).optional(),
+  monthlyLimit: z.number().positive().optional(),
+});
+
+export const upsertCardAlertSchema = z.object({
+  creditCardId: z.string().uuid("Invalid card ID"),
+  alertType: z.enum(["limit_threshold", "unusual_spend", "payment_due"]),
+  thresholdValue: z.number().min(0),
+  enabled: z.boolean().optional(),
+});
