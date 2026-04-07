@@ -1,6 +1,7 @@
 import FinancesPage from "./finances-client";
 import type { Invoice, Expense } from "@/lib/mock-finance";
 import { getInvoices, getExpenses, getMRR, getMonthlyRevenue, getPipelineEngagements } from "@/lib/queries";
+import { getMercuryAccounts, getAllMercuryTransactions, isMercuryConfigured } from "@/lib/mercury";
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,38 @@ export default async function FinancesServerPage() {
     getMonthlyRevenue(),
     getPipelineEngagements(),
   ]);
+
+  // Fetch Mercury bank data if configured
+  let bankAccounts: { id: string; name: string; kind: string; currentBalance: number; availableBalance: number }[] = [];
+  let bankTransactions: { id: string; amount: number; counterpartyName: string; note: string | null; createdAt: string; status: string; kind: string }[] = [];
+  const mercuryConnected = isMercuryConfigured();
+
+  if (mercuryConnected) {
+    try {
+      const [accounts, transactions] = await Promise.all([
+        getMercuryAccounts(),
+        getAllMercuryTransactions({ limit: 50 }),
+      ]);
+      bankAccounts = accounts.map((a) => ({
+        id: a.id,
+        name: a.name,
+        kind: a.kind,
+        currentBalance: a.currentBalance,
+        availableBalance: a.availableBalance,
+      }));
+      bankTransactions = transactions.slice(0, 50).map((t) => ({
+        id: t.id,
+        amount: t.amount,
+        counterpartyName: t.counterpartyName,
+        note: t.note,
+        createdAt: t.createdAt,
+        status: t.status,
+        kind: t.kind,
+      }));
+    } catch (err) {
+      console.error("[Finances] Mercury fetch failed:", err);
+    }
+  }
 
   const invoices: Invoice[] = realInvoices.map((inv) => ({
     id: inv.id,
@@ -58,6 +91,9 @@ export default async function FinancesServerPage() {
       monthlyRevenue={monthlyRevenue}
       mrr={mrr}
       pipelineEngagements={pipelineEngagements}
+      mercuryConnected={mercuryConnected}
+      bankAccounts={bankAccounts}
+      bankTransactions={bankTransactions}
     />
   );
 }

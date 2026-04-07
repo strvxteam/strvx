@@ -317,6 +317,7 @@ export const calendarEvents = pgTable("calendar_events", {
   zoomLink: text("zoom_link"),
   engagementId: uuid("engagement_id").references(() => engagements.id, { onDelete: "set null" }),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  googleEventId: text("google_event_id"),
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -391,6 +392,22 @@ export const goals = pgTable("goals", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── Time Entries ─────────────────────────────────────
+
+export const timeEntries = pgTable("time_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+  engagementId: uuid("engagement_id").references(() => engagements.id, { onDelete: "set null" }),
+  date: date("date").notNull(),
+  hours: numeric("hours").notNull(),
+  description: text("description").notNull(),
+  billable: boolean("billable").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ── Marketing Posts ───────────────────────────────────
 
 export const marketingPosts = pgTable("marketing_posts", {
@@ -415,6 +432,19 @@ export const documents = pgTable("documents", {
   authorId: uuid("author_id").references(() => users.id),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Gmail Sync State ─────────────────────────────────
+
+export const gmailSyncState = pgTable("gmail_sync_state", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .unique()
+    .references(() => users.id),
+  lastHistoryId: text("last_history_id"),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  syncedMessageCount: integer("synced_message_count").notNull().default(0),
 });
 
 // ── Booking Status ───────────────────────────────────

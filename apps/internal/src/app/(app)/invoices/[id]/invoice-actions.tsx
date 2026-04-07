@@ -14,7 +14,7 @@ export function InvoiceActions({ invoiceId, status }: { invoiceId: string; statu
     setLoading(true);
     try {
       await sendInvoiceAction(invoiceId);
-      toast.success("Invoice sent via Stripe");
+      toast.success("Invoice sent to client");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to send");

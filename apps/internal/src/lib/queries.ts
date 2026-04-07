@@ -18,6 +18,7 @@ import {
   prospects,
   prospectTouches,
   industries,
+  timeEntries,
 } from "./db/schema";
 import { eq, desc, and, lte, isNull, sql, count } from "drizzle-orm";
 
@@ -537,6 +538,7 @@ export async function createCalendarEvent(data: {
   engagementId?: string | null;
   projectId?: string | null;
   createdBy?: string | null;
+  googleEventId?: string | null;
 }) {
   const [event] = await db
     .insert(calendarEvents)
@@ -551,8 +553,17 @@ export async function createCalendarEvent(data: {
       engagementId: data.engagementId || null,
       projectId: data.projectId || null,
       createdBy: data.createdBy || null,
+      googleEventId: data.googleEventId || null,
     })
     .returning();
+  return event;
+}
+
+export async function getCalendarEventById(id: string) {
+  const [event] = await db
+    .select()
+    .from(calendarEvents)
+    .where(eq(calendarEvents.id, id));
   return event;
 }
 
@@ -877,6 +888,42 @@ export async function getCompaniesWithContacts() {
     ...c,
     contacts: contactsList.filter((ct) => ct.companyId === c.id),
   }));
+}
+
+// ── Time Entry Queries ───────────────────────────────
+
+export async function getTimeEntriesByProject(projectId: string) {
+  return db
+    .select({
+      id: timeEntries.id,
+      date: timeEntries.date,
+      hours: timeEntries.hours,
+      description: timeEntries.description,
+      billable: timeEntries.billable,
+      userName: users.name,
+      userId: timeEntries.userId,
+      createdAt: timeEntries.createdAt,
+    })
+    .from(timeEntries)
+    .innerJoin(users, eq(timeEntries.userId, users.id))
+    .where(eq(timeEntries.projectId, projectId))
+    .orderBy(desc(timeEntries.date));
+}
+
+export async function getTimeEntrySummaryByProject(projectId: string) {
+  const result = await db
+    .select({
+      totalHours: sql<string>`COALESCE(SUM(${timeEntries.hours}::numeric), 0)`,
+      billableHours: sql<string>`COALESCE(SUM(CASE WHEN ${timeEntries.billable} THEN ${timeEntries.hours}::numeric ELSE 0 END), 0)`,
+      entryCount: count(),
+    })
+    .from(timeEntries)
+    .where(eq(timeEntries.projectId, projectId));
+  return {
+    totalHours: Number(result[0]?.totalHours ?? 0),
+    billableHours: Number(result[0]?.billableHours ?? 0),
+    entryCount: result[0]?.entryCount ?? 0,
+  };
 }
 
 // ── Analytics Queries ─────────────────────────────────

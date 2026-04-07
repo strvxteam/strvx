@@ -1,5 +1,5 @@
 import ProjectDetailPage from "./project-detail-client";
-import { getProject, getTasks, getCalendarEvents, getAllEngagementTimelines, getPipelineEngagements } from "@/lib/queries";
+import { getProject, getTasks, getCalendarEvents, getAllEngagementTimelines, getPipelineEngagements, getTimeEntriesByProject, getTimeEntrySummaryByProject } from "@/lib/queries";
 import { notFound } from "next/navigation";
 
 export const dynamic = 'force-dynamic';
@@ -58,12 +58,14 @@ export default async function ProjectDetailServerPage({
 }) {
   const { id } = await params;
 
-  const [dbProject, dbTasks, dbEvents, allTimelines, allEngagements] = await Promise.all([
+  const [dbProject, dbTasks, dbEvents, allTimelines, allEngagements, timeEntriesRaw, timeSummary] = await Promise.all([
     getProject(id),
     getTasks(),
     getCalendarEvents(),
     getAllEngagementTimelines(),
     getPipelineEngagements(),
+    getTimeEntriesByProject(id),
+    getTimeEntrySummaryByProject(id),
   ]);
 
   let project: SerializedProject | null = null;
@@ -145,12 +147,23 @@ export default async function ProjectDetailServerPage({
     return notFound();
   }
 
+  const timeEntries = timeEntriesRaw.map((te) => ({
+    id: te.id,
+    date: te.date,
+    hours: Number(te.hours),
+    description: te.description,
+    billable: te.billable,
+    userName: te.userName,
+  }));
+
   return (
     <ProjectDetailPage
       initialProject={project}
       initialTasks={projectTasks}
       initialEvents={projectEvents}
       initialTimeline={projectTimeline}
+      initialTimeEntries={timeEntries}
+      timeSummary={timeSummary}
     />
   );
 }

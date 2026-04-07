@@ -605,13 +605,30 @@ export function ClientDetailView({
       <div className="mb-3 grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="flex items-center justify-between lg:col-span-2">
           <h2 className="text-sm font-semibold">Timeline</h2>
-          <button
-            onClick={() => setShowAddTimeline(!showAddTimeline)}
-            className="flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
-          >
-            <Plus size={12} />
-            Add Entry
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/gmail/sync", { method: "POST" });
+                  const data = await res.json();
+                  if (data.synced > 0) {
+                    router.refresh();
+                  }
+                } catch { /* silent */ }
+              }}
+              className="flex items-center gap-1 rounded-md border border-[#e0e0e0] px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+            >
+              <Mail size={12} />
+              Sync Emails
+            </button>
+            <button
+              onClick={() => setShowAddTimeline(!showAddTimeline)}
+              className="flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground"
+            >
+              <Plus size={12} />
+              Add Entry
+            </button>
+          </div>
         </div>
         <div className="hidden lg:block">
           <h2 className="text-sm font-semibold">Details</h2>

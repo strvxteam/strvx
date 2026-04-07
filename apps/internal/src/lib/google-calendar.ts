@@ -38,6 +38,7 @@ export function getAuthUrl(extraScopes: string[] = []) {
   const oauth2Client = getOAuth2Client();
   const scopes = [
     "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/gmail.readonly",
     ...extraScopes,
   ];
   return oauth2Client.generateAuthUrl({

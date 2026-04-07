@@ -13,6 +13,9 @@ import {
   Trash2,
   PiggyBank,
   Wallet,
+  Landmark,
+  ArrowDown,
+  ArrowUp,
 } from "lucide-react";
 import {
   EXPENSE_CATEGORY_COLORS,
@@ -51,12 +54,33 @@ interface PipelineEngagementSlim {
   stage: string;
 }
 
+interface BankAccount {
+  id: string;
+  name: string;
+  kind: string;
+  currentBalance: number;
+  availableBalance: number;
+}
+
+interface BankTransaction {
+  id: string;
+  amount: number;
+  counterpartyName: string;
+  note: string | null;
+  createdAt: string;
+  status: string;
+  kind: string;
+}
+
 export interface FinancesPageProps {
   invoices?: Invoice[];
   expenses?: Expense[];
   monthlyRevenue?: MonthlyRevenue[];
   mrr?: number;
   pipelineEngagements?: PipelineEngagementSlim[];
+  mercuryConnected?: boolean;
+  bankAccounts?: BankAccount[];
+  bankTransactions?: BankTransaction[];
 }
 
 export default function FinancesPage({
@@ -65,6 +89,9 @@ export default function FinancesPage({
   monthlyRevenue: monthlyRevenueProp,
   mrr: mrrProp,
   pipelineEngagements: pipelineEngagementsProp,
+  mercuryConnected = false,
+  bankAccounts = [],
+  bankTransactions = [],
 }: FinancesPageProps = {}) {
   const invoiceData = invoicesProp ?? [];
   const monthlyRevenueData = monthlyRevenueProp ?? [];
@@ -293,6 +320,30 @@ export default function FinancesPage({
         />
       </div>
 
+      {/* Mercury Bank Accounts */}
+      {mercuryConnected && bankAccounts.length > 0 && (
+        <div className="mb-6">
+          <div className="mb-3 flex items-center gap-2">
+            <Landmark size={14} className="text-[#1a73e8]" />
+            <h2 className="text-sm font-semibold text-[#333]">Mercury Bank</h2>
+          </div>
+          <div className={`grid gap-4 ${bankAccounts.length === 1 ? "grid-cols-1 max-w-sm" : `grid-cols-${Math.min(bankAccounts.length, 3)}`}`}>
+            {bankAccounts.map((acct) => (
+              <div key={acct.id} className="rounded-lg border border-[#e0e0e0] border-l-[3px] border-l-[#1a73e8] bg-white p-4">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">{acct.name}</span>
+                  <span className="rounded-full bg-[#f0f0f0] px-2 py-0.5 text-[10px] font-medium capitalize text-[#555]">{acct.kind}</span>
+                </div>
+                <p className="text-xl font-semibold text-[#222]">${acct.currentBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                {acct.availableBalance !== acct.currentBalance && (
+                  <p className="mt-0.5 text-[11px] text-[#888]">${acct.availableBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })} available</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Overview tab */}
       {tab === "overview" && (
         <div className="grid grid-cols-2 gap-6">
@@ -429,6 +480,34 @@ export default function FinancesPage({
               </div>
             </div>
           </div>
+
+          {/* Recent Bank Transactions */}
+          {mercuryConnected && bankTransactions.length > 0 && (
+            <div className="col-span-2 rounded-lg border border-[#e0e0e0] bg-white p-4">
+              <h2 className="mb-3 text-sm font-semibold text-[#333]">Recent Bank Transactions</h2>
+              <div className="flex flex-col divide-y divide-[#f0f0f0]">
+                {bankTransactions.slice(0, 15).map((txn) => (
+                  <div key={txn.id} className="flex items-center gap-3 py-2">
+                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${txn.amount >= 0 ? "bg-[#e6f9e6]" : "bg-[#fde8e8]"}`}>
+                      {txn.amount >= 0 ? <ArrowDown size={12} className="text-[#27ae60]" /> : <ArrowUp size={12} className="text-[#c0392b]" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[13px] font-medium text-[#222]">{txn.counterpartyName || "Unknown"}</p>
+                      {txn.note && <p className="truncate text-[11px] text-[#888]">{txn.note}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-[13px] font-medium ${txn.amount >= 0 ? "text-[#27ae60]" : "text-[#222]"}`}>
+                        {txn.amount >= 0 ? "+" : ""}${Math.abs(txn.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-[#aaa]">
+                        {new Date(txn.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

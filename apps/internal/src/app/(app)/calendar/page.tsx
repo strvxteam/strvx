@@ -82,9 +82,14 @@ export default async function CalendarPage() {
     console.error("[Calendar] Google Calendar fetch failed:", err);
   }
 
-  // Merge DB events with Google Calendar events, deduplicating by title + date
+  // Merge DB events with Google Calendar events, deduplicating by googleEventId (precise) or title+date (fallback)
+  const dbGoogleIds = new Set(dbEvents.filter((e) => e.googleEventId).map((e) => e.googleEventId));
   const dbEventKeys = new Set(converted.map((e) => `${e.title}::${e.date}`));
-  const uniqueGoogleEvents = googleEvents.filter((ge) => !dbEventKeys.has(`${ge.title}::${ge.date}`));
+  const uniqueGoogleEvents = googleEvents.filter((ge) => {
+    const gcalId = ge.id.replace(/^gcal-/, "");
+    if (dbGoogleIds.has(gcalId)) return false;
+    return !dbEventKeys.has(`${ge.title}::${ge.date}`);
+  });
   const events: CalendarEvent[] = [...converted, ...uniqueGoogleEvents];
 
   return <CalendarPageClient initialEvents={events} googleConnected={googleConnected} initialCompanies={companiesList} />;

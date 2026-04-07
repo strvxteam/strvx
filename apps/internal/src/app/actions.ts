@@ -556,28 +556,32 @@ export async function createCalendarEventAction(data: {
 
   const user = await getCurrentUser();
   const { createCalendarEvent } = await import("@/lib/queries");
-  const event = await createCalendarEvent({
-    ...parsed.data,
-    client: parsed.data.client || null,
-    zoomLink: parsed.data.zoomLink || null,
-    createdBy: user.id,
-  });
 
-  // After creating the DB event, also push to Google Calendar if connected
+  // Push to Google Calendar if connected, capture the Google event ID
+  let googleEventId: string | null = null;
   try {
     const isConnected = await isGoogleCalendarConnected(user.id);
     if (isConnected) {
       const startDate = new Date(`${parsed.data.date}T${String(Math.floor(parsed.data.startHour)).padStart(2, '0')}:${String(Math.round((parsed.data.startHour % 1) * 60)).padStart(2, '0')}:00`);
       const endDate = new Date(startDate.getTime() + parsed.data.durationHours * 60 * 60 * 1000);
-      await createGoogleCalendarEvent(user.id, {
+      const gcalEvent = await createGoogleCalendarEvent(user.id, {
         title: parsed.data.title,
         startTime: startDate.toISOString(),
         endTime: endDate.toISOString(),
       });
+      googleEventId = gcalEvent?.id ?? null;
     }
   } catch (e) {
     console.error("[Google Calendar] Failed to sync event:", e);
   }
+
+  const event = await createCalendarEvent({
+    ...parsed.data,
+    client: parsed.data.client || null,
+    zoomLink: parsed.data.zoomLink || null,
+    createdBy: user.id,
+    googleEventId,
+  });
 
   revalidatePath("/calendar");
   revalidatePath("/dashboard");
@@ -603,9 +607,32 @@ export async function updateCalendarEventAction(
     throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
   }
 
-  await getCurrentUser();
-  const { updateCalendarEvent } = await import("@/lib/queries");
+  const user = await getCurrentUser();
+  const { updateCalendarEvent, getCalendarEventById } = await import("@/lib/queries");
   const updated = await updateCalendarEvent(parsedId.data, parsed.data);
+
+  // Sync changes to Google Calendar if the event has a linked Google event
+  try {
+    const dbEvent = await getCalendarEventById(parsedId.data);
+    if (dbEvent?.googleEventId) {
+      const updateData: Parameters<typeof updateGoogleCalendarEvent>[2] = {};
+      if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
+      if (parsed.data.date && parsed.data.startHour !== undefined && parsed.data.durationHours !== undefined) {
+        const startH = Math.floor(parsed.data.startHour);
+        const startM = Math.round((parsed.data.startHour - startH) * 60);
+        const endHourRaw = parsed.data.startHour + parsed.data.durationHours;
+        const endH = Math.floor(endHourRaw);
+        const endM = Math.round((endHourRaw - endH) * 60);
+        updateData.startTime = `${parsed.data.date}T${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}:00`;
+        updateData.endTime = `${parsed.data.date}T${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}:00`;
+      }
+      if (Object.keys(updateData).length > 0) {
+        await updateGoogleCalendarEvent(user.id, dbEvent.googleEventId, updateData);
+      }
+    }
+  } catch (e) {
+    console.error("[Google Calendar] Failed to sync update:", e);
+  }
 
   revalidatePath("/calendar");
   revalidatePath("/dashboard");
@@ -616,8 +643,19 @@ export async function deleteCalendarEventAction(eventId: string) {
   const parsed = uuidSchema.safeParse(eventId);
   if (!parsed.success) throw new Error("Invalid event ID");
 
-  await getCurrentUser();
-  const { deleteCalendarEvent } = await import("@/lib/queries");
+  const user = await getCurrentUser();
+  const { deleteCalendarEvent, getCalendarEventById } = await import("@/lib/queries");
+
+  // Delete from Google Calendar if linked
+  try {
+    const dbEvent = await getCalendarEventById(parsed.data);
+    if (dbEvent?.googleEventId) {
+      await deleteGoogleCalendarEvent(user.id, dbEvent.googleEventId);
+    }
+  } catch (e) {
+    console.error("[Google Calendar] Failed to sync delete:", e);
+  }
+
   await deleteCalendarEvent(parsed.data);
 
   revalidatePath("/calendar");
@@ -824,6 +862,44 @@ export async function createInvoice(data: {
   return invoice;
 }
 
+export async function sendInvoiceAction(invoiceId: string) {
+  await getCurrentUser();
+  const { getInvoice } = await import("@/lib/queries");
+  const invoice = await getInvoice(invoiceId);
+  if (!invoice) throw new Error("Invoice not found");
+  if (!invoice.clientEmail) throw new Error("Invoice has no client email — add one before sending");
+
+  const lineItems = Array.isArray(invoice.lineItems)
+    ? (invoice.lineItems as { description: string; quantity: number; rate: number; amount: number }[])
+    : [];
+
+  const { sendInvoiceEmail } = await import("@/lib/invoice-email");
+  await sendInvoiceEmail({
+    invoiceNumber: invoice.invoiceNumber,
+    clientName: invoice.clientName,
+    clientEmail: invoice.clientEmail,
+    amount: Number(invoice.amount),
+    taxRate: Number(invoice.taxRate ?? 0),
+    issuedDate: invoice.issuedDate ?? new Date().toISOString().split("T")[0],
+    dueDate: invoice.dueDate ?? "",
+    lineItems,
+    notes: invoice.notes,
+    stripePaymentUrl: invoice.stripePaymentUrl,
+  });
+
+  // Update status to "sent" if currently draft
+  if (invoice.status === "draft") {
+    await db
+      .update(invoices)
+      .set({ status: "sent", issuedDate: invoice.issuedDate || new Date().toISOString().split("T")[0] })
+      .where(eq(invoices.id, invoiceId));
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath("/finances");
+}
+
 // ── Expenses ──────────────────────────────────────────
 
 export async function createExpense(data: {
@@ -912,6 +988,42 @@ export async function deleteExpense(expenseId: string) {
   await db.delete(expenses).where(eq(expenses.id, parsed.data));
   revalidatePath("/expenses");
   revalidatePath("/finances");
+}
+
+// ── Time Entries ─────────────────────────────────────
+
+export async function createTimeEntry(data: {
+  projectId: string;
+  date: string;
+  hours: number;
+  description: string;
+  billable?: boolean;
+}) {
+  const user = await getCurrentUser();
+  if (!data.description.trim()) throw new Error("Description is required");
+  if (data.hours <= 0 || data.hours > 24) throw new Error("Hours must be between 0 and 24");
+
+  const { timeEntries } = await import("@/lib/db/schema");
+  const [entry] = await db
+    .insert(timeEntries)
+    .values({
+      userId: user.id,
+      projectId: data.projectId,
+      date: data.date,
+      hours: String(data.hours),
+      description: data.description.trim(),
+      billable: data.billable ?? true,
+    })
+    .returning();
+  revalidatePath(`/projects/${data.projectId}`);
+  return entry;
+}
+
+export async function deleteTimeEntry(entryId: string, projectId: string) {
+  await getCurrentUser();
+  const { timeEntries } = await import("@/lib/db/schema");
+  await db.delete(timeEntries).where(eq(timeEntries.id, entryId));
+  revalidatePath(`/projects/${projectId}`);
 }
 
 // ── Goals ─────────────────────────────────────────────
@@ -1615,59 +1727,6 @@ export async function saveInvoiceDraft(data: {
 
   revalidatePath("/invoices");
   return invoice;
-}
-
-export async function sendInvoiceAction(invoiceId: string) {
-  await getCurrentUser();
-
-  const [invoice] = await db
-    .select()
-    .from(invoices)
-    .where(eq(invoices.id, invoiceId));
-
-  if (!invoice) throw new Error("Invoice not found");
-  if (invoice.status !== "draft") throw new Error("Only draft invoices can be sent");
-  if (!invoice.clientEmail) throw new Error("Client email is required");
-
-  const { getOrCreateStripeCustomer, createAndSendStripeInvoice } = await import("@/lib/stripe");
-
-  const [company] = await db
-    .select({ id: companies.id })
-    .from(companies)
-    .where(eq(companies.name, invoice.clientName));
-
-  if (!company) throw new Error("Company not found");
-
-  const stripeCustomerId = await getOrCreateStripeCustomer(
-    company.id,
-    invoice.clientName,
-    invoice.clientEmail
-  );
-
-  const items = Array.isArray(invoice.lineItems)
-    ? (invoice.lineItems as { description: string; quantity: number; rate: number }[])
-    : [];
-
-  const { stripeInvoiceId, paymentUrl } = await createAndSendStripeInvoice({
-    stripeCustomerId,
-    lineItems: items,
-    dueDate: invoice.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
-    notes: invoice.notes || undefined,
-    invoiceNumber: invoice.invoiceNumber,
-  });
-
-  await db
-    .update(invoices)
-    .set({
-      status: "sent",
-      stripeInvoiceId,
-      stripePaymentUrl: paymentUrl,
-    })
-    .where(eq(invoices.id, invoiceId));
-
-  revalidatePath("/invoices");
-  revalidatePath(`/invoices/${invoiceId}`);
-  revalidatePath("/finances");
 }
 
 export async function voidInvoiceAction(invoiceId: string) {

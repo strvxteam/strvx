@@ -25,7 +25,7 @@ import {
 import { COLUMN_COLORS, TASK_STATUS_LABELS, type TaskStatus } from "@/lib/mock-tasks";
 import { EVENT_TYPE_COLORS, type EventType } from "@/lib/mock-calendar";
 import { formatHour } from "@/lib/calendar-utils";
-import { updateTask, createTask, addProjectTimelineEntry } from "@/app/actions";
+import { updateTask, createTask, addProjectTimelineEntry, createTimeEntry, deleteTimeEntry } from "@/app/actions";
 import { toast } from "sonner";
 
 interface SerializedTask {
@@ -82,16 +82,35 @@ interface SerializedTimelineEntry {
   person: string | null;
 }
 
+interface TimeEntry {
+  id: string;
+  date: string;
+  hours: number;
+  description: string;
+  billable: boolean;
+  userName: string;
+}
+
+interface TimeSummary {
+  totalHours: number;
+  billableHours: number;
+  entryCount: number;
+}
+
 export default function ProjectDetailPage({
   initialProject,
   initialTasks,
   initialEvents,
   initialTimeline = [],
+  initialTimeEntries = [],
+  timeSummary = { totalHours: 0, billableHours: 0, entryCount: 0 },
 }: {
   initialProject: SerializedProject | null;
   initialTasks: SerializedTask[];
   initialEvents: SerializedEvent[];
   initialTimeline?: SerializedTimelineEntry[];
+  initialTimeEntries?: TimeEntry[];
+  timeSummary?: TimeSummary;
 }) {
   if (!initialProject) {
     return (
@@ -107,6 +126,8 @@ export default function ProjectDetailPage({
       initialTasks={initialTasks}
       initialEvents={initialEvents}
       initialTimeline={initialTimeline}
+      initialTimeEntries={initialTimeEntries}
+      timeSummary={timeSummary}
     />
   );
 }
@@ -123,11 +144,15 @@ function ProjectWorkspace({
   initialTasks,
   initialEvents,
   initialTimeline = [],
+  initialTimeEntries = [],
+  timeSummary = { totalHours: 0, billableHours: 0, entryCount: 0 },
 }: {
   project: SerializedProject;
   initialTasks: SerializedTask[];
   initialEvents: SerializedEvent[];
   initialTimeline?: SerializedTimelineEntry[];
+  initialTimeEntries?: TimeEntry[];
+  timeSummary?: TimeSummary;
 }) {
   const [timeline, setTimeline] = useState<
     { id: string; type: string; title: string; description: string | null; date: Date; person: string | null }[]
@@ -459,6 +484,13 @@ function ProjectWorkspace({
         )}
       </section>
 
+      {/* Time Tracking */}
+      <TimeTrackingSection
+        projectId={project.id}
+        initialEntries={initialTimeEntries}
+        summary={timeSummary}
+      />
+
       {/* Timeline */}
       <section>
         <div className="mb-3 flex items-center justify-between">
@@ -590,5 +622,162 @@ function AddUpdateButton({
         </div>
       )}
     </>
+  );
+}
+
+function TimeTrackingSection({
+  projectId,
+  initialEntries,
+  summary,
+}: {
+  projectId: string;
+  initialEntries: TimeEntry[];
+  summary: TimeSummary;
+}) {
+  const router = useRouter();
+  const [entries, setEntries] = useState(initialEntries);
+  const [showAdd, setShowAdd] = useState(false);
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [hours, setHours] = useState("");
+  const [description, setDescription] = useState("");
+  const [billable, setBillable] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  function handleAdd() {
+    if (!description.trim() || !hours) return;
+    startTransition(async () => {
+      try {
+        await createTimeEntry({
+          projectId,
+          date,
+          hours: parseFloat(hours),
+          description: description.trim(),
+          billable,
+        });
+        setDescription("");
+        setHours("");
+        setShowAdd(false);
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Failed to log time");
+      }
+    });
+  }
+
+  function handleDelete(entryId: string) {
+    startTransition(async () => {
+      try {
+        await deleteTimeEntry(entryId, projectId);
+        setEntries((prev) => prev.filter((e) => e.id !== entryId));
+        router.refresh();
+      } catch {
+        toast.error("Failed to delete");
+      }
+    });
+  }
+
+  return (
+    <section className="mb-8">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[15px] font-semibold text-[#222]">Time Tracking</h2>
+        <button
+          onClick={() => setShowAdd(!showAdd)}
+          className="flex items-center gap-1 rounded-md bg-[#111] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[#333]"
+        >
+          <Plus size={12} />
+          Log Time
+        </button>
+      </div>
+
+      {/* Summary */}
+      <div className="mb-3 flex gap-4">
+        <div className="rounded-lg border border-[#e0e0e0] bg-white px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#888]">Total Hours</p>
+          <p className="text-[16px] font-semibold text-[#222]">{summary.totalHours.toFixed(1)}h</p>
+        </div>
+        <div className="rounded-lg border border-[#e0e0e0] bg-white px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#888]">Billable</p>
+          <p className="text-[16px] font-semibold text-[#27ae60]">{summary.billableHours.toFixed(1)}h</p>
+        </div>
+        <div className="rounded-lg border border-[#e0e0e0] bg-white px-3 py-2">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-[#888]">Entries</p>
+          <p className="text-[16px] font-semibold text-[#222]">{summary.entryCount}</p>
+        </div>
+      </div>
+
+      {/* Add form */}
+      {showAdd && (
+        <div className="mb-3 rounded-lg border border-[#1a73e8] bg-white p-3">
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="rounded-md border border-[#e0e0e0] px-2.5 py-1.5 text-[13px] outline-none focus:border-[#1a73e8]"
+            />
+            <input
+              type="number"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+              placeholder="Hours"
+              step="0.25"
+              min="0.25"
+              max="24"
+              className="w-20 rounded-md border border-[#e0e0e0] px-2.5 py-1.5 text-[13px] outline-none focus:border-[#1a73e8]"
+            />
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What did you work on?"
+              className="flex-1 rounded-md border border-[#e0e0e0] px-2.5 py-1.5 text-[13px] outline-none focus:border-[#1a73e8]"
+              autoFocus
+            />
+            <label className="flex items-center gap-1.5 text-[12px] text-[#555]">
+              <input
+                type="checkbox"
+                checked={billable}
+                onChange={(e) => setBillable(e.target.checked)}
+                className="rounded"
+              />
+              Billable
+            </label>
+            <button
+              onClick={handleAdd}
+              disabled={!description.trim() || !hours || isPending}
+              className="rounded-md bg-[#111] px-3 py-1.5 text-[12px] font-medium text-white hover:bg-[#333] disabled:opacity-40"
+            >
+              {isPending ? "..." : "Add"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Entries list */}
+      {entries.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-[#e0e0e0] py-6 text-center text-[13px] text-[#aaa]">
+          No time logged yet
+        </div>
+      ) : (
+        <div className="rounded-lg border border-[#e0e0e0] bg-white divide-y divide-[#f0f0f0]">
+          {entries.map((entry) => (
+            <div key={entry.id} className="flex items-center gap-3 px-4 py-2.5">
+              <span className="w-20 text-[12px] text-[#888]">{entry.date}</span>
+              <span className="w-12 text-right text-[13px] font-semibold text-[#222]">{entry.hours}h</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] text-[#555]">{entry.description}</span>
+              <span className="text-[11px] text-[#aaa]">{entry.userName}</span>
+              {entry.billable && (
+                <span className="rounded bg-[#e6f9e6] px-1.5 py-0.5 text-[10px] font-medium text-[#27ae60]">$</span>
+              )}
+              <button
+                onClick={() => handleDelete(entry.id)}
+                className="rounded p-1 text-[#ccc] hover:bg-[#fde8e8] hover:text-[#c0392b]"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
