@@ -49,7 +49,7 @@ function buildInvoiceHtml(data: InvoiceEmailData): string {
 
   const payButton = data.stripePaymentUrl
     ? `<div style="text-align: center; margin: 24px 0;">
-        <a href="${data.stripePaymentUrl}" style="display: inline-block; background: #111; color: #fff; padding: 12px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">Pay Now</a>
+        <a href="${escapeHtml(data.stripePaymentUrl)}" style="display: inline-block; background: #111; color: #fff; padding: 12px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">Pay Now</a>
       </div>`
     : "";
 
@@ -79,8 +79,8 @@ function buildInvoiceHtml(data: InvoiceEmailData): string {
             </td>
             <td style="vertical-align: top; text-align: right;">
               <p style="margin: 0 0 4px; font-size: 12px; color: #888;">${escapeHtml(data.invoiceNumber)}</p>
-              <p style="margin: 0; font-size: 13px; color: #555;">Issued: ${data.issuedDate}</p>
-              <p style="margin: 2px 0 0; font-size: 13px; color: #555;">Due: ${data.dueDate}</p>
+              <p style="margin: 0; font-size: 13px; color: #555;">Issued: ${escapeHtml(data.issuedDate)}</p>
+              <p style="margin: 2px 0 0; font-size: 13px; color: #555;">Due: ${escapeHtml(data.dueDate)}</p>
             </td>
           </tr>
         </table>

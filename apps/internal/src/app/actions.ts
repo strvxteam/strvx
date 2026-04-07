@@ -776,18 +776,6 @@ export async function updateTask(taskId: string, data: {
   const { tasks, taskAssignees } = await import("@/lib/db/schema");
 
   // Update assignees if provided
-  if (parsed.data.assigneeIds) {
-    await db.delete(taskAssignees).where(eq(taskAssignees.taskId, parsedId.data));
-    if (parsed.data.assigneeIds.length > 0) {
-      await db.insert(taskAssignees).values(
-        parsed.data.assigneeIds.map((userId) => ({
-          taskId: parsedId.data,
-          userId,
-        }))
-      );
-    }
-  }
-
   // Build task field updates (exclude assigneeIds)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { assigneeIds: _, ...taskFields } = parsed.data;
@@ -802,9 +790,23 @@ export async function updateTask(taskId: string, data: {
   if (taskFields.status === "done") setData.completedAt = new Date();
   else if (taskFields.status) setData.completedAt = null;
 
-  if (Object.keys(setData).length > 0) {
-    await db.update(tasks).set(setData).where(eq(tasks.id, parsedId.data));
-  }
+  // Wrap assignee + task update in transaction to prevent race conditions
+  await db.transaction(async (tx) => {
+    if (parsed.data.assigneeIds) {
+      await tx.delete(taskAssignees).where(eq(taskAssignees.taskId, parsedId.data));
+      if (parsed.data.assigneeIds.length > 0) {
+        await tx.insert(taskAssignees).values(
+          parsed.data.assigneeIds.map((userId) => ({
+            taskId: parsedId.data,
+            userId,
+          }))
+        );
+      }
+    }
+    if (Object.keys(setData).length > 0) {
+      await tx.update(tasks).set(setData).where(eq(tasks.id, parsedId.data));
+    }
+  });
 
   revalidatePath("/tasks");
   revalidatePath("/dashboard");
@@ -864,8 +866,10 @@ export async function createInvoice(data: {
 
 export async function sendInvoiceAction(invoiceId: string) {
   await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(invoiceId);
+  if (!parsedId.success) throw new Error("Invalid invoice ID");
   const { getInvoice } = await import("@/lib/queries");
-  const invoice = await getInvoice(invoiceId);
+  const invoice = await getInvoice(parsedId.data);
   if (!invoice) throw new Error("Invoice not found");
   if (!invoice.clientEmail) throw new Error("Invoice has no client email — add one before sending");
 
@@ -1439,19 +1443,19 @@ export async function updateProspect(
   const [updated] = await db
     .update(prospects)
     .set({
-      firstName: data.firstName ?? undefined,
-      lastName: data.lastName ?? undefined,
-      email: data.email !== undefined ? data.email || null : undefined,
-      phone: data.phone !== undefined ? data.phone || null : undefined,
-      companyName: data.companyName ?? undefined,
-      title: data.title !== undefined ? data.title || null : undefined,
-      industrySlug: data.industrySlug ?? undefined,
-      stage: data.stage ?? undefined,
-      linkedinUrl: data.linkedinUrl !== undefined ? data.linkedinUrl || null : undefined,
-      notes: data.notes !== undefined ? data.notes || null : undefined,
+      firstName: parsed.data.firstName ?? undefined,
+      lastName: parsed.data.lastName ?? undefined,
+      email: parsed.data.email !== undefined ? parsed.data.email || null : undefined,
+      phone: parsed.data.phone !== undefined ? parsed.data.phone || null : undefined,
+      companyName: parsed.data.companyName ?? undefined,
+      title: parsed.data.title !== undefined ? parsed.data.title || null : undefined,
+      industrySlug: parsed.data.industrySlug ?? undefined,
+      stage: parsed.data.stage ?? undefined,
+      linkedinUrl: parsed.data.linkedinUrl !== undefined ? parsed.data.linkedinUrl || null : undefined,
+      notes: parsed.data.notes !== undefined ? parsed.data.notes || null : undefined,
       updatedAt: new Date(),
     })
-    .where(eq(prospects.id, prospectId))
+    .where(eq(prospects.id, parsedId.data))
     .returning();
   revalidatePath("/outreach");
   return updated;
@@ -1805,11 +1809,13 @@ export async function saveInvoiceDraft(data: {
 
 export async function voidInvoiceAction(invoiceId: string) {
   await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(invoiceId);
+  if (!parsedId.success) throw new Error("Invalid invoice ID");
 
   const [invoice] = await db
     .select({ stripeInvoiceId: invoices.stripeInvoiceId, status: invoices.status })
     .from(invoices)
-    .where(eq(invoices.id, invoiceId));
+    .where(eq(invoices.id, parsedId.data));
 
   if (!invoice) throw new Error("Invoice not found");
   if (invoice.status === "paid") throw new Error("Cannot void a paid invoice");
@@ -1831,6 +1837,8 @@ export async function voidInvoiceAction(invoiceId: string) {
 
 export async function markInvoicePaidAction(invoiceId: string) {
   await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(invoiceId);
+  if (!parsedId.success) throw new Error("Invalid invoice ID");
 
   await db
     .update(invoices)
@@ -1838,10 +1846,10 @@ export async function markInvoicePaidAction(invoiceId: string) {
       status: "paid",
       paidDate: new Date().toISOString().split("T")[0],
     })
-    .where(eq(invoices.id, invoiceId));
+    .where(eq(invoices.id, parsedId.data));
 
   revalidatePath("/invoices");
-  revalidatePath(`/invoices/${invoiceId}`);
+  revalidatePath(`/invoices/${parsedId.data}`);
   revalidatePath("/finances");
 }
 
