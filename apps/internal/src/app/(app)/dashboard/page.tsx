@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { formatHour } from "@/lib/calendar-utils";
+import { getPersonalCalendarEvents } from "@/lib/google-calendar";
 import {
   getPipelineEngagements,
-  getCalendarEvents,
   getInvoices,
   getCurrentUserForPage,
   getMRR,
@@ -20,10 +19,21 @@ export default async function DashboardPage() {
   const now = new Date();
   const todayStr = now.toISOString().split("T")[0];
 
-  const [engData, dbCalEvents, dbInvoices, currentUser, mrr, atRiskItems, allTasks] =
+  // Today's boundaries in Pacific Time
+  const ptMonth = now.getMonth() + 1;
+  const ptOffset = ptMonth >= 3 && ptMonth <= 11 ? "-07:00" : "-08:00";
+  const ptToday = now.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  const todayTimeMin = `${ptToday}T00:00:00${ptOffset}`;
+  const todayTimeMax = `${ptToday}T23:59:59${ptOffset}`;
+
+  const teamRefreshToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN;
+
+  const [engData, todayGoogleEvents, dbInvoices, currentUser, mrr, atRiskItems, allTasks] =
     await Promise.all([
       getPipelineEngagements(),
-      getCalendarEvents(),
+      teamRefreshToken
+        ? getPersonalCalendarEvents(teamRefreshToken, todayTimeMin, todayTimeMax).catch(() => [])
+        : Promise.resolve([]),
       getInvoices(),
       getCurrentUserForPage(),
       getMRR(),
@@ -44,15 +54,7 @@ export default async function DashboardPage() {
   const activeDeals = engData.filter((e) => activeStages.has(e.stage));
 
   // ── Today's events ─────────────────────────────────────
-  const todayEvents = dbCalEvents
-    .filter((e) => e.date === todayStr)
-    .map((e) => ({
-      id: e.id,
-      title: e.title,
-      startHour: Number(e.startHour),
-      client: e.client,
-    }))
-    .sort((a, b) => a.startHour - b.startHour);
+  const todayEvents = todayGoogleEvents.filter((e) => !e.isAllDay || e.start.startsWith(ptToday));
 
   // ── Action items ───────────────────────────────────────
   const overdueActions = (atRiskItems.overdueActions ?? []).slice(0, 8) as {
@@ -189,17 +191,32 @@ export default async function DashboardPage() {
               </div>
             ) : (
               <div className="divide-y divide-[#f5f5f5]">
-                {todayEvents.map((evt) => (
-                  <div key={evt.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="w-[52px] shrink-0 text-[12px] font-medium text-[#555]">
-                      {formatHour(evt.startHour)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-[#222]">{evt.title}</p>
-                      {evt.client && <p className="text-[11px] text-[#888]">{evt.client}</p>}
+                {todayEvents.map((evt) => {
+                  const timeLabel = evt.isAllDay
+                    ? "All day"
+                    : new Date(evt.start).toLocaleTimeString("en-US", {
+                        timeZone: "America/Los_Angeles",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      });
+                  return (
+                    <div key={evt.id} className="flex items-center gap-3 px-4 py-3">
+                      <span className="w-[52px] shrink-0 text-[12px] font-medium text-[#555]">
+                        {timeLabel}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-medium text-[#222]">{evt.title}</p>
+                      </div>
+                      {evt.meetLink && (
+                        <a href={evt.meetLink} target="_blank" rel="noopener noreferrer"
+                          className="shrink-0 rounded-full bg-[#e8f0fe] px-2 py-0.5 text-[10px] font-medium text-[#1a73e8] hover:bg-[#d2e3fc]">
+                          Meet
+                        </a>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
