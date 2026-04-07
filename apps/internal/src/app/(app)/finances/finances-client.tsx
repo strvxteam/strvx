@@ -31,8 +31,9 @@ import {
   deleteExpense as deleteExpenseAction,
 } from "@/app/actions";
 import { toast } from "sonner";
+import { CreditCardsTab } from "./components/credit-cards/credit-cards-tab";
 
-type TabView = "overview" | "revenue" | "expenses";
+type TabView = "overview" | "revenue" | "expenses" | "credit-cards";
 
 const CATEGORIES: ExpenseCategory[] = [
   "Software",
@@ -80,6 +81,47 @@ interface ProjectProfitability {
   revenue: number;
 }
 
+export interface MercuryCardSlim {
+  cardId: string;
+  nameOnCard: string;
+  lastFourDigits: string;
+  network: "visa" | "mastercard";
+  status: "active" | "frozen" | "cancelled" | "inactive" | "expired" | "suspended";
+  physicalCardStatus: "inactive" | "active" | "paused" | null;
+  createdAt: string;
+}
+
+export interface CardEnrichment {
+  id: string;
+  mercuryCardId: string;
+  cardNickname: string | null;
+  assignedEmployee: string | null;
+  creditLimit: number | null;
+  rewardRate: number | null;
+}
+
+export interface CardBudgetSlim {
+  id: string;
+  creditCardId: string;
+  category: string;
+  monthlyLimit: number;
+}
+
+export interface CardReceiptSlim {
+  id: string;
+  mercuryTransactionId: string;
+  creditCardId: string;
+  fileUrl: string;
+}
+
+export interface CardAlertSlim {
+  id: string;
+  creditCardId: string;
+  alertType: "limit_threshold" | "unusual_spend" | "payment_due";
+  thresholdValue: number;
+  enabled: boolean;
+}
+
 export interface FinancesPageProps {
   invoices?: Invoice[];
   expenses?: Expense[];
@@ -90,6 +132,11 @@ export interface FinancesPageProps {
   bankAccounts?: BankAccount[];
   bankTransactions?: BankTransaction[];
   profitability?: ProjectProfitability[];
+  mercuryCards?: MercuryCardSlim[];
+  cardEnrichment?: CardEnrichment[];
+  cardBudgets?: CardBudgetSlim[];
+  cardReceipts?: CardReceiptSlim[];
+  cardAlerts?: CardAlertSlim[];
 }
 
 export default function FinancesPage({
@@ -102,6 +149,11 @@ export default function FinancesPage({
   bankAccounts = [],
   bankTransactions = [],
   profitability = [],
+  mercuryCards = [],
+  cardEnrichment = [],
+  cardBudgets = [],
+  cardReceipts = [],
+  cardAlerts = [],
 }: FinancesPageProps = {}) {
   const invoiceData = invoicesProp ?? [];
   const monthlyRevenueData = monthlyRevenueProp ?? [];
@@ -259,7 +311,7 @@ export default function FinancesPage({
         <h1 className="text-xl font-semibold">Finances</h1>
         <div className="flex items-center gap-3">
           <div className="flex rounded-lg border border-[#e0e0e0] bg-white">
-            {(["overview", "revenue", "expenses"] as const).map((t) => (
+            {(["overview", "revenue", "expenses", "credit-cards"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
@@ -269,7 +321,7 @@ export default function FinancesPage({
                     : "text-[#555] hover:bg-[#fafafa]"
                 }`}
               >
-                {t}
+                {t === "credit-cards" ? "Credit Cards" : t}
               </button>
             ))}
           </div>
@@ -885,6 +937,18 @@ export default function FinancesPage({
             </table>
           </div>
         </div>
+      )}
+
+      {tab === "credit-cards" && (
+        <CreditCardsTab
+          mercuryCards={mercuryCards}
+          cardEnrichment={cardEnrichment}
+          cardBudgets={cardBudgets}
+          cardReceipts={cardReceipts}
+          cardAlerts={cardAlerts}
+          bankTransactions={bankTransactions}
+          mercuryConnected={mercuryConnected}
+        />
       )}
 
       {/* Expense Modal */}
