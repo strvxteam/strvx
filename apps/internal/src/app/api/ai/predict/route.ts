@@ -13,8 +13,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { engagementId } = await req.json();
-  if (!engagementId) {
-    return NextResponse.json({ error: "engagementId required" }, { status: 400 });
+  if (!engagementId || typeof engagementId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(engagementId)) {
+    return NextResponse.json({ error: "Valid engagementId required" }, { status: 400 });
   }
 
   const engagement = await getEngagement(engagementId);

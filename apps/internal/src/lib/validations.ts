@@ -50,6 +50,7 @@ export const createInvoiceSchema = z.object({
 });
 
 export const invoiceDraftSchema = z.object({
+  invoiceNumber: z.string().min(1, "Invoice number required").max(50),
   clientCompanyId: z.string().uuid("Select a client"),
   clientEmail: z.string().email("Valid email required"),
   issuedDate: z.string().min(1, "Issue date required"),

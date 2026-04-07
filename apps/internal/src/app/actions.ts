@@ -368,18 +368,18 @@ export async function updateEngagement(
   await db
     .update(engagements)
     .set({
-      name: data.name ?? undefined,
-      dealValue: data.dealValue ?? undefined,
-      probability: data.probability ?? undefined,
-      expectedCloseDate: data.expectedCloseDate ?? undefined,
-      maintenanceOptedIn: data.maintenanceOptedIn ?? undefined,
-      maintenanceMonthlyFee: data.maintenanceMonthlyFee ?? undefined,
-      maintenanceNextCheckin: data.maintenanceNextCheckin ?? undefined,
-      tags: data.tags ?? undefined,
+      name: parsed.data.name ?? undefined,
+      dealValue: parsed.data.dealValue ?? undefined,
+      probability: parsed.data.probability ?? undefined,
+      expectedCloseDate: parsed.data.expectedCloseDate ?? undefined,
+      maintenanceOptedIn: parsed.data.maintenanceOptedIn ?? undefined,
+      maintenanceMonthlyFee: parsed.data.maintenanceMonthlyFee ?? undefined,
+      maintenanceNextCheckin: parsed.data.maintenanceNextCheckin ?? undefined,
+      tags: parsed.data.tags ?? undefined,
     })
-    .where(eq(engagements.id, engagementId));
+    .where(eq(engagements.id, parsedId.data));
 
-  revalidatePath(`/clients/${engagementId}`);
+  revalidatePath(`/clients/${parsedId.data}`);
   revalidatePath("/dashboard");
   revalidatePath("/pipeline");
   revalidatePath("/clients");
@@ -956,15 +956,22 @@ export async function createPortalToken(companyId: string, contactEmail: string)
   await getCurrentUser();
   if (!companyId || !contactEmail) throw new Error("Company and email are required");
 
+  const parsedCompanyId = uuidSchema.safeParse(companyId);
+  if (!parsedCompanyId.success) throw new Error("Invalid company ID");
+
   const { portalTokens } = await import("@/lib/db/schema");
-  const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
+  // 128-bit entropy: two UUIDs concatenated, 32 hex chars
+  const token = (crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "")).slice(0, 32).toUpperCase();
+  // Default expiry: 90 days
+  const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
 
   const [result] = await db
     .insert(portalTokens)
     .values({
-      companyId,
+      companyId: parsedCompanyId.data,
       contactEmail,
       token,
+      expiresAt,
     })
     .returning({ token: portalTokens.token });
 
@@ -1074,7 +1081,7 @@ export async function createTimeEntry(data: {
   const parsedProjectId = uuidSchema.safeParse(data.projectId);
   if (!parsedProjectId.success) throw new Error("Invalid project ID");
   if (!data.description.trim()) throw new Error("Description is required");
-  if (data.hours <= 0 || data.hours > 24) throw new Error("Hours must be between 0 and 24");
+  if (!Number.isFinite(data.hours) || data.hours <= 0 || data.hours > 24) throw new Error("Hours must be between 0 and 24");
 
   const { timeEntries } = await import("@/lib/db/schema");
   const [entry] = await db
@@ -1409,8 +1416,8 @@ export async function createProspect(data: {
       industrySlug: parsed.data.industrySlug || null,
       stage: parsed.data.stage || "cold",
       linkedinUrl: parsed.data.linkedinUrl || null,
-      source: data.source || "manual",
-      apolloContactId: data.apolloContactId || null,
+      source: (data.source ?? "manual").slice(0, 50),
+      apolloContactId: data.apolloContactId?.slice(0, 100) || null,
     })
     .returning();
   revalidatePath("/outreach");
@@ -1622,10 +1629,12 @@ export async function fetchProspectTouches(prospectId: string) {
 // ── Company Actions ──────────────────────────────────
 
 export async function getCompaniesAction() {
+  await getCurrentUser();
   return getCompanies();
 }
 
 export async function createCompanyAction(name: string) {
+  await getCurrentUser();
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Company name is required");
   const company = await createCompany(trimmed);
@@ -1856,10 +1865,14 @@ export async function markInvoicePaidAction(invoiceId: string) {
 // ── User Status ──────────────────────────────────────────
 
 export async function toggleUserStatus(userId: string) {
+  await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(userId);
+  if (!parsedId.success) throw new Error("Invalid user ID");
+
   const [user] = await db
     .select({ status: users.status })
     .from(users)
-    .where(eq(users.id, userId));
+    .where(eq(users.id, parsedId.data));
 
   if (!user) throw new Error("User not found");
 
@@ -1867,7 +1880,7 @@ export async function toggleUserStatus(userId: string) {
   await db
     .update(users)
     .set({ status: newStatus })
-    .where(eq(users.id, userId));
+    .where(eq(users.id, parsedId.data));
 
   revalidatePath("/dashboard");
   return newStatus;
