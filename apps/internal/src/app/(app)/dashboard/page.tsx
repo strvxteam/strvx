@@ -3,12 +3,9 @@ import Link from "next/link";
 import { Target } from "lucide-react";
 import { google } from "googleapis";
 // drizzle-orm imports handled by queries
-import { EVENT_TYPE_COLORS } from "@/lib/mock-calendar";
-import { formatHour } from "@/lib/calendar-utils";
 import {
   getRecentActivity,
   getPipelineEngagements,
-  getCalendarEvents,
   getInvoices,
   getUsers,
   getCurrentUserForPage,
@@ -19,7 +16,7 @@ import {
   getTeamWorkload,
 } from "@/lib/queries";
 import { db } from "@/lib/db";
-import { googleTokens } from "@/lib/google-calendar";
+import { googleTokens, getGoogleCalendarEvents } from "@/lib/google-calendar";
 import { QuickAddBar } from "@/components/quick-add-bar";
 import { TeamStatus } from "./team-status";
 
@@ -113,7 +110,6 @@ export default async function DashboardPage() {
     hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
 
   const activeStages = new Set([
     "discovery",
@@ -124,14 +120,23 @@ export default async function DashboardPage() {
     "maintain",
   ]);
 
-  const [recentActivityRaw, engData, dbCalEvents, dbInvoices, dbUsers, currentUser, velocityData, winLoss, healthScores, atRiskItems, teamWorkload, calendarBusy] =
+  // Fetch current user first so we can use their ID for calendar lookup
+  const currentUser = await getCurrentUserForPage();
+
+  // Today's boundaries in Pacific Time
+  const ptMonth = now.getMonth() + 1;
+  const ptOffset = ptMonth >= 3 && ptMonth <= 11 ? "-07:00" : "-08:00";
+  const ptToday = now.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
+  const todayTimeMin = `${ptToday}T00:00:00${ptOffset}`;
+  const todayTimeMax = `${ptToday}T23:59:59${ptOffset}`;
+
+  const [recentActivityRaw, engData, todayGoogleEvents, dbInvoices, dbUsers, velocityData, winLoss, healthScores, atRiskItems, teamWorkload, calendarBusy] =
     await Promise.all([
       getRecentActivity(),
       getPipelineEngagements(),
-      getCalendarEvents(),
+      currentUser ? getGoogleCalendarEvents(currentUser.id, todayTimeMin, todayTimeMax) : Promise.resolve([]),
       getInvoices(),
       getUsers(),
-      getCurrentUserForPage(),
       getPipelineVelocity(),
       getWinLossRate(),
       getEngagementHealthScores(),
@@ -158,17 +163,7 @@ export default async function DashboardPage() {
       stage: e.stage,
     }));
 
-  const todayEvents = dbCalEvents
-    .filter((e) => e.date === todayStr)
-    .map((e) => ({
-      id: e.id,
-      title: e.title,
-      type: e.type as "client_call" | "internal" | "deadline",
-      startHour: Number(e.startHour),
-      durationHours: Number(e.durationHours),
-      client: e.client,
-    }))
-    .sort((a, b) => a.startHour - b.startHour);
+  const todayEvents = todayGoogleEvents.filter((e) => !e.isAllDay || e.start.startsWith(ptToday));
 
 
   // Goal progress
@@ -304,39 +299,39 @@ export default async function DashboardPage() {
           <div className="flex-1 rounded-lg border border-[#e0e0e0] bg-white">
             {todayEvents.length === 0 ? (
               <div className="px-4 py-6 text-center text-[13px] text-[#bbb]">
-                No meetings today
+                {currentUser ? "No events today" : "Connect Google Calendar to see events"}
               </div>
             ) : (
               <div className="divide-y divide-[#f0f0f0]">
                 {todayEvents.map((evt) => {
-                  const colors = EVENT_TYPE_COLORS[evt.type];
+                  const timeLabel = evt.isAllDay
+                    ? "All day"
+                    : new Date(evt.start).toLocaleTimeString("en-US", {
+                        timeZone: "America/Los_Angeles",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      });
                   return (
-                    <div
-                      key={evt.id}
-                      className="flex items-center gap-3 px-4 py-3"
-                    >
-                      <span className="min-w-[44px] text-[12px] font-medium text-[#555]">
-                        {formatHour(evt.startHour)}
+                    <div key={evt.id} className="flex items-center gap-3 px-4 py-3">
+                      <span className="min-w-[52px] text-[12px] font-medium text-[#555]">
+                        {timeLabel}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[13px] font-medium text-[#222]">
+                        <p className="truncate text-[13px] font-medium text-[#222]">
                           {evt.title}
                         </p>
-                        {evt.client && (
-                          <p className="text-[11px] text-[#888]">
-                            {evt.client}
-                          </p>
-                        )}
                       </div>
-                      <span
-                        className={`rounded-full ${colors.bg} px-2 py-0.5 text-[10px] font-medium ${colors.text}`}
-                      >
-                        {evt.type === "client_call"
-                          ? "Client"
-                          : evt.type === "internal"
-                            ? "Internal"
-                            : "Deadline"}
-                      </span>
+                      {evt.meetLink ? (
+                        <a
+                          href={evt.meetLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 rounded-full bg-[#e8f0fe] px-2 py-0.5 text-[10px] font-medium text-[#1a73e8] hover:bg-[#d2e3fc]"
+                        >
+                          Meet
+                        </a>
+                      ) : null}
                     </div>
                   );
                 })}

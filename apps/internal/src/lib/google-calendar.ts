@@ -95,6 +95,24 @@ export async function getAuthedClient(userId: string) {
   return { oauth2Client, calendarId: token.calendarId };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapCalendarEvent(event: any) {
+  return {
+    id: event.id || "",
+    googleEventId: event.id || "",
+    title: event.summary || "(No title)",
+    description: event.description || "",
+    start: event.start?.dateTime || event.start?.date || "",
+    end: event.end?.dateTime || event.end?.date || "",
+    location: event.location || "",
+    meetLink: event.hangoutLink || event.conferenceData?.entryPoints?.[0]?.uri || "",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    attendees: (event.attendees || []).map((a: any) => a.email || ""),
+    isAllDay: !event.start?.dateTime,
+    htmlLink: event.htmlLink || "",
+  };
+}
+
 export async function getGoogleCalendarEvents(userId: string, timeMin: string, timeMax: string) {
   const authed = await getAuthedClient(userId);
   if (!authed) return [];
@@ -102,37 +120,44 @@ export async function getGoogleCalendarEvents(userId: string, timeMin: string, t
   const calendar = google.calendar({ version: "v3", auth: authed.oauth2Client });
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allItems: any[] = [];
-    let pageToken: string | undefined;
+    // Get all calendars on this account
+    const calListRes = await calendar.calendarList.list({ minAccessRole: "freeBusyReader" });
+    const calendarIds = (calListRes.data.items ?? []).map((c) => c.id!).filter(Boolean);
+    if (calendarIds.length === 0) calendarIds.push("primary");
 
-    do {
-      const response = await calendar.events.list({
-        calendarId: authed.calendarId,
-        timeMin,
-        timeMax,
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: 2500,
-        pageToken,
-      });
-      allItems.push(...(response.data.items || []));
-      pageToken = response.data.nextPageToken ?? undefined;
-    } while (pageToken);
+    // Fetch events from all calendars in parallel, dedup by event ID
+    const allEvents = new Map<string, ReturnType<typeof mapCalendarEvent>>();
 
-    return allItems.map((event) => ({
-      id: event.id || "",
-      googleEventId: event.id || "",
-      title: event.summary || "(No title)",
-      description: event.description || "",
-      start: event.start?.dateTime || event.start?.date || "",
-      end: event.end?.dateTime || event.end?.date || "",
-      location: event.location || "",
-      meetLink: event.hangoutLink || event.conferenceData?.entryPoints?.[0]?.uri || "",
-      attendees: (event.attendees || []).map((a: any) => a.email || ""),
-      isAllDay: !event.start?.dateTime,
-      htmlLink: event.htmlLink || "",
-    }));
+    await Promise.all(
+      calendarIds.map(async (calId) => {
+        try {
+          let pageToken: string | undefined;
+          do {
+            const response = await calendar.events.list({
+              calendarId: calId,
+              timeMin,
+              timeMax,
+              singleEvents: true,
+              orderBy: "startTime",
+              maxResults: 2500,
+              pageToken,
+            });
+            for (const event of response.data.items || []) {
+              if (event.id && !allEvents.has(event.id)) {
+                allEvents.set(event.id, mapCalendarEvent(event));
+              }
+            }
+            pageToken = response.data.nextPageToken ?? undefined;
+          } while (pageToken);
+        } catch {
+          // Skip calendars that fail (e.g. no access)
+        }
+      })
+    );
+
+    return Array.from(allEvents.values()).sort(
+      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+    );
   } catch (error) {
     console.error("[Google Calendar] Failed to fetch events:", error);
     return [];
