@@ -879,6 +879,66 @@ export async function getCompaniesWithContacts() {
   }));
 }
 
+// ── Analytics Queries ─────────────────────────────────
+
+export async function getPipelineVelocity() {
+  const result = await db.execute(sql`
+    SELECT
+      stage::text as stage,
+      ROUND(AVG(EXTRACT(EPOCH FROM (COALESCE(exited_at, NOW()) - entered_at)) / 86400)::numeric, 1) as avg_days,
+      COUNT(*)::int as transitions
+    FROM stage_history
+    GROUP BY stage
+    ORDER BY CASE stage::text
+      WHEN 'lead' THEN 1 WHEN 'contacted' THEN 2 WHEN 'discovery' THEN 3
+      WHEN 'building_mvp' THEN 4 WHEN 'proposal' THEN 5 WHEN 'negotiation' THEN 6
+      WHEN 'build' THEN 7 WHEN 'deliver' THEN 8 WHEN 'maintain' THEN 9
+      WHEN 'closed_won' THEN 10 WHEN 'closed_lost' THEN 11
+    END
+  `);
+  return result as unknown as { stage: string; avg_days: string; transitions: number }[];
+}
+
+export async function getWinLossRate() {
+  const result = await db.execute(sql`
+    SELECT
+      COUNT(*) FILTER (WHERE stage = 'closed_won')::int as won,
+      COUNT(*) FILTER (WHERE stage = 'closed_lost')::int as lost,
+      COUNT(*) FILTER (WHERE stage IN ('closed_won', 'closed_lost'))::int as total_closed,
+      COALESCE(SUM(deal_value::numeric) FILTER (WHERE stage = 'closed_won'), 0) as won_value,
+      COALESCE(SUM(deal_value::numeric) FILTER (WHERE stage = 'closed_lost'), 0) as lost_value
+    FROM engagements
+    WHERE archived_at IS NULL
+  `);
+  const rows = result as unknown as { won: number; lost: number; total_closed: number; won_value: string; lost_value: string }[];
+  const row = rows[0] ?? { won: 0, lost: 0, total_closed: 0, won_value: "0", lost_value: "0" };
+  return {
+    won: Number(row.won),
+    lost: Number(row.lost),
+    totalClosed: Number(row.total_closed),
+    wonValue: Number(row.won_value),
+    lostValue: Number(row.lost_value),
+    winRate: Number(row.total_closed) > 0 ? Math.round((Number(row.won) / Number(row.total_closed)) * 100) : 0,
+  };
+}
+
+export async function getOutreachFunnel() {
+  const result = await db
+    .select({
+      stage: prospects.stage,
+      count: count(),
+    })
+    .from(prospects)
+    .where(isNull(prospects.archivedAt))
+    .groupBy(prospects.stage);
+
+  const funnel: Record<string, number> = { cold: 0, warm: 0, hot: 0, converted: 0, lost: 0 };
+  for (const row of result) {
+    funnel[row.stage] = row.count;
+  }
+  return funnel;
+}
+
 export async function getNextInvoiceNumber(): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `STRVX-${year}-`;

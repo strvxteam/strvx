@@ -12,6 +12,9 @@ import {
   getInvoices,
   getUsers,
   getCurrentUserForPage,
+  getPipelineVelocity,
+  getWinLossRate,
+  getOutreachFunnel,
 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { googleTokens } from "@/lib/google-calendar";
@@ -111,7 +114,7 @@ export default async function DashboardPage() {
     "maintain",
   ]);
 
-  const [recentActivityRaw, engData, dbCalEvents, dbInvoices, dbUsers, currentUser] =
+  const [recentActivityRaw, engData, dbCalEvents, dbInvoices, dbUsers, currentUser, velocityData, winLoss, outreachFunnel] =
     await Promise.all([
       getRecentActivity(),
       getPipelineEngagements(),
@@ -119,6 +122,9 @@ export default async function DashboardPage() {
       getInvoices(),
       getUsers(),
       getCurrentUserForPage(),
+      getPipelineVelocity(),
+      getWinLossRate(),
+      getOutreachFunnel(),
     ]);
 
   const calendarBusy = await getTeamCalendarBusy(dbUsers.map((u) => u.id));
@@ -347,6 +353,105 @@ export default async function DashboardPage() {
               </span>
             </Link>
           ))}
+        </div>
+      </section>
+
+      {/* Analytics snapshot */}
+      <section className="mt-6">
+        <h2 className="mb-3 text-[13px] font-semibold text-[#333]">Analytics</h2>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {/* Win Rate */}
+          <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Win Rate</p>
+            {winLoss.totalClosed > 0 ? (
+              <div className="flex items-center gap-4">
+                <div className="relative h-16 w-16 shrink-0">
+                  <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f0f0f0" strokeWidth="3" />
+                    <circle cx="18" cy="18" r="15.9" fill="none" stroke="#27ae60" strokeWidth="3"
+                      strokeDasharray={`${winLoss.winRate} ${100 - winLoss.winRate}`} strokeLinecap="round" />
+                  </svg>
+                  <span className="absolute inset-0 flex items-center justify-center text-[14px] font-bold text-[#222]">
+                    {winLoss.winRate}%
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[12px] text-[#555]"><span className="font-semibold text-[#27ae60]">{winLoss.won}</span> won</p>
+                  <p className="text-[12px] text-[#555]"><span className="font-semibold text-[#c0392b]">{winLoss.lost}</span> lost</p>
+                  {winLoss.wonValue > 0 && (
+                    <p className="mt-1 text-[11px] text-[#888]">${winLoss.wonValue.toLocaleString()} closed</p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p className="py-4 text-center text-[12px] text-[#bbb]">No closed deals yet</p>
+            )}
+          </div>
+
+          {/* Outreach Funnel */}
+          <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Outreach Funnel</p>
+            {(() => {
+              const total = outreachFunnel.cold + outreachFunnel.warm + outreachFunnel.hot + outreachFunnel.converted;
+              const stages = [
+                { key: "cold", label: "New", count: outreachFunnel.cold, color: "bg-[#e0e0e0]" },
+                { key: "warm", label: "Contacted", count: outreachFunnel.warm, color: "bg-[#1a73e8]" },
+                { key: "hot", label: "Interested", count: outreachFunnel.hot, color: "bg-[#e65100]" },
+                { key: "converted", label: "Converted", count: outreachFunnel.converted, color: "bg-[#27ae60]" },
+              ];
+              return total > 0 ? (
+                <div>
+                  <div className="mb-2 flex h-3 overflow-hidden rounded-full">
+                    {stages.filter(s => s.count > 0).map((s) => (
+                      <div key={s.key} className={`${s.color} transition-all`}
+                        style={{ width: `${(s.count / total) * 100}%` }} />
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1">
+                    {stages.map((s) => (
+                      <div key={s.key} className="flex items-center gap-1.5">
+                        <div className={`h-2 w-2 rounded-full ${s.color}`} />
+                        <span className="text-[11px] text-[#555]">{s.label}</span>
+                        <span className="text-[11px] font-semibold text-[#222]">{s.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {outreachFunnel.lost > 0 && (
+                    <p className="mt-1.5 text-[11px] text-[#888]">{outreachFunnel.lost} lost</p>
+                  )}
+                </div>
+              ) : (
+                <p className="py-4 text-center text-[12px] text-[#bbb]">No prospects yet</p>
+              );
+            })()}
+          </div>
+
+          {/* Pipeline Velocity */}
+          <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stage Velocity</p>
+            {velocityData.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {(() => {
+                  const maxDays = Math.max(...velocityData.map((v) => Number(v.avg_days)), 1);
+                  const activeStageOrder = ["lead", "contacted", "discovery", "building_mvp", "proposal", "negotiation", "build", "deliver"];
+                  return velocityData
+                    .filter((v) => activeStageOrder.includes(v.stage))
+                    .map((v) => (
+                      <div key={v.stage} className="flex items-center gap-2">
+                        <span className="w-[68px] truncate text-[11px] capitalize text-[#555]">{v.stage.replace("_", " ")}</span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#f0f0f0]">
+                          <div className="h-full rounded-full bg-[#1a73e8] transition-all"
+                            style={{ width: `${Math.min((Number(v.avg_days) / maxDays) * 100, 100)}%` }} />
+                        </div>
+                        <span className="w-10 text-right text-[11px] font-medium text-[#222]">{v.avg_days}d</span>
+                      </div>
+                    ));
+                })()}
+              </div>
+            ) : (
+              <p className="py-4 text-center text-[12px] text-[#bbb]">No stage transitions yet</p>
+            )}
+          </div>
         </div>
       </section>
 

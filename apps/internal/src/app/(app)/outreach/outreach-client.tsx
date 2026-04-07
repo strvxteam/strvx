@@ -702,6 +702,54 @@ export default function OutreachPage({
         </div>
       </div>
 
+      {/* Funnel metrics */}
+      {(() => {
+        const funnelStages = [
+          { key: "cold" as const, label: "New", color: "bg-[#e0e0e0]", textColor: "text-[#666]" },
+          { key: "warm" as const, label: "Contacted", color: "bg-[#1a73e8]", textColor: "text-[#1a73e8]" },
+          { key: "hot" as const, label: "Interested", color: "bg-[#e65100]", textColor: "text-[#e65100]" },
+          { key: "converted" as const, label: "Converted", color: "bg-[#27ae60]", textColor: "text-[#27ae60]" },
+        ];
+        const stageCounts = funnelStages.map((s) => ({
+          ...s,
+          count: leads.filter((l) => l.stage === s.key).length,
+        }));
+        const total = stageCounts.reduce((sum, s) => sum + s.count, 0);
+        const lostCount = leads.filter((l) => l.stage === "lost").length;
+
+        return total > 0 ? (
+          <div className="mb-4 shrink-0 rounded-lg border border-[#e0e0e0] bg-white p-3">
+            <div className="mb-2 flex h-2.5 overflow-hidden rounded-full">
+              {stageCounts.filter((s) => s.count > 0).map((s) => (
+                <div key={s.key} className={`${s.color} transition-all`}
+                  style={{ width: `${(s.count / total) * 100}%` }} />
+              ))}
+            </div>
+            <div className="flex items-center gap-5">
+              {stageCounts.map((s) => (
+                <div key={s.key} className="flex items-center gap-1.5">
+                  <div className={`h-2 w-2 rounded-full ${s.color}`} />
+                  <span className="text-[11px] text-[#555]">{s.label}</span>
+                  <span className={`text-[12px] font-semibold ${s.textColor}`}>{s.count}</span>
+                </div>
+              ))}
+              {lostCount > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="h-2 w-2 rounded-full bg-[#c62828]" />
+                  <span className="text-[11px] text-[#555]">Lost</span>
+                  <span className="text-[12px] font-semibold text-[#c62828]">{lostCount}</span>
+                </div>
+              )}
+              {total > 0 && stageCounts.find((s) => s.key === "converted")!.count > 0 && (
+                <span className="ml-auto text-[11px] font-medium text-[#27ae60]">
+                  {Math.round((stageCounts.find((s) => s.key === "converted")!.count / total) * 100)}% conversion
+                </span>
+              )}
+            </div>
+          </div>
+        ) : null;
+      })()}
+
       {/* Search + stage filters */}
       <div className="mb-4 shrink-0 flex items-center gap-3">
         <div className="relative flex-1">
