@@ -2,7 +2,7 @@ const now = new Date();
 const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
 const daysFromNow = (n: number) => new Date(now.getTime() + n * 24 * 60 * 60 * 1000);
 
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue";
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
 
 export interface LineItem {
   id: string;
@@ -29,6 +29,7 @@ export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
   sent: "bg-[#e8f0fe] text-[#1a73e8]",
   paid: "bg-[#e8f5e9] text-[#27ae60]",
   overdue: "bg-[#fde8e8] text-[#c0392b]",
+  cancelled: "bg-[#f0f0f0] text-[#888]",
 };
 
 export const mockInvoices: Invoice[] = [
@@ -202,3 +203,12 @@ export const mockExpenses: Expense[] = [
   { id: "exp-14", date: daysAgo(20).toISOString().split("T")[0], description: "Linear Team Plan", category: "Software", amount: 24, project: null },
   { id: "exp-15", date: daysAgo(25).toISOString().split("T")[0], description: "n8n Cloud", category: "Software", amount: 20, project: null },
 ];
+
+export type ReconciliationStatus = "matched" | "unmatched" | "partial" | "manual" | null;
+
+export const RECONCILIATION_LABELS: Record<string, { text: string; color: string }> = {
+  matched: { text: "\u2713 matched", color: "text-[#27ae60]" },
+  unmatched: { text: "\u231B pending", color: "text-[#f39c12]" },
+  partial: { text: "~ partial", color: "text-[#1a73e8]" },
+  manual: { text: "\u2713 manual", color: "text-[#27ae60]" },
+};
