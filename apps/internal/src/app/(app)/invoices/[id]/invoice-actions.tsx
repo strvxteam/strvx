@@ -10,70 +10,56 @@ export function InvoiceActions({ invoiceId, status }: { invoiceId: string; statu
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  async function handleSend() {
+  const btnBase = "rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors disabled:opacity-40";
+
+  async function handleAction(action: () => Promise<void>, successMsg: string) {
     setLoading(true);
     try {
-      await sendInvoiceAction(invoiceId);
-      toast.success("Invoice sent to client");
+      await action();
+      toast.success(successMsg);
       router.refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to send");
+      toast.error(err instanceof Error ? err.message : "Action failed");
     } finally {
       setLoading(false);
     }
   }
-
-  async function handleVoid() {
-    setLoading(true);
-    try {
-      await voidInvoiceAction(invoiceId);
-      toast.success("Invoice voided");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to void");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleMarkPaid() {
-    setLoading(true);
-    try {
-      await markInvoicePaidAction(invoiceId);
-      toast.success("Invoice marked as paid");
-      router.refresh();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to mark as paid");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const btnBase = "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-40";
 
   if (status === "draft") {
     return (
-      <div className="mt-4 flex gap-2">
+      <>
         <Link href={`/invoices/${invoiceId}/edit`} className={`${btnBase} border border-[#e0e0e0] text-[#555] hover:bg-[#f5f5f5]`}>
           Edit
         </Link>
-        <button onClick={handleSend} disabled={loading} className={`${btnBase} bg-[#1a73e8] text-white hover:bg-[#1557b0]`}>
+        <button
+          onClick={() => handleAction(() => sendInvoiceAction(invoiceId), "Invoice sent")}
+          disabled={loading}
+          className={`${btnBase} bg-[#1a73e8] text-white hover:bg-[#1557b0]`}
+        >
           {loading ? "Sending..." : "Send Invoice"}
         </button>
-      </div>
+      </>
     );
   }
 
   if (status === "sent" || status === "overdue") {
     return (
-      <div className="mt-4 flex gap-2">
-        <button onClick={handleVoid} disabled={loading} className={`${btnBase} border border-[#e0e0e0] text-[#c0392b] hover:bg-[#fde8e8]`}>
+      <>
+        <button
+          onClick={() => handleAction(() => voidInvoiceAction(invoiceId), "Invoice voided")}
+          disabled={loading}
+          className={`${btnBase} border border-[#e0e0e0] text-[#c0392b] hover:bg-[#fde8e8]`}
+        >
           Void
         </button>
-        <button onClick={handleMarkPaid} disabled={loading} className={`${btnBase} bg-[#27ae60] text-white hover:bg-[#219a52]`}>
-          {loading ? "Updating..." : "Mark as Paid"}
+        <button
+          onClick={() => handleAction(() => markInvoicePaidAction(invoiceId), "Marked as paid")}
+          disabled={loading}
+          className={`${btnBase} bg-[#27ae60] text-white hover:bg-[#219a52]`}
+        >
+          {loading ? "Updating..." : "Mark Paid"}
         </button>
-      </div>
+      </>
     );
   }
 
