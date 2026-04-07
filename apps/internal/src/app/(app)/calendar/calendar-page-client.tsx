@@ -122,10 +122,72 @@ export function CalendarPageClient({
   const [defaultDate, setDefaultDate] = useState(formatDate(new Date()));
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const calendarRef = useRef<FullCalendar>(null);
+  // Track which month ranges have already been fetched to avoid duplicate API calls
+  const fetchedRangesRef = useRef<Set<string>>(new Set());
 
   const fcEvents = useMemo(() => events.map(calendarEventToFC), [events]);
 
   const isGoogleCalendarEvent = useCallback((id: string) => id.startsWith("gcal-"), []);
+
+  // Fetch Google Calendar events for the newly visible date range
+  const handleDatesSet = useCallback(async (info: { start: Date; end: Date }) => {
+    if (!googleConnected) return;
+
+    // Key by year-month of start so each calendar month is fetched once
+    const rangeKey = `${info.start.toISOString()}/${info.end.toISOString()}`;
+    if (fetchedRangesRef.current.has(rangeKey)) return;
+    fetchedRangesRef.current.add(rangeKey);
+
+    try {
+      const params = new URLSearchParams({
+        timeMin: info.start.toISOString(),
+        timeMax: info.end.toISOString(),
+      });
+      const res = await fetch(`/api/calendar/google?${params}`);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      const newEvents: CalendarEvent[] = (data.events ?? [])
+        .filter((ge: { isAllDay: boolean; start: string }) => !ge.isAllDay)
+        .map((ge: {
+          id: string;
+          start: string;
+          end: string;
+          title: string;
+          meetLink: string;
+          isAllDay: boolean;
+        }) => {
+          const start = new Date(ge.start);
+          const end = new Date(ge.end);
+          const localStart = new Date(start.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+          const localEnd = new Date(end.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+          const date = `${localStart.getFullYear()}-${String(localStart.getMonth() + 1).padStart(2, "0")}-${String(localStart.getDate()).padStart(2, "0")}`;
+          const startHour = localStart.getHours() + localStart.getMinutes() / 60;
+          const durationHours = Math.min((localEnd.getTime() - localStart.getTime()) / (1000 * 60 * 60), 8);
+          return {
+            id: `gcal-${ge.id}`,
+            title: ge.title,
+            type: "client_call" as CalendarEvent["type"],
+            date,
+            startHour,
+            durationHours,
+            client: null,
+            zoomLink: ge.meetLink || null,
+            projectId: null,
+          };
+        });
+
+      if (newEvents.length === 0) return;
+
+      setEvents((prev) => {
+        const existingIds = new Set(prev.map((e) => e.id));
+        const toAdd = newEvents.filter((e) => !existingIds.has(e.id));
+        return toAdd.length > 0 ? [...prev, ...toAdd] : prev;
+      });
+    } catch {
+      // Non-fatal — calendar still shows DB events
+    }
+  }, [googleConnected]);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const evt = info.event.extendedProps.calendarEvent as CalendarEvent;
@@ -266,6 +328,7 @@ export function CalendarPageClient({
           eventContent={renderEventContent}
           eventClick={handleEventClick}
           dateClick={handleDateClick}
+          datesSet={handleDatesSet}
           nowIndicator={true}
           nowIndicatorContent={() => {
             const now = new Date();

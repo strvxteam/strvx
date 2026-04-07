@@ -101,16 +101,24 @@ export async function getGoogleCalendarEvents(userId: string, timeMin: string, t
   const calendar = google.calendar({ version: "v3", auth: authed.oauth2Client });
 
   try {
-    const response = await calendar.events.list({
-      calendarId: authed.calendarId,
-      timeMin,
-      timeMax,
-      singleEvents: true,
-      orderBy: "startTime",
-      maxResults: 100,
-    });
+    const allItems: NonNullable<Awaited<ReturnType<typeof calendar.events.list>>["data"]["items"]> = [];
+    let pageToken: string | undefined;
 
-    return (response.data.items || []).map((event) => ({
+    do {
+      const response = await calendar.events.list({
+        calendarId: authed.calendarId,
+        timeMin,
+        timeMax,
+        singleEvents: true,
+        orderBy: "startTime",
+        maxResults: 2500,
+        pageToken,
+      });
+      allItems.push(...(response.data.items || []));
+      pageToken = response.data.nextPageToken ?? undefined;
+    } while (pageToken);
+
+    return allItems.map((event) => ({
       id: event.id || "",
       googleEventId: event.id || "",
       title: event.summary || "(No title)",
