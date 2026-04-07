@@ -294,11 +294,9 @@ export function CardTransactions({
                           {txn.counterpartyName}
                         </span>
                         {unusual && (
-                          <Flag
-                            size={12}
-                            className="text-amber-500"
-                            title="Unusual spend (>2x average)"
-                          />
+                          <span title="Unusual spend (>2x average)">
+                            <Flag size={12} className="text-amber-500" />
+                          </span>
                         )}
                       </div>
                       {isExpanded && txn.note && (

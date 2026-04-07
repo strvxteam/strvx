@@ -186,8 +186,8 @@ export function CardReports({
                 tickFormatter={(v) => `$${v.toLocaleString()}`}
               />
               <Tooltip
-                formatter={(value: number) => [
-                  `$${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                formatter={(value) => [
+                  `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
                   "Spend",
                 ]}
               />
@@ -217,7 +217,7 @@ export function CardReports({
                   cx="50%"
                   cy="50%"
                   outerRadius={80}
-                  label={({ name, percent }) =>
+                  label={({ name = "", percent = 0 }) =>
                     `${name.slice(0, 12)}${name.length > 12 ? "..." : ""} ${(percent * 100).toFixed(0)}%`
                   }
                   labelLine={false}
@@ -230,8 +230,8 @@ export function CardReports({
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => [
-                    `$${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                  formatter={(value) => [
+                    `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
                   ]}
                 />
               </PieChart>
