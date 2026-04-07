@@ -17,8 +17,10 @@ import {
   ArrowRightLeft,
   Trash2,
   Sparkles,
+  Copy,
+  Link2,
 } from "lucide-react";
-import { changeStage, quickAdd, toggleAction as serverToggleAction, updateEngagement, updateCompanyName, updateContact as updateContactAction, deleteEngagement } from "@/app/actions";
+import { changeStage, quickAdd, toggleAction as serverToggleAction, updateEngagement, updateCompanyName, updateContact as updateContactAction, deleteEngagement, createFollowUpLink } from "@/app/actions";
 import { toast } from "sonner";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 
@@ -464,6 +466,119 @@ function EditableContactField({
   );
 }
 
+// ── Follow-up Link Section ──────────────────────────────
+type FollowUpLink = {
+  id: string;
+  token: string;
+  engagementId: string;
+  meetingType: string;
+  createdBy: string | null;
+  createdAt: Date;
+};
+
+function FollowUpSection({
+  engagementId,
+  initialLinks,
+}: {
+  engagementId: string;
+  initialLinks: FollowUpLink[];
+}) {
+  const [links, setLinks] = useState(initialLinks);
+  const [meetingType, setMeetingType] = useState<"proposal" | "revision">("proposal");
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const generate = async () => {
+    setGenerating(true);
+    try {
+      const token = await createFollowUpLink(engagementId, meetingType);
+      setLinks((prev) => [
+        { id: `local-${Date.now()}`, token, engagementId, meetingType, createdBy: null, createdAt: new Date() },
+        ...prev,
+      ]);
+      toast.success("Link generated");
+    } catch {
+      toast.error("Failed to generate link");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyLink = (token: string) => {
+    navigator.clipboard.writeText(`https://strvx.com/book/${token}`);
+    setCopied(token);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-white p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <Link2 size={12} className="text-muted-foreground" />
+        <h3 className="text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Follow-up Links
+        </h3>
+      </div>
+
+      {/* Existing links */}
+      {links.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {links.slice(0, 3).map((link) => (
+            <div key={link.id} className="rounded-md border border-border bg-muted/30 p-2">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[10px] font-medium capitalize text-muted-foreground">
+                  {link.meetingType}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {new Date(link.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="flex-1 truncate font-mono text-[10px] text-foreground">
+                  strvx.com/book/{link.token.slice(0, 8)}…
+                </span>
+                <button
+                  onClick={() => copyLink(link.token)}
+                  className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Copy link"
+                >
+                  {copied === link.token ? <Check size={11} className="text-emerald-500" /> : <Copy size={11} />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Generate new */}
+      <div className="flex items-center gap-1.5">
+        <div className="flex gap-1">
+          {(["proposal", "revision"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setMeetingType(t)}
+              className={`rounded-md px-2 py-1 text-[11px] font-medium capitalize transition-colors ${
+                meetingType === t
+                  ? "bg-[#1a73e8] text-white"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={generate}
+          disabled={generating}
+          className="ml-auto flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground disabled:opacity-50"
+        >
+          <Plus size={11} />
+          {generating ? "Generating…" : "New Link"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ──────────────────────────────────────
 export function ClientDetailView({
   initialEngagement,
@@ -473,6 +588,7 @@ export function ClientDetailView({
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   allEngagements,
   teamMembers,
+  followUpLinks: initialFollowUpLinks,
 }: {
   initialEngagement: Engagement;
   initialTimeline: TimelineEntry[];
@@ -480,6 +596,7 @@ export function ClientDetailView({
   initialContacts: Contact[];
   allEngagements: { id: string; name: string; companyName: string }[];
   teamMembers: { id: string; name: string }[];
+  followUpLinks: FollowUpLink[];
 }) {
   const [engagement, setEngagement] = useState(initialEngagement);
   const [timeline, setTimeline] = useState(initialTimeline);
@@ -929,6 +1046,12 @@ export function ClientDetailView({
               </details>
             )}
           </div>
+
+          {/* Follow-up Links */}
+          <FollowUpSection
+            engagementId={engagement.id}
+            initialLinks={initialFollowUpLinks}
+          />
 
         </div>
       </div>

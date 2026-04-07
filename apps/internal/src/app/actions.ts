@@ -11,6 +11,7 @@ import {
   stageEnum,
   stageHistory,
   users,
+  followUpLinks,
 } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -1589,4 +1590,24 @@ export async function toggleUserStatus(userId: string) {
 
   revalidatePath("/dashboard");
   return newStatus;
+}
+
+// ── Follow-up Links ───────────────────────────────────────────────────────────
+
+export async function createFollowUpLink(
+  engagementId: string,
+  meetingType: "proposal" | "revision"
+): Promise<string> {
+  const user = await getCurrentUser();
+  const token = crypto.randomUUID().replace(/-/g, "");
+
+  await db.insert(followUpLinks).values({
+    token,
+    engagementId,
+    meetingType,
+    createdBy: user.id,
+  });
+
+  revalidatePath(`/clients/${engagementId}`);
+  return token;
 }

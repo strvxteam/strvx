@@ -61,7 +61,8 @@ async function getMemberCalendarIds(calendar: ReturnType<typeof google.calendar>
 export async function getTeamBusyTimes(
   members: TeamMember[],
   timeMin: Date,
-  timeMax: Date
+  timeMax: Date,
+  bufferMs: number = BUFFER_MS
 ): Promise<Map<string, BusySlot[]>> {
   const results = new Map<string, BusySlot[]>();
 
@@ -90,15 +91,15 @@ export async function getTeamBusyTimes(
           },
         });
 
-        // Merge busy slots from all calendars, then add 10-min buffer on each side
+        // Merge busy slots from all calendars, then add buffer on each side
         const allBusy: BusySlot[] = [];
         for (const calId of calendarIds) {
           const busy = res.data.calendars?.[calId]?.busy ?? [];
           for (const b of busy) {
             if (!b.start || !b.end) continue;
             allBusy.push({
-              start: new Date(new Date(b.start).getTime() - BUFFER_MS).toISOString(),
-              end: new Date(new Date(b.end).getTime() + BUFFER_MS).toISOString(),
+              start: new Date(new Date(b.start).getTime() - bufferMs).toISOString(),
+              end: new Date(new Date(b.end).getTime() + bufferMs).toISOString(),
             });
           }
         }
@@ -160,7 +161,8 @@ export function calculateAvailability(
   dateStart: Date,
   dateEnd: Date,
   slotDurationMinutes: number = SLOT_DURATION_MINUTES,
-  minRequired: number = 3
+  minRequired: number = 3,
+  businessHoursEnd: number = BUSINESS_HOURS_END
 ): AvailableSlot[] {
   const slots: AvailableSlot[] = [];
   const stepMs = slotDurationMinutes * 60 * 1000;
@@ -175,11 +177,7 @@ export function calculateAvailability(
     const decimalHour = toPacificDecimalHour(cursor);
     const decimalHourEnd = toPacificDecimalHour(slotEnd);
 
-    // Within business hours:
-    // - decimalHour >= 9        → slot starts at or after 9 AM
-    // - decimalHour < 21        → slot starts before 9 PM (excludes 9:00 PM start and midnight-wraparound slots)
-    // - decimalHourEnd <= 21    → slot ends by 9 PM (21.5 correctly fails for a 9:30 PM end)
-    if (decimalHour >= BUSINESS_HOURS_START && decimalHour < BUSINESS_HOURS_END && decimalHourEnd <= BUSINESS_HOURS_END) {
+    if (decimalHour >= BUSINESS_HOURS_START && decimalHour < businessHoursEnd && decimalHourEnd <= businessHoursEnd) {
       const availableMembers = memberIds.filter((id) =>
         isMemberFree(id, cursor, slotEnd, busyMap)
       );

@@ -6,6 +6,7 @@ import {
   getPipelineEngagements,
   getContactsByCompany,
   getUsers,
+  getFollowUpLinksForEngagement,
 } from "@/lib/queries";
 import { ClientDetailView } from "@/components/client/client-detail-view";
 import { QuickAddBar } from "@/components/quick-add-bar";
@@ -26,12 +27,13 @@ export default async function ClientDetailPage({
 
   if (!engagement) return notFound();
 
-  const [timeline, actions, engData, companyContacts, teamUsers] = await Promise.all([
+  const [timeline, actions, engData, companyContacts, teamUsers, followUpLinksList] = await Promise.all([
     getEngagementTimeline(id) as Promise<TimelineEntry[]>,
     getEngagementActions(id) as Promise<ActionEntry[]>,
     getPipelineEngagements(),
     getContactsByCompany(engagement.companyId),
     getUsers(),
+    getFollowUpLinksForEngagement(id),
   ]);
 
   const allEngagements = engData.map((e) => ({
@@ -65,6 +67,7 @@ export default async function ClientDetailPage({
         initialContacts={companyContacts}
         allEngagements={allEngagements}
         teamMembers={teamUsers.map(u => ({ id: u.id, name: u.name }))}
+        followUpLinks={followUpLinksList}
       />
       <QuickAddBar
         engagements={allEngagements}

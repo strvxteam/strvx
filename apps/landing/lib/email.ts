@@ -229,6 +229,144 @@ export async function sendTeamNotification(memberEmails: string[], data: TeamNot
   });
 }
 
+// ── Follow-up confirmation to client ──────────────────────────────────────────
+
+type FollowUpConfirmationData = {
+  bookingId: string;
+  clientName: string;
+  clientEmail: string;
+  meetingType: string; // "proposal" | "revision"
+  startTime: string;
+  endTime: string;
+  meetLink: string;
+};
+
+export async function sendFollowUpConfirmation(data: FollowUpConfirmationData) {
+  const dateDisplay = formatDateTime(data.startTime);
+  const endTimeDisplay = formatTime(data.endTime);
+  const typeLabel = data.meetingType === "proposal" ? "Proposal Call" : "Revision Call";
+
+  const icsContent = generateICS({
+    uid: `followup-${data.bookingId}@strvx.com`,
+    summary: `${typeLabel} with strvx`,
+    description: `Your 30-minute ${typeLabel.toLowerCase()} with strvx.\n\nJoin: ${data.meetLink}`,
+    startTime: new Date(data.startTime),
+    endTime: new Date(data.endTime),
+    organizerEmail: FROM_EMAIL,
+    attendeeEmail: data.clientEmail,
+    meetLink: data.meetLink,
+  });
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e5e5e5;overflow:hidden;">
+        <tr><td style="background:#0a0a0a;padding:28px 40px;">
+          <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">strvx</p>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0a0a0a;letter-spacing:-0.02em;">You're booked.</h1>
+          <p style="margin:0 0 32px;font-size:15px;color:#666;">See you soon, ${data.clientName}.</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;border-radius:6px;margin-bottom:28px;">
+            <tr><td style="padding:24px 28px;">
+              <p style="margin:0 0 16px;font-size:11px;font-weight:600;color:#999;letter-spacing:0.1em;text-transform:uppercase;">Details</p>
+              <table cellpadding="0" cellspacing="0">
+                <tr><td style="padding:4px 0;font-size:13px;color:#666;width:100px;">What</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${typeLabel} · 30 min</td></tr>
+                <tr><td style="padding:4px 0;font-size:13px;color:#666;">When</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${dateDisplay} – ${endTimeDisplay}</td></tr>
+                <tr><td style="padding:4px 0;font-size:13px;color:#666;">With</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">strvx team</td></tr>
+              </table>
+            </td></tr>
+          </table>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
+            <tr><td align="center">
+              <a href="${data.meetLink}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.04em;padding:13px 28px;border-radius:6px;">Join Google Meet</a>
+            </td></tr>
+          </table>
+          <p style="margin:0;font-size:13px;color:#999;line-height:1.6;">You'll receive a reminder before your call. If you need to reschedule, reply to this email.</p>
+        </td></tr>
+        <tr><td style="padding:20px 40px;border-top:1px solid #e5e5e5;">
+          <p style="margin:0;font-size:12px;color:#bbb;">strvx · San Diego, CA · <a href="https://strvx.com" style="color:#bbb;">strvx.com</a></p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: data.clientEmail,
+    subject: `Confirmed: ${typeLabel} with strvx — ${formatDateTime(data.startTime)}`,
+    html,
+    attachments: [
+      {
+        filename: "invite.ics",
+        content: Buffer.from(icsContent).toString("base64"),
+        contentType: "text/calendar; method=REQUEST",
+      },
+    ],
+  });
+}
+
+// ── Follow-up team notification ────────────────────────────────────────────────
+
+type FollowUpTeamNotificationData = {
+  clientName: string;
+  clientEmail: string;
+  clientCompany?: string | null;
+  meetingType: string;
+  startTime: string;
+  endTime: string;
+  meetLink: string;
+  notes?: string | null;
+};
+
+export async function sendFollowUpTeamNotification(data: FollowUpTeamNotificationData) {
+  const dateDisplay = formatDateTime(data.startTime);
+  const endTimeDisplay = formatTime(data.endTime);
+  const typeLabel = data.meetingType === "proposal" ? "Proposal Call" : "Revision Call";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#f9f9f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9f9f9;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;border:1px solid #e5e5e5;overflow:hidden;">
+        <tr><td style="background:#0a0a0a;padding:28px 40px;">
+          <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">strvx · Follow-up Booked</p>
+        </td></tr>
+        <tr><td style="padding:40px;">
+          <h1 style="margin:0 0 24px;font-size:20px;font-weight:700;color:#0a0a0a;">New ${typeLabel.toLowerCase()} booked</h1>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+            <tr><td style="padding:4px 0;font-size:13px;color:#666;width:110px;">Client</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${data.clientName}</td></tr>
+            <tr><td style="padding:4px 0;font-size:13px;color:#666;">Email</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;">${data.clientEmail}</td></tr>
+            ${data.clientCompany ? `<tr><td style="padding:4px 0;font-size:13px;color:#666;">Company</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;">${data.clientCompany}</td></tr>` : ""}
+            <tr><td style="padding:4px 0;font-size:13px;color:#666;">Type</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${typeLabel}</td></tr>
+            <tr><td style="padding:4px 0;font-size:13px;color:#666;">When</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${dateDisplay} – ${endTimeDisplay}</td></tr>
+          </table>
+          ${data.notes ? `<div style="margin-bottom:24px;padding:16px;background:#f5f5f5;border-radius:6px;"><p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#999;letter-spacing:0.08em;text-transform:uppercase;">Notes</p><p style="margin:0;font-size:13px;color:#0a0a0a;line-height:1.6;white-space:pre-wrap;">${data.notes}</p></div>` : ""}
+          <a href="${data.meetLink}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 24px;border-radius:6px;">Join Google Meet</a>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: "team@strvx.com",
+    subject: `${typeLabel}: ${data.clientName} — ${formatDateTime(data.startTime)}`,
+    html,
+  });
+}
+
 // ── Reminders ─────────────────────────────────────────────────────────────────
 
 type ReminderData = {

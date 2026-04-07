@@ -18,6 +18,7 @@ import {
   timeEntries,
   monitoredSites,
   uptimeChecks,
+  followUpLinks,
 } from "./db/schema";
 import { eq, desc, and, lte, isNull, sql, count } from "drizzle-orm";
 
@@ -1179,4 +1180,14 @@ export async function getNextInvoiceNumber(): Promise<string> {
   if (!latest) return `${prefix}001`;
   const num = parseInt(latest.invoiceNumber.replace(prefix, ""), 10);
   return `${prefix}${String(num + 1).padStart(3, "0")}`;
+}
+
+// ── Follow-up Links ───────────────────────────────────
+
+export async function getFollowUpLinksForEngagement(engagementId: string) {
+  return db
+    .select()
+    .from(followUpLinks)
+    .where(eq(followUpLinks.engagementId, engagementId))
+    .orderBy(desc(followUpLinks.createdAt));
 }
