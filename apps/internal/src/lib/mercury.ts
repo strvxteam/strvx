@@ -56,6 +56,7 @@ export async function getMercuryAccounts(): Promise<MercuryAccount[]> {
   const res = await fetch(`${MERCURY_BASE}/accounts`, {
     headers: getHeaders(),
     next: { revalidate: 300 }, // cache for 5 min
+    signal: AbortSignal.timeout(5000), // 5s timeout
   });
   if (!res.ok) {
     console.error("[Mercury] Failed to fetch accounts:", res.status, await res.text());
@@ -80,6 +81,7 @@ export async function getMercuryTransactions(
   const res = await fetch(url, {
     headers: getHeaders(),
     next: { revalidate: 300 },
+    signal: AbortSignal.timeout(5000),
   });
   if (!res.ok) {
     console.error("[Mercury] Failed to fetch transactions:", res.status, await res.text());

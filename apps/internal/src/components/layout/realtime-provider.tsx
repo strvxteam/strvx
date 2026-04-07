@@ -13,13 +13,9 @@ const WATCHED_TABLES = [
   "task_assignees",
   "calendar_events",
   "projects",
-  "prospects",
-  "prospect_touches",
-  "industries",
   "invoices",
   "expenses",
   "goals",
-  "marketing_posts",
   "documents",
 ];
 

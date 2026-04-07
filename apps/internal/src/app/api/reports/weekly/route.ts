@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { db } from "@/lib/db";
-import { engagements, invoices, tasks, taskAssignees, users, interactions, prospects, timeEntries } from "@/lib/db/schema";
+import { engagements, invoices, tasks, taskAssignees, users, interactions, timeEntries } from "@/lib/db/schema";
 import { sql, eq, and, isNull, count } from "drizzle-orm";
 
 const TEAM_EMAILS = ["alex@strvx.com", "strvxteam@strvx.com"];
@@ -27,7 +27,6 @@ export async function GET(req: NextRequest) {
     paidInvoicesResult,
     tasksCompleted,
     newInteractions,
-    newProspects,
     hoursLogged,
     activeCount,
   ] = await Promise.all([
@@ -52,8 +51,6 @@ export async function GET(req: NextRequest) {
     db.select({ count: count() }).from(interactions)
       .where(sql`${interactions.createdAt} >= ${weekAgoStr}`),
     // New prospects
-    db.select({ count: count() }).from(prospects)
-      .where(sql`${prospects.createdAt} >= ${weekAgoStr}`),
     // Hours logged
     db.execute(sql`
       SELECT COALESCE(SUM(hours::numeric), 0) as total
@@ -74,7 +71,6 @@ export async function GET(req: NextRequest) {
     revenue,
     tasksCompleted: tasksCompleted[0]?.count ?? 0,
     interactions: newInteractions[0]?.count ?? 0,
-    newProspects: newProspects[0]?.count ?? 0,
     hoursLogged: hours,
     activeEngagements: activeCount[0]?.count ?? 0,
   };
@@ -101,7 +97,6 @@ export async function GET(req: NextRequest) {
       <tr><td style="padding:8px 0;font-size:14px;color:#555;">Hours Logged</td><td style="padding:8px 0;text-align:right;font-size:16px;font-weight:600;color:#222;">${hours.toFixed(1)}h</td></tr>
       <tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;font-size:14px;color:#555;">Tasks Completed</td><td style="padding:8px 0;text-align:right;font-size:16px;font-weight:600;color:#222;">${metrics.tasksCompleted}</td></tr>
       <tr><td style="padding:8px 0;font-size:14px;color:#555;">Interactions Logged</td><td style="padding:8px 0;text-align:right;font-size:16px;font-weight:600;color:#222;">${metrics.interactions}</td></tr>
-      <tr><td style="padding:8px 0;font-size:14px;color:#555;">New Prospects</td><td style="padding:8px 0;text-align:right;font-size:16px;font-weight:600;color:#222;">${metrics.newProspects}</td></tr>
       <tr style="border-top:1px solid #f0f0f0;"><td style="padding:8px 0;font-size:14px;font-weight:600;color:#222;">Active Engagements</td><td style="padding:8px 0;text-align:right;font-size:18px;font-weight:700;color:#1a73e8;">${metrics.activeEngagements}</td></tr>
     </table>
   </div>

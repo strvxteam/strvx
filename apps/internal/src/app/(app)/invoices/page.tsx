@@ -83,7 +83,7 @@ export default async function InvoicesPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-lg border border-[#e0e0e0] bg-white overflow-x-auto">
+      <div style={{ minHeight: "calc(100vh - 280px)" }} className="flex flex-col rounded-lg border border-[#e0e0e0] bg-white">
         <table className="w-full min-w-[640px]">
           <thead>
             <tr className="border-b border-[#e0e0e0]">
@@ -110,57 +110,67 @@ export default async function InvoicesPage() {
               </th>
             </tr>
           </thead>
-          <tbody>
-            {invoiceData.map((inv) => (
-              <tr
-                key={inv.id}
-                className="border-b border-[#f0f0f0] transition-colors hover:bg-[#fafafa]"
-              >
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/invoices/${inv.id}`}
-                    className="text-[13px] font-medium text-[#1a73e8] hover:underline"
-                  >
-                    {inv.number}
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-[13px] text-[#555]">
-                  {inv.client}
-                </td>
-                <td className="px-4 py-3 text-[13px] font-medium text-[#222]">
-                  ${inv.amount.toLocaleString()}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={`rounded px-2 py-0.5 text-[11px] font-medium capitalize ${INVOICE_STATUS_COLORS[inv.status]}`}
-                  >
-                    {inv.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-[13px] text-[#555]">
-                  {inv.date}
-                </td>
-                <td className="px-4 py-3 text-[13px] text-[#555]">
-                  {inv.dueDate}
-                </td>
-                <td className="px-4 py-3 text-[13px]">
-                  {inv.stripePaymentUrl ? (
-                    <a
-                      href={inv.stripePaymentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-medium text-[#1a73e8] hover:underline"
-                    >
-                      Pay →
-                    </a>
-                  ) : (
-                    <span className="text-[#bbb]">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
         </table>
+        <div className="flex-1 overflow-y-auto">
+          {invoiceData.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-[13px] text-[#bbb]">
+              No invoices yet — click &quot;+ New Invoice&quot; to create one
+            </div>
+          ) : (
+            <table className="w-full min-w-[640px]">
+              <tbody>
+                {invoiceData.map((inv) => (
+                  <tr
+                    key={inv.id}
+                    className="border-b border-[#f0f0f0] transition-colors hover:bg-[#fafafa]"
+                  >
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/invoices/${inv.id}`}
+                        className="text-[13px] font-medium text-[#1a73e8] hover:underline"
+                      >
+                        {inv.number}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-[13px] text-[#555]">
+                      {inv.client}
+                    </td>
+                    <td className="px-4 py-3 text-[13px] font-medium text-[#222]">
+                      ${inv.amount.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded px-2 py-0.5 text-[11px] font-medium capitalize ${INVOICE_STATUS_COLORS[inv.status]}`}
+                      >
+                        {inv.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-[13px] text-[#555]">
+                      {inv.date}
+                    </td>
+                    <td className="px-4 py-3 text-[13px] text-[#555]">
+                      {inv.dueDate}
+                    </td>
+                    <td className="px-4 py-3 text-[13px]">
+                      {inv.stripePaymentUrl ? (
+                        <a
+                          href={inv.stripePaymentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-[#1a73e8] hover:underline"
+                        >
+                          Pay →
+                        </a>
+                      ) : (
+                        <span className="text-[#bbb]">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   );

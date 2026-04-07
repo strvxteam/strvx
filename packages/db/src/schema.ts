@@ -9,7 +9,6 @@ import {
   integer,
   jsonb,
   pgEnum,
-  index,
 } from "drizzle-orm/pg-core";
 
 // ── Enums ──────────────────────────────────────────────
@@ -40,22 +39,6 @@ export const interactionTypeEnum = pgEnum("interaction_type", [
   "meeting",
   "action",
   "stage_change",
-]);
-
-export const prospectStageEnum = pgEnum("prospect_stage", [
-  "cold",
-  "warm",
-  "hot",
-  "converted",
-  "lost",
-]);
-
-export const touchChannelEnum = pgEnum("touch_channel", [
-  "email",
-  "linkedin",
-  "phone",
-  "referral",
-  "apollo",
 ]);
 
 // ── Users ──────────────────────────────────────────────
@@ -188,95 +171,6 @@ export const nextActions = pgTable("next_actions", {
     () => interactions.id
   ),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-// ── Industries (outreach lookup table) ────────────────
-
-export const industries = pgTable("industries", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  slug: text("slug").notNull().unique(),
-  name: text("name").notNull(),
-  icon: text("icon"),
-  color: text("color"),
-  sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-// ── Prospects (outreach contacts) ─────────────────────
-
-export const prospects = pgTable(
-  "prospects",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    industrySlug: text("industry_slug")
-      .references(() => industries.slug),
-    firstName: text("first_name").notNull(),
-    lastName: text("last_name").notNull(),
-    email: text("email"),
-    phone: text("phone"),
-    linkedinUrl: text("linkedin_url"),
-    title: text("title"),
-    companyName: text("company_name").notNull(),
-    companyDomain: text("company_domain"),
-    companySize: text("company_size"),
-    location: text("location"),
-    stage: prospectStageEnum("stage").notNull().default("cold"),
-    source: text("source").notNull().default("manual"),
-    apolloContactId: text("apollo_contact_id"),
-    apolloOrganizationId: text("apollo_organization_id"),
-    notes: text("notes"),
-    assignedToId: uuid("assigned_to_id").references(() => users.id),
-    companyId: uuid("company_id").references(() => companies.id),
-    contactId: uuid("contact_id").references(() => contacts.id),
-    convertedAt: timestamp("converted_at", { withTimezone: true }),
-    archivedAt: timestamp("archived_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .notNull()
-      .defaultNow(),
-  },
-  (table) => [
-    index("prospects_industry_idx").on(table.industrySlug),
-    index("prospects_industry_stage_idx").on(table.industrySlug, table.stage),
-  ]
-);
-
-// ── Prospect Touches ──────────────────────────────────
-
-export const prospectTouches = pgTable("prospect_touches", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  prospectId: uuid("prospect_id")
-    .notNull()
-    .references(() => prospects.id, { onDelete: "cascade" }),
-  channel: touchChannelEnum("channel").notNull(),
-  direction: text("direction").notNull(),
-  subject: text("subject"),
-  content: text("content"),
-  sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
-  authorId: uuid("author_id").references(() => users.id),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-// ── Apollo Sync Log ───────────────────────────────────
-
-export const apolloSyncLog = pgTable("apollo_sync_log", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  action: text("action").notNull(),
-  query: jsonb("query"),
-  resultCount: integer("result_count"),
-  importedCount: integer("imported_count"),
-  industrySlug: text("industry_slug"),
-  userId: uuid("user_id").references(() => users.id),
-  errorMessage: text("error_message"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

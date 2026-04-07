@@ -118,31 +118,10 @@ export const updateCalendarEventSchema = z.object({
   zoomLink: z.string().url("Invalid URL").optional().nullable().or(z.literal("")),
 });
 
-export const createProspectSchema = z.object({
-  firstName: z.string().min(1, "First name is required").max(100),
-  lastName: z.string().min(1, "Last name is required").max(100),
-  email: z.string().email("Invalid email").optional().or(z.literal("")),
-  phone: z.string().max(50).optional(),
-  companyName: z.string().min(1, "Company is required").max(200),
-  title: z.string().max(200).optional(),
-  industrySlug: z.string().min(1).optional(),
-  stage: z.enum(["cold", "warm", "hot"]).optional(),
-  linkedinUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
-  notes: z.string().max(5000).optional(),
-});
-
 export const createDocumentSchema = z.object({
   title: z.string().min(1, "Title is required").max(200),
   content: z.record(z.string(), z.unknown()).optional(),
   contentText: z.string().max(500000).optional(),
-});
-
-export const createMarketingPostSchema = z.object({
-  title: z.string().min(1, "Title is required").max(200),
-  content: z.string().max(10000).optional(),
-  platform: z.enum(["linkedin", "x", "nextdoor"]),
-  status: z.enum(["draft", "scheduled", "published"]),
-  scheduledAt: z.string().optional(),
 });
 
 export const updateEngagementSchema = z.object({
@@ -188,14 +167,6 @@ export const updateGoalSchema = z.object({
   achieved: z.boolean().optional(),
 });
 
-export const updateMarketingPostSchema = z.object({
-  title: z.string().min(1).max(200).optional(),
-  content: z.string().max(10000).optional(),
-  platform: z.enum(["linkedin", "x", "nextdoor"]).optional(),
-  status: z.enum(["draft", "scheduled", "published"]).optional(),
-  scheduledAt: z.string().optional().nullable(),
-});
-
 export const createProjectSchema = z.object({
   name: z.string().min(1, "Name is required").max(200),
   description: z.string().max(5000).optional(),
@@ -223,32 +194,6 @@ export const updateDocumentSchema = z.object({
   contentText: z.string().max(500000).optional(),
 });
 
-export const updateProspectSchema = z.object({
-  firstName: z.string().min(1).max(100).optional(),
-  lastName: z.string().min(1).max(100).optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().max(50).optional(),
-  companyName: z.string().min(1).max(200).optional(),
-  title: z.string().max(200).optional(),
-  industrySlug: z.string().optional(),
-  stage: z.enum(["cold", "warm", "hot"]).optional(),
-  linkedinUrl: z.string().url().optional().or(z.literal("")),
-  notes: z.string().max(5000).optional(),
-});
-
-export const logTouchSchema = z.object({
-  prospectId: z.string().uuid("Invalid prospect ID"),
-  channel: z.enum(["email", "linkedin", "phone", "referral", "apollo"]),
-  direction: z.string().min(1),
-  subject: z.string().max(500).optional(),
-  content: z.string().max(5000).optional(),
-});
-
 export const uuidSchema = z.string().uuid("Invalid ID");
 
 export const searchQuerySchema = z.string().min(1, "Search query is required").max(500);
-
-export const changeProspectStageSchema = z.object({
-  prospectId: z.string().uuid("Invalid prospect ID"),
-  newStage: z.enum(["cold", "warm", "hot", "converted", "lost"]),
-});

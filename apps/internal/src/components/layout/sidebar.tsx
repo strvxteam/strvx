@@ -14,10 +14,9 @@ import {
   FileText,
   Wallet,
   BookOpen,
-  Send,
-  Megaphone,
   Target,
   FolderOpen,
+  Wrench,
   Menu,
   X,
   LogOut,
@@ -43,18 +42,12 @@ const navSections: NavSection[] = [
     label: "Projects",
     items: [
       { href: "/projects", label: "Projects", icon: FolderKanban },
+      { href: "/maintenance", label: "Maintenance", icon: Wrench },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/availability", label: "Availability", icon: Users },
     ],
   },
-  {
-    label: "Outreach",
-    items: [
-      { href: "/outreach", label: "Leads", icon: Send },
-      { href: "/marketing", label: "Marketing", icon: Megaphone },
-    ],
-  },
-  {
+{
     label: "Finance",
     items: [
       { href: "/finances", label: "Finances", icon: Wallet },

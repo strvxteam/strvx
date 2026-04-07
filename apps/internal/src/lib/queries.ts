@@ -15,9 +15,6 @@ import {
   goals,
   marketingPosts,
   documents,
-  prospects,
-  prospectTouches,
-  industries,
   timeEntries,
 } from "./db/schema";
 import { eq, desc, and, lte, isNull, sql, count } from "drizzle-orm";
@@ -787,54 +784,54 @@ export async function getDocument(id: string) {
   return doc;
 }
 
-// ── Prospect Queries ─────────────────────────────────
+// ── Maintenance Queries ───────────────────────────────
 
-export async function getProspects() {
-  return db
-    .select()
-    .from(prospects)
-    .where(isNull(prospects.archivedAt))
-    .orderBy(desc(prospects.createdAt));
-}
-
-export async function getProspectWithTouches(prospectId: string) {
-  const touchRows = await db
-    .select()
-    .from(prospectTouches)
-    .where(eq(prospectTouches.prospectId, prospectId))
-    .orderBy(desc(prospectTouches.sentAt));
-  return touchRows;
-}
-
-export async function getAllProspectTouchCounts() {
-  return db
-    .select({
-      prospectId: prospectTouches.prospectId,
-      count: count(),
-      lastTouch: sql<string | null>`MAX(${prospectTouches.sentAt})`,
-      lastChannel: sql<string | null>`(
-        SELECT pt2.channel FROM prospect_touches pt2
-        WHERE pt2.prospect_id = ${prospectTouches.prospectId}
-        ORDER BY pt2.sent_at DESC LIMIT 1
-      )`,
-    })
-    .from(prospectTouches)
-    .groupBy(prospectTouches.prospectId);
-}
-
-export async function getProspectTouches(prospectId: string) {
-  return db
-    .select()
-    .from(prospectTouches)
-    .where(eq(prospectTouches.prospectId, prospectId))
-    .orderBy(desc(prospectTouches.sentAt));
-}
-
-export async function getIndustries() {
-  return db
-    .select()
-    .from(industries)
-    .orderBy(industries.sortOrder);
+export async function getMaintenanceClients() {
+  const result = await db.execute(sql`
+    SELECT
+      e.id,
+      e.name as engagement_name,
+      c.name as company_name,
+      e.maintenance_monthly_fee,
+      e.maintenance_next_checkin,
+      e.maintenance_opted_in,
+      e.stage_entered_at,
+      EXTRACT(EPOCH FROM (NOW() - e.stage_entered_at)) / 86400 as days_in_maintain,
+      (SELECT MAX(i.created_at) FROM interactions i WHERE i.engagement_id = e.id) as last_interaction,
+      EXTRACT(EPOCH FROM (NOW() - COALESCE(
+        (SELECT MAX(i.created_at) FROM interactions i WHERE i.engagement_id = e.id),
+        e.created_at
+      ))) / 86400 as days_since_interaction,
+      (SELECT COUNT(*) FROM next_actions na
+       WHERE na.engagement_id = e.id AND na.completed = false AND na.archived_at IS NULL
+      )::int as open_actions,
+      (SELECT COUNT(*) FROM next_actions na
+       WHERE na.engagement_id = e.id AND na.completed = false
+       AND na.archived_at IS NULL AND na.due_date < CURRENT_DATE
+      )::int as overdue_actions,
+      (SELECT p.id FROM projects p WHERE p.engagement_id = e.id LIMIT 1) as project_id,
+      (SELECT p.name FROM projects p WHERE p.engagement_id = e.id LIMIT 1) as project_name
+    FROM engagements e
+    JOIN companies c ON e.company_id = c.id
+    WHERE e.stage = 'maintain'
+      AND e.archived_at IS NULL
+    ORDER BY e.maintenance_next_checkin ASC NULLS LAST
+  `);
+  return result as unknown as {
+    id: string;
+    engagement_name: string;
+    company_name: string;
+    maintenance_monthly_fee: string | null;
+    maintenance_next_checkin: string | null;
+    maintenance_opted_in: boolean;
+    days_in_maintain: string;
+    days_since_interaction: string;
+    last_interaction: string | null;
+    open_actions: number;
+    overdue_actions: number;
+    project_id: string | null;
+    project_name: string | null;
+  }[];
 }
 
 // ── Finance Queries ──────────────────────────────────
@@ -1092,23 +1089,6 @@ export async function getWinLossRate() {
     lostValue: Number(row.lost_value),
     winRate: Number(row.total_closed) > 0 ? Math.round((Number(row.won) / Number(row.total_closed)) * 100) : 0,
   };
-}
-
-export async function getOutreachFunnel() {
-  const result = await db
-    .select({
-      stage: prospects.stage,
-      count: count(),
-    })
-    .from(prospects)
-    .where(isNull(prospects.archivedAt))
-    .groupBy(prospects.stage);
-
-  const funnel: Record<string, number> = { cold: 0, warm: 0, hot: 0, converted: 0, lost: 0 };
-  for (const row of result) {
-    funnel[row.stage] = row.count;
-  }
-  return funnel;
 }
 
 export async function getNextInvoiceNumber(): Promise<string> {

@@ -48,12 +48,7 @@ async function main() {
 
   // ── 1. Clear existing data (reverse dependency order) ──
   console.log("Clearing existing data...");
-  await db.delete(schema.apolloSyncLog);
-  await db.delete(schema.prospectTouches);
-  await db.delete(schema.prospects);
-  await db.delete(schema.industries);
   await db.delete(schema.documents);
-  await db.delete(schema.marketingPosts);
   await db.delete(schema.goals);
   await db.delete(schema.expenses);
   await db.delete(schema.invoices);
@@ -570,125 +565,8 @@ async function main() {
   log("next_actions", insertedNextActions.length);
 
   // ── 9. Industries ──────────────────────────────────────
-  console.log("Seeding industries...");
-  const industriesData = [
-    { slug: "hvac", name: "HVAC", icon: "Thermometer", color: "#EF4444", sortOrder: 1 },
-    { slug: "electrical", name: "Electrical", icon: "Zap", color: "#F59E0B", sortOrder: 2 },
-    { slug: "plumbing", name: "Plumbing", icon: "Droplets", color: "#3B82F6", sortOrder: 3 },
-    { slug: "roofing", name: "Roofing", icon: "Home", color: "#8B5CF6", sortOrder: 4 },
-    { slug: "solar", name: "Solar", icon: "Sun", color: "#F97316", sortOrder: 5 },
-    { slug: "tech", name: "Tech", icon: "Cpu", color: "#06B6D4", sortOrder: 6 },
-    { slug: "healthcare", name: "Healthcare", icon: "Heart", color: "#EC4899", sortOrder: 7 },
-    { slug: "finance", name: "Finance", icon: "DollarSign", color: "#10B981", sortOrder: 8 },
-  ];
-  const insertedIndustries = await db
-    .insert(schema.industries)
-    .values(industriesData)
-    .returning();
-  log("industries", insertedIndustries.length);
 
-  // ── 10. Prospects ──────────────────────────────────────
-  console.log("Seeding prospects...");
-  const prospectsData = [
-    { industrySlug: "hvac", firstName: "James", lastName: "Morrison", email: "james@morrisonhvac.com", phone: "+1 (480) 555-1001", title: "Owner", companyName: "Morrison HVAC Services", companyDomain: "morrisonhvac.com", companySize: "10-25", location: "Phoenix, AZ", stage: "warm" as const, source: "apollo", assignedToId: nick.id, notes: "Responded to initial email. Interested in scheduling demo." },
-    { industrySlug: "hvac", firstName: "Patricia", lastName: "Reeves", email: "patricia@comfortzone.com", phone: "+1 (602) 555-1002", title: "Operations Manager", companyName: "Comfort Zone Heating & Cooling", companyDomain: "comfortzone.com", companySize: "25-50", location: "Scottsdale, AZ", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
-    { industrySlug: "electrical", firstName: "Robert", lastName: "Tran", email: "rtran@brightwirecorp.com", phone: "+1 (510) 555-1003", title: "CEO", companyName: "BrightWire Electrical", companyDomain: "brightwirecorp.com", companySize: "10-25", location: "Oakland, CA", stage: "hot" as const, source: "referral", assignedToId: nick.id, notes: "Referral from James Morrison. Very interested. Wants a proposal by next week." },
-    { industrySlug: "electrical", firstName: "Angela", lastName: "Foster", email: "angela@fosterelectric.com", title: "Office Manager", companyName: "Foster Electric Inc", companyDomain: "fosterelectric.com", companySize: "5-10", location: "Portland, OR", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
-    { industrySlug: "plumbing", firstName: "Michael", lastName: "Dunn", email: "mike@dunnplumbing.com", phone: "+1 (303) 555-1005", title: "Owner", companyName: "Dunn & Sons Plumbing", companyDomain: "dunnplumbing.com", companySize: "10-25", location: "Denver, CO", stage: "warm" as const, source: "linkedin", assignedToId: nick.id, notes: "Connected on LinkedIn. Has pain points with scheduling and dispatch." },
-    { industrySlug: "plumbing", firstName: "Sandra", lastName: "Wells", email: "sandra@wellsplumbing.net", title: "General Manager", companyName: "Wells Plumbing & Drain", companyDomain: "wellsplumbing.net", companySize: "5-10", location: "Austin, TX", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
-    { industrySlug: "roofing", firstName: "Carlos", lastName: "Mendez", email: "carlos@peakroofing.com", phone: "+1 (720) 555-1007", title: "President", companyName: "Peak Roofing Solutions", companyDomain: "peakroofing.com", companySize: "25-50", location: "Denver, CO", stage: "converted" as const, source: "cold_outreach", assignedToId: nick.id, notes: "Converted to client. Started AI estimator project.", convertedAt: daysAgo(15) },
-    { industrySlug: "roofing", firstName: "Diana", lastName: "Cho", email: "diana@skylineroofs.com", title: "VP Operations", companyName: "Skyline Roofing Co", companyDomain: "skylineroofs.com", companySize: "50-100", location: "Seattle, WA", stage: "warm" as const, source: "apollo", assignedToId: alex.id, notes: "Opened 3 emails. Clicked through to case study." },
-    { industrySlug: "solar", firstName: "Kevin", lastName: "Nguyen", email: "kevin@sunpathsolar.com", phone: "+1 (408) 555-1009", title: "Founder", companyName: "SunPath Solar", companyDomain: "sunpathsolar.com", companySize: "10-25", location: "San Jose, CA", stage: "hot" as const, source: "referral", assignedToId: nick.id, notes: "Referral from Carlos Mendez. Needs AI for solar panel placement optimization." },
-    { industrySlug: "solar", firstName: "Michelle", lastName: "Grant", email: "michelle@greenlightenergy.com", title: "Sales Director", companyName: "GreenLight Energy", companyDomain: "greenlightenergy.com", companySize: "25-50", location: "Las Vegas, NV", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
-    { industrySlug: "tech", firstName: "Ryan", lastName: "Cooper", email: "ryan@coopertech.io", phone: "+1 (415) 555-1011", title: "CTO", companyName: "CooperTech Solutions", companyDomain: "coopertech.io", companySize: "5-10", location: "San Francisco, CA", stage: "warm" as const, source: "linkedin", assignedToId: nick.id, notes: "Met at SF Tech Meetup. Wants AI agents for customer support." },
-    { industrySlug: "tech", firstName: "Emily", lastName: "Zhang", email: "emily@datastreamio.com", title: "Head of Product", companyName: "DataStream.io", companyDomain: "datastreamio.com", companySize: "25-50", location: "New York, NY", stage: "lost" as const, source: "email", assignedToId: nick.id, notes: "Went with a larger consultancy. Keep in touch for future work." },
-    { industrySlug: "healthcare", firstName: "Dr. Steven", lastName: "Park", email: "spark@brighthealthclinic.com", phone: "+1 (858) 555-1013", title: "Medical Director", companyName: "Bright Health Clinic", companyDomain: "brighthealthclinic.com", companySize: "10-25", location: "San Diego, CA", stage: "warm" as const, source: "referral", assignedToId: nick.id, notes: "Referral from Tom Williams at Vantage Health. Interested in patient intake automation." },
-    { industrySlug: "healthcare", firstName: "Laura", lastName: "Bennett", email: "laura@pinnaclemedical.com", title: "Practice Administrator", companyName: "Pinnacle Medical Group", companyDomain: "pinnaclemedical.com", companySize: "25-50", location: "Chicago, IL", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
-    { industrySlug: "finance", firstName: "Nathan", lastName: "Torres", email: "nathan@torreswealth.com", phone: "+1 (212) 555-1015", title: "Managing Partner", companyName: "Torres Wealth Management", companyDomain: "torreswealth.com", companySize: "5-10", location: "New York, NY", stage: "hot" as const, source: "referral", assignedToId: nick.id, notes: "Referral from David Kim at Apex Financial. Needs compliance automation." },
-    { industrySlug: "finance", firstName: "Rachel", lastName: "Simmons", email: "rachel@capitaledge.co", title: "VP Technology", companyName: "Capital Edge Partners", companyDomain: "capitaledge.co", companySize: "10-25", location: "Boston, MA", stage: "cold" as const, source: "apollo", assignedToId: alex.id },
-    { industrySlug: "hvac", firstName: "Derek", lastName: "Wallace", email: "derek@wallaceair.com", phone: "+1 (817) 555-1017", title: "Owner", companyName: "Wallace Air Systems", companyDomain: "wallaceair.com", companySize: "10-25", location: "Fort Worth, TX", stage: "warm" as const, source: "email", assignedToId: nick.id, notes: "Replied to second email. Wants to know pricing before committing to a call." },
-    { industrySlug: "electrical", firstName: "Stephanie", lastName: "Liu", email: "steph@voltageelectric.com", title: "Operations Director", companyName: "Voltage Electric Corp", companyDomain: "voltageelectric.com", companySize: "50-100", location: "Houston, TX", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
-  ];
-  const insertedProspects = await db
-    .insert(schema.prospects)
-    .values(prospectsData)
-    .returning();
-  log("prospects", insertedProspects.length);
-
-  const pr = Object.fromEntries(
-    insertedProspects.map((p) => [`${p.firstName} ${p.lastName}`, p.id])
-  ) as Record<string, string>;
-
-  // ── 11. Prospect Touches ───────────────────────────────
-  console.log("Seeding prospect touches...");
-  const prospectTouchesData = [
-    // James Morrison (warm) — multiple touches
-    { prospectId: pr["James Morrison"], channel: "email" as const, direction: "outbound", subject: "AI tools for HVAC businesses", content: "Hi James, I'm reaching out because we've helped HVAC companies automate scheduling and dispatching with AI...", sentAt: daysAgo(28), authorId: nick.id },
-    { prospectId: pr["James Morrison"], channel: "email" as const, direction: "inbound", subject: "Re: AI tools for HVAC businesses", content: "Thanks for reaching out. We're definitely struggling with scheduling. Can you tell me more about pricing?", sentAt: daysAgo(26) },
-    { prospectId: pr["James Morrison"], channel: "email" as const, direction: "outbound", subject: "Re: AI tools for HVAC businesses", content: "Great to hear from you, James! Our projects typically range from $10K-$25K depending on scope. Would you be open to a 20-minute call this week?", sentAt: daysAgo(25), authorId: nick.id },
-    { prospectId: pr["James Morrison"], channel: "linkedin" as const, direction: "outbound", subject: "Connection request", content: "Sent connection request with personalized note about HVAC AI automation.", sentAt: daysAgo(24), authorId: nick.id },
-
-    // Patricia Reeves (cold) — single touch
-    { prospectId: pr["Patricia Reeves"], channel: "email" as const, direction: "outbound", subject: "How Comfort Zone could save 10hrs/week with AI scheduling", content: "Hi Patricia, I noticed Comfort Zone is growing fast. We help HVAC companies like yours automate scheduling and reduce no-shows by 40%...", sentAt: daysAgo(3), authorId: nick.id },
-
-    // Robert Tran (hot) — heavy engagement
-    { prospectId: pr["Robert Tran"], channel: "referral" as const, direction: "inbound", subject: "Intro from James Morrison", content: "James Morrison introduced us. Robert is very interested in AI-powered project estimation for electrical jobs.", sentAt: daysAgo(14), authorId: nick.id },
-    { prospectId: pr["Robert Tran"], channel: "email" as const, direction: "outbound", subject: "Following up on James's intro", content: "Robert, great connecting through James. I'd love to show you what we built for a similar electrical company. Free for 30 min this week?", sentAt: daysAgo(13), authorId: nick.id },
-    { prospectId: pr["Robert Tran"], channel: "phone" as const, direction: "outbound", subject: "Intro call", content: "30-min call. Robert walked me through their estimating process. They lose 2 hours per bid manually measuring from blueprints. AI vision could automate this.", sentAt: daysAgo(10), authorId: nick.id },
-    { prospectId: pr["Robert Tran"], channel: "email" as const, direction: "outbound", subject: "Proposal: AI-Powered Estimating Tool", content: "Attached proposal for $18K AI estimating tool with blueprint analysis. 4-week delivery.", sentAt: daysAgo(5), authorId: nick.id },
-    { prospectId: pr["Robert Tran"], channel: "email" as const, direction: "inbound", subject: "Re: Proposal: AI-Powered Estimating Tool", content: "This looks great. Sharing with my partner. Expecting to move forward by end of month.", sentAt: daysAgo(3) },
-
-    // Michael Dunn (warm)
-    { prospectId: pr["Michael Dunn"], channel: "linkedin" as const, direction: "outbound", subject: "Connection + message", content: "Connected with Michael on LinkedIn. Sent message about AI scheduling for plumbing businesses.", sentAt: daysAgo(20), authorId: nick.id },
-    { prospectId: pr["Michael Dunn"], channel: "linkedin" as const, direction: "inbound", subject: "Reply to message", content: "Michael replied: 'Yeah dispatch is killing us. Our dispatcher is overwhelmed. Interested to learn more.'", sentAt: daysAgo(18) },
-    { prospectId: pr["Michael Dunn"], channel: "email" as const, direction: "outbound", subject: "AI Dispatch for Dunn & Sons", content: "Michael, great chatting on LinkedIn. Here's a quick overview of how AI dispatch could work for a 15-truck operation like yours...", sentAt: daysAgo(17), authorId: nick.id },
-
-    // Carlos Mendez (converted)
-    { prospectId: pr["Carlos Mendez"], channel: "email" as const, direction: "outbound", subject: "AI for roofing estimates", content: "Hi Carlos, we've been building AI tools for trade businesses and I think Peak Roofing could benefit from automated roof measurement and estimation...", sentAt: daysAgo(45), authorId: nick.id },
-    { prospectId: pr["Carlos Mendez"], channel: "phone" as const, direction: "outbound", subject: "Discovery call", content: "Great call. Carlos is losing 3 hours per estimate doing manual measurements. Drone + AI measurement tool would be a game changer.", sentAt: daysAgo(38), authorId: nick.id },
-    { prospectId: pr["Carlos Mendez"], channel: "email" as const, direction: "outbound", subject: "Proposal: AI Roof Estimator", content: "Sent $15K proposal for AI-powered roof measurement and estimation tool.", sentAt: daysAgo(25), authorId: nick.id },
-    { prospectId: pr["Carlos Mendez"], channel: "email" as const, direction: "inbound", subject: "Re: Proposal", content: "We're in. Let's get started. Can you send over the contract?", sentAt: daysAgo(20) },
-    { prospectId: pr["Carlos Mendez"], channel: "email" as const, direction: "outbound", subject: "Contract + kickoff details", content: "Contract attached. Welcome aboard, Carlos! Kickoff call scheduled for Monday.", sentAt: daysAgo(18), authorId: nick.id },
-
-    // Diana Cho (warm)
-    { prospectId: pr["Diana Cho"], channel: "email" as const, direction: "outbound", subject: "AI solutions for Skyline Roofing", content: "Hi Diana, I came across Skyline Roofing's impressive growth. We help roofing companies leverage AI for faster estimates and better crew scheduling...", sentAt: daysAgo(14), authorId: alex.id },
-    { prospectId: pr["Diana Cho"], channel: "email" as const, direction: "outbound", subject: "Case study: 3x faster roofing estimates with AI", content: "Diana, wanted to share this case study from a roofing company similar to Skyline's size...", sentAt: daysAgo(7), authorId: alex.id },
-
-    // Kevin Nguyen (hot)
-    { prospectId: pr["Kevin Nguyen"], channel: "referral" as const, direction: "inbound", subject: "Intro from Carlos Mendez", content: "Carlos referred Kevin. SunPath Solar needs AI for optimal panel placement based on satellite imagery and shade analysis.", sentAt: daysAgo(10), authorId: nick.id },
-    { prospectId: pr["Kevin Nguyen"], channel: "phone" as const, direction: "outbound", subject: "Intro call with Kevin", content: "Excellent 40-min call. Kevin's team wastes days per site doing manual shade analysis. AI vision + satellite data could automate 80% of the work. Very motivated buyer.", sentAt: daysAgo(7), authorId: nick.id },
-    { prospectId: pr["Kevin Nguyen"], channel: "email" as const, direction: "outbound", subject: "Next steps: SunPath Solar AI project", content: "Kevin, thanks for the great call. Putting together a scope document. Will have it to you by Friday.", sentAt: daysAgo(6), authorId: nick.id },
-
-    // Ryan Cooper (warm)
-    { prospectId: pr["Ryan Cooper"], channel: "linkedin" as const, direction: "inbound", subject: "Met at SF Tech Meetup", content: "Ryan reached out after meeting at the meetup. Exchanged cards.", sentAt: daysAgo(12), authorId: nick.id },
-    { prospectId: pr["Ryan Cooper"], channel: "email" as const, direction: "outbound", subject: "Great meeting you at SF Tech Meetup", content: "Ryan, great chatting about AI agents for customer support. Here's a brief overview of what we could build for CooperTech...", sentAt: daysAgo(11), authorId: nick.id },
-
-    // Emily Zhang (lost)
-    { prospectId: pr["Emily Zhang"], channel: "email" as const, direction: "outbound", subject: "AI data pipeline solutions", content: "Hi Emily, I saw DataStream.io's recent Series A announcement. Congrats! We help growing data companies build AI-powered pipelines...", sentAt: daysAgo(60), authorId: nick.id },
-    { prospectId: pr["Emily Zhang"], channel: "phone" as const, direction: "outbound", subject: "Discovery call", content: "Good call but they're leaning toward a larger consultancy (Accenture) for the project. Budget isn't the issue — it's internal politics.", sentAt: daysAgo(50), authorId: nick.id },
-    { prospectId: pr["Emily Zhang"], channel: "email" as const, direction: "inbound", subject: "Update on our project", content: "Hi Nick, wanted to let you know we went with Accenture for this round. Would love to stay in touch for future projects though.", sentAt: daysAgo(35) },
-
-    // Dr. Steven Park (warm)
-    { prospectId: pr["Dr. Steven Park"], channel: "referral" as const, direction: "inbound", subject: "Intro from Tom Williams", content: "Tom at Vantage Health introduced Dr. Park. Bright Health Clinic wants the same patient intake automation system.", sentAt: daysAgo(8), authorId: nick.id },
-    { prospectId: pr["Dr. Steven Park"], channel: "email" as const, direction: "outbound", subject: "Patient intake automation for Bright Health", content: "Dr. Park, Tom Williams spoke highly of your clinic. We built Vantage Health's intake system and could do something similar for you...", sentAt: daysAgo(7), authorId: nick.id },
-
-    // Nathan Torres (hot)
-    { prospectId: pr["Nathan Torres"], channel: "referral" as const, direction: "inbound", subject: "Intro from David Kim", content: "David Kim at Apex Financial referred Nathan. Torres Wealth needs compliance workflow automation similar to what we built for Apex.", sentAt: daysAgo(10), authorId: nick.id },
-    { prospectId: pr["Nathan Torres"], channel: "phone" as const, direction: "outbound", subject: "Intro call", content: "Great call. Nathan saw what we did for Apex and wants the same thing. Their compliance burden is growing fast. Scheduling a deeper technical dive.", sentAt: daysAgo(7), authorId: nick.id },
-    { prospectId: pr["Nathan Torres"], channel: "email" as const, direction: "outbound", subject: "Compliance automation overview", content: "Nathan, as discussed, here's an overview of the compliance automation system we built for Apex. Happy to customize a proposal for Torres Wealth.", sentAt: daysAgo(5), authorId: nick.id },
-
-    // Derek Wallace (warm)
-    { prospectId: pr["Derek Wallace"], channel: "email" as const, direction: "outbound", subject: "AI scheduling for Wallace Air Systems", content: "Hi Derek, I help HVAC companies automate their scheduling and reduce no-shows. Would you be open to a quick chat?", sentAt: daysAgo(10), authorId: nick.id },
-    { prospectId: pr["Derek Wallace"], channel: "email" as const, direction: "inbound", subject: "Re: AI scheduling", content: "Interested but need to know pricing first. We're a small operation and can't commit to a big project right now.", sentAt: daysAgo(8) },
-    { prospectId: pr["Derek Wallace"], channel: "email" as const, direction: "outbound", subject: "Re: AI scheduling — pricing info", content: "Derek, totally understand. Our HVAC scheduling tool starts at $8K for the base system. Here's a breakdown of what's included...", sentAt: daysAgo(7), authorId: nick.id },
-  ];
-  const insertedTouches = await db
-    .insert(schema.prospectTouches)
-    .values(prospectTouchesData)
-    .returning();
-  log("prospect_touches", insertedTouches.length);
-
-  // ── 12. Projects ───────────────────────────────────────
+  // ── 10. Projects ───────────────────────────────────────
   console.log("Seeding projects...");
   const projectsData = [
     {
@@ -1065,10 +943,10 @@ async function main() {
     },
     {
       name: "Prospect Pipeline",
-      description: "Maintain 20+ warm/hot prospects across all industries.",
+      description: "Maintain active pipeline across all channels.",
       targetValue: "20",
       currentValue: "12",
-      unit: "prospects",
+      unit: "engagements",
       deadline: "2026-06-30",
     },
     {
@@ -1096,98 +974,6 @@ async function main() {
 
   // ── 18. Marketing Posts ────────────────────────────────
   console.log("Seeding marketing posts...");
-  const marketingPostsData = [
-    {
-      title: "How We Cut Compliance Costs 70% for a Fintech Client",
-      content: "Case study thread about our work with Apex Financial. Automated compliance workflows reduced manual tasks from 40hrs/week to 12hrs/week. Here's how we did it...\n\n1/ The problem: Apex Financial's compliance team was drowning in manual processes...\n2/ Our approach: We built an automated workflow engine that...\n3/ The result: 70% reduction in manual compliance work, zero missed deadlines...",
-      platform: "linkedin",
-      status: "published",
-      publishedAt: daysAgo(15),
-      authorId: nick.id,
-      createdAt: daysAgo(17),
-    },
-    {
-      title: "AI in Healthcare: Patient Intake Automation",
-      content: "We helped a healthtech company process 4,200+ patient intakes per month with 99.7% accuracy. Here's what we learned about building AI systems for healthcare...\n\nKey insight: HIPAA compliance isn't an afterthought — it's the foundation of the architecture.",
-      platform: "linkedin",
-      status: "published",
-      publishedAt: daysAgo(8),
-      authorId: nick.id,
-      createdAt: daysAgo(10),
-    },
-    {
-      title: "The 3 questions every small business should ask before investing in AI",
-      content: "1. What manual process costs you the most time?\n2. Do you have enough data to train a useful model?\n3. What's the ROI timeline you're comfortable with?\n\nMost businesses fail at AI because they skip question 1 and jump straight to the shiny tech.",
-      platform: "x",
-      status: "published",
-      publishedAt: daysAgo(5),
-      authorId: nick.id,
-      createdAt: daysAgo(6),
-    },
-    {
-      title: "Why we chose Claude over GPT-4 for our client projects",
-      content: "After testing both extensively across 5 client projects, here's our honest comparison:\n\n- Claude: Better at following complex instructions, more reliable structured output, superior for code generation\n- GPT-4: Better at creative writing, wider plugin ecosystem\n\nFor business automation? Claude wins every time.",
-      platform: "linkedin",
-      status: "scheduled",
-      scheduledAt: ts(2),
-      authorId: nick.id,
-      createdAt: daysAgo(1),
-    },
-    {
-      title: "Hot take: Most AI consultancies are overcharging by 3x",
-      content: "The big consultancies charge $200K+ for AI projects that a lean, technical team can deliver for $30-50K.\n\nThe secret? We don't have 15 layers of project managers. We have 3 engineers who ship.\n\nStop paying for PowerPoint decks. Pay for production code.",
-      platform: "x",
-      status: "scheduled",
-      scheduledAt: ts(4),
-      authorId: nick.id,
-      createdAt: daysAgo(0),
-    },
-    {
-      title: "Building an AI Operations Dashboard: A Technical Deep Dive",
-      content: "Thread on the architecture behind our latest project — a real-time AI ops dashboard that monitors 12 models across 3 departments.\n\nStack: Next.js, Supabase, CloudWatch API, Recharts\nKey challenge: Real-time cost tracking without overwhelming the database\nSolution: 5-minute aggregation windows with WebSocket updates...",
-      platform: "linkedin",
-      status: "draft",
-      authorId: nick.id,
-      createdAt: daysAgo(2),
-    },
-    {
-      title: "HVAC companies are sleeping on AI",
-      content: "Just had a call with an HVAC company losing $200K/year on scheduling inefficiencies.\n\nAI dispatch optimization could cut that by 60%.\n\nThe trades are the biggest untapped market for practical AI. Not chatbots — real operational AI that saves money.",
-      platform: "x",
-      status: "draft",
-      authorId: nick.id,
-      createdAt: daysAgo(1),
-    },
-    {
-      title: "From spreadsheets to real-time dashboards: A client transformation story",
-      content: "One of our clients was tracking AI model performance in a Google Sheet. Updated once a week. By someone manually pulling data from 3 different AWS consoles.\n\nWe built them a real-time dashboard in 3 weeks. Now they catch cost spikes within minutes, not days.\n\nThe ROI paid for the project in the first month.",
-      platform: "linkedin",
-      status: "draft",
-      authorId: nick.id,
-      createdAt: daysAgo(0),
-    },
-    {
-      title: "Lessons from building AI systems that actually work in production",
-      content: "After deploying AI for 8+ clients, here are the patterns that separate production-grade AI from demos:\n\n1. Always build a human-in-the-loop escape hatch\n2. Monitor accuracy weekly, not quarterly\n3. Version your prompts like you version your code\n4. The data pipeline is 70% of the work\n5. Test with real data from day 1",
-      platform: "linkedin",
-      status: "review",
-      authorId: nick.id,
-      createdAt: daysAgo(1),
-    },
-    {
-      title: "The AI agency model is broken. Here's how we're fixing it.",
-      content: "Most AI agencies:\n- Overpromise, underdeliver\n- Charge for research, not results\n- Disappear after launch\n\nOur model:\n- Fixed price, milestone-based\n- We eat the cost of overruns\n- Maintenance included for 90 days\n- You own 100% of the code\n\nAccountability > billable hours.",
-      platform: "linkedin",
-      status: "review",
-      authorId: nick.id,
-      createdAt: daysAgo(0),
-    },
-  ];
-  const insertedPosts = await db
-    .insert(schema.marketingPosts)
-    .values(marketingPostsData)
-    .returning();
-  log("marketing_posts", insertedPosts.length);
 
   // ── 19. Documents ──────────────────────────────────────
   console.log("Seeding documents...");
@@ -1245,9 +1031,6 @@ async function main() {
   Stage History:    ${insertedStageHistory.length}
   Interactions:     ${insertedInteractions.length}
   Next Actions:     ${insertedNextActions.length}
-  Industries:       ${insertedIndustries.length}
-  Prospects:        ${insertedProspects.length}
-  Prospect Touches: ${insertedTouches.length}
   Projects:         ${insertedProjects.length}
   Project Members:  ${insertedMembers.length}
   Calendar Events:  ${insertedEvents.length}
@@ -1255,7 +1038,6 @@ async function main() {
   Invoices:         ${insertedInvoices.length}
   Expenses:         ${insertedExpenses.length}
   Goals:            ${insertedGoals.length}
-  Marketing Posts:  ${insertedPosts.length}
   Documents:        ${insertedDocs.length}
   `);
 }

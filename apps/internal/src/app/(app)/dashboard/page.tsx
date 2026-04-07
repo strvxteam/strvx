@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Target } from "lucide-react";
 import { google } from "googleapis";
-import { inArray } from "drizzle-orm";
+// drizzle-orm imports handled by queries
 import { EVENT_TYPE_COLORS } from "@/lib/mock-calendar";
 import { formatHour } from "@/lib/calendar-utils";
 import {
@@ -14,7 +14,6 @@ import {
   getCurrentUserForPage,
   getPipelineVelocity,
   getWinLossRate,
-  getOutreachFunnel,
   getEngagementHealthScores,
   getAtRiskItems,
   getTeamWorkload,
@@ -24,49 +23,57 @@ import { googleTokens } from "@/lib/google-calendar";
 import { QuickAddBar } from "@/components/quick-add-bar";
 import { TeamStatus } from "./team-status";
 
-async function getTeamCalendarBusy(userIds: string[]): Promise<Map<string, boolean>> {
-  if (userIds.length === 0) return new Map();
-
-  const tokenRows = await db
-    .select({ userId: googleTokens.userId, refreshToken: googleTokens.refreshToken })
-    .from(googleTokens)
-    .where(inArray(googleTokens.userId, userIds));
-
-  if (tokenRows.length === 0) return new Map();
-
-  const now = new Date();
-  const timeMin = now.toISOString();
-  const timeMax = new Date(now.getTime() + 60_000).toISOString(); // 1-min window
-
+async function getTeamCalendarBusy(): Promise<Map<string, boolean>> {
   const busyMap = new Map<string, boolean>();
 
-  await Promise.all(
-    tokenRows.map(async ({ userId, refreshToken }) => {
-      try {
-        const oauth2 = new google.auth.OAuth2(
-          process.env.GOOGLE_CLIENT_ID,
-          process.env.GOOGLE_CLIENT_SECRET,
-          process.env.GOOGLE_REDIRECT_URI,
+  try {
+    // 3-second timeout so Google API doesn't block the whole page
+    const result = await Promise.race([
+      (async () => {
+        const tokenRows = await db
+          .select({ userId: googleTokens.userId, refreshToken: googleTokens.refreshToken })
+          .from(googleTokens);
+
+        if (tokenRows.length === 0) return busyMap;
+
+        const now = new Date();
+        const timeMin = now.toISOString();
+        const timeMax = new Date(now.getTime() + 60_000).toISOString();
+
+        await Promise.all(
+          tokenRows.map(async ({ userId, refreshToken }) => {
+            try {
+              const oauth2 = new google.auth.OAuth2(
+                process.env.GOOGLE_CLIENT_ID,
+                process.env.GOOGLE_CLIENT_SECRET,
+                process.env.GOOGLE_REDIRECT_URI,
+              );
+              oauth2.setCredentials({ refresh_token: refreshToken });
+              const cal = google.calendar({ version: "v3", auth: oauth2 });
+              const res = await cal.events.list({
+                calendarId: "primary",
+                timeMin,
+                timeMax,
+                singleEvents: true,
+                maxResults: 5,
+              });
+              const busy = (res.data.items ?? []).some(
+                (e) => e.status !== "cancelled" && !!e.start?.dateTime,
+              );
+              busyMap.set(userId, busy);
+            } catch {
+              // Token unavailable
+            }
+          }),
         );
-        oauth2.setCredentials({ refresh_token: refreshToken });
-        const cal = google.calendar({ version: "v3", auth: oauth2 });
-        const res = await cal.events.list({
-          calendarId: "primary",
-          timeMin,
-          timeMax,
-          singleEvents: true,
-          maxResults: 5,
-        });
-        // Only count timed events (not all-day) as making someone "busy"
-        const busy = (res.data.items ?? []).some(
-          (e) => e.status !== "cancelled" && !!e.start?.dateTime,
-        );
-        busyMap.set(userId, busy);
-      } catch {
-        // Token unavailable — don't override stored status
-      }
-    }),
-  );
+        return busyMap;
+      })(),
+      new Promise<Map<string, boolean>>((resolve) => setTimeout(() => resolve(busyMap), 3000)),
+    ]);
+    return result;
+  } catch {
+    return busyMap;
+  }
 
   return busyMap;
 }
@@ -117,7 +124,7 @@ export default async function DashboardPage() {
     "maintain",
   ]);
 
-  const [recentActivityRaw, engData, dbCalEvents, dbInvoices, dbUsers, currentUser, velocityData, winLoss, outreachFunnel, healthScores, atRiskItems, teamWorkload] =
+  const [recentActivityRaw, engData, dbCalEvents, dbInvoices, dbUsers, currentUser, velocityData, winLoss, healthScores, atRiskItems, teamWorkload, calendarBusy] =
     await Promise.all([
       getRecentActivity(),
       getPipelineEngagements(),
@@ -127,13 +134,11 @@ export default async function DashboardPage() {
       getCurrentUserForPage(),
       getPipelineVelocity(),
       getWinLossRate(),
-      getOutreachFunnel(),
       getEngagementHealthScores(),
       getAtRiskItems(),
       getTeamWorkload(),
+      getTeamCalendarBusy(),
     ]);
-
-  const calendarBusy = await getTeamCalendarBusy(dbUsers.map((u) => u.id));
 
   const recentActivity = recentActivityRaw as ActivityItem[];
 
@@ -445,7 +450,7 @@ export default async function DashboardPage() {
       {/* Analytics snapshot */}
       <section className="mt-6">
         <h2 className="mb-3 text-[13px] font-semibold text-[#333]">Analytics</h2>
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {/* Win Rate */}
           <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
             <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Win Rate</p>
@@ -472,44 +477,6 @@ export default async function DashboardPage() {
             ) : (
               <p className="py-4 text-center text-[12px] text-[#bbb]">No closed deals yet</p>
             )}
-          </div>
-
-          {/* Outreach Funnel */}
-          <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Outreach Funnel</p>
-            {(() => {
-              const total = outreachFunnel.cold + outreachFunnel.warm + outreachFunnel.hot + outreachFunnel.converted;
-              const stages = [
-                { key: "cold", label: "New", count: outreachFunnel.cold, color: "bg-[#e0e0e0]" },
-                { key: "warm", label: "Contacted", count: outreachFunnel.warm, color: "bg-[#1a73e8]" },
-                { key: "hot", label: "Interested", count: outreachFunnel.hot, color: "bg-[#e65100]" },
-                { key: "converted", label: "Converted", count: outreachFunnel.converted, color: "bg-[#27ae60]" },
-              ];
-              return total > 0 ? (
-                <div>
-                  <div className="mb-2 flex h-3 overflow-hidden rounded-full">
-                    {stages.filter(s => s.count > 0).map((s) => (
-                      <div key={s.key} className={`${s.color} transition-all`}
-                        style={{ width: `${(s.count / total) * 100}%` }} />
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1">
-                    {stages.map((s) => (
-                      <div key={s.key} className="flex items-center gap-1.5">
-                        <div className={`h-2 w-2 rounded-full ${s.color}`} />
-                        <span className="text-[11px] text-[#555]">{s.label}</span>
-                        <span className="text-[11px] font-semibold text-[#222]">{s.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {outreachFunnel.lost > 0 && (
-                    <p className="mt-1.5 text-[11px] text-[#888]">{outreachFunnel.lost} lost</p>
-                  )}
-                </div>
-              ) : (
-                <p className="py-4 text-center text-[12px] text-[#bbb]">No prospects yet</p>
-              );
-            })()}
           </div>
 
           {/* Pipeline Velocity */}
