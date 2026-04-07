@@ -1086,7 +1086,7 @@ export default function Home() {
           initial={m ? false : "hidden"}
           whileInView={m ? undefined : "visible"}
           viewport={{ once: true, margin: "-60px" }}
-          className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-6"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-8 max-w-3xl mx-auto"
         >
           {[
             {
