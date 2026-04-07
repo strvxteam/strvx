@@ -44,10 +44,21 @@ export interface MercuryTransaction {
   status: "pending" | "sent" | "cancelled" | "failed";
 }
 
+export interface MercuryCard {
+  cardId: string;
+  nameOnCard: string;
+  lastFourDigits: string;
+  network: "visa" | "mastercard";
+  status: "active" | "frozen" | "cancelled" | "inactive" | "expired" | "suspended";
+  physicalCardStatus: "inactive" | "active" | "paused" | null;
+  createdAt: string;
+}
+
 interface PaginatedResponse<T> {
   total: number;
   transactions?: T[];
   accounts?: T[];
+  cards?: T[];
 }
 
 // ── API Functions ─────────────────────────────────────
@@ -108,6 +119,40 @@ export async function getAllMercuryTransactions(
   // Sort by date descending
   allTxns.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   return allTxns;
+}
+
+export async function getMercuryCards(
+  accountId: string
+): Promise<MercuryCard[]> {
+  const res = await fetch(`${MERCURY_BASE}/account/${accountId}/cards`, {
+    headers: getHeaders(),
+    next: { revalidate: 300 },
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) {
+    console.error("[Mercury] Failed to fetch cards:", res.status, await res.text());
+    return [];
+  }
+  const data = (await res.json()) as PaginatedResponse<MercuryCard>;
+  return data.cards ?? [];
+}
+
+export async function getAllMercuryCards(): Promise<MercuryCard[]> {
+  const accounts = await getMercuryAccounts();
+  if (accounts.length === 0) return [];
+
+  const allCards: MercuryCard[] = [];
+  await Promise.all(
+    accounts.map(async (acct) => {
+      const cards = await getMercuryCards(acct.id);
+      allCards.push(...cards);
+    })
+  );
+
+  allCards.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  return allCards;
 }
 
 // ── Helpers ───────────────────────────────────────────
