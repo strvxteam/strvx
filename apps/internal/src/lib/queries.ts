@@ -926,6 +926,131 @@ export async function getTimeEntrySummaryByProject(projectId: string) {
   };
 }
 
+// ── Team Workload ─────────────────────────────────────
+
+export async function getTeamWorkload() {
+  const result = await db.execute(sql`
+    SELECT
+      u.id,
+      u.name,
+      COALESCE(task_counts.open_tasks, 0)::int as open_tasks,
+      COALESCE(task_counts.urgent_tasks, 0)::int as urgent_tasks,
+      COALESCE(time_this_week.hours, 0)::numeric(10,1) as hours_this_week
+    FROM users u
+    LEFT JOIN (
+      SELECT ta.user_id,
+        COUNT(*) FILTER (WHERE t.status IN ('todo', 'in_progress')) as open_tasks,
+        COUNT(*) FILTER (WHERE t.status IN ('todo', 'in_progress') AND t.priority IN ('urgent', 'high')) as urgent_tasks
+      FROM task_assignees ta
+      JOIN tasks t ON t.id = ta.task_id
+      GROUP BY ta.user_id
+    ) task_counts ON task_counts.user_id = u.id
+    LEFT JOIN (
+      SELECT te.user_id, SUM(te.hours::numeric) as hours
+      FROM time_entries te
+      WHERE te.date >= date_trunc('week', CURRENT_DATE)
+      GROUP BY te.user_id
+    ) time_this_week ON time_this_week.user_id = u.id
+    WHERE u.is_active = true
+    ORDER BY COALESCE(task_counts.open_tasks, 0) DESC
+  `);
+  return result as unknown as {
+    id: string;
+    name: string;
+    open_tasks: number;
+    urgent_tasks: number;
+    hours_this_week: string;
+  }[];
+}
+
+// ── Client Health Scoring ─────────────────────────────
+
+export async function getEngagementHealthScores() {
+  const result = await db.execute(sql`
+    WITH health AS (
+      SELECT
+        e.id,
+        e.name,
+        e.stage,
+        c.name as company_name,
+        e.stage_entered_at,
+        EXTRACT(EPOCH FROM (NOW() - e.stage_entered_at)) / 86400 as days_in_stage,
+        (SELECT MAX(i.created_at) FROM interactions i WHERE i.engagement_id = e.id) as last_interaction,
+        EXTRACT(EPOCH FROM (NOW() - COALESCE(
+          (SELECT MAX(i.created_at) FROM interactions i WHERE i.engagement_id = e.id),
+          e.created_at
+        ))) / 86400 as days_since_interaction,
+        (SELECT COUNT(*) FROM next_actions na
+         WHERE na.engagement_id = e.id AND na.completed = false
+         AND na.archived_at IS NULL AND na.due_date < CURRENT_DATE
+        ) as overdue_actions
+      FROM engagements e
+      JOIN companies c ON e.company_id = c.id
+      WHERE e.archived_at IS NULL
+        AND e.stage NOT IN ('closed_won', 'closed_lost')
+    )
+    SELECT *,
+      CASE
+        WHEN overdue_actions >= 3 OR days_since_interaction > 14 THEN 'at_risk'
+        WHEN overdue_actions >= 1 OR days_since_interaction > 7 THEN 'needs_attention'
+        ELSE 'healthy'
+      END as health
+    FROM health
+    ORDER BY
+      CASE
+        WHEN overdue_actions >= 3 OR days_since_interaction > 14 THEN 0
+        WHEN overdue_actions >= 1 OR days_since_interaction > 7 THEN 1
+        ELSE 2
+      END,
+      days_since_interaction DESC
+  `);
+  return result as unknown as {
+    id: string;
+    name: string;
+    stage: string;
+    company_name: string;
+    days_in_stage: string;
+    days_since_interaction: string;
+    overdue_actions: number;
+    health: "at_risk" | "needs_attention" | "healthy";
+  }[];
+}
+
+// ── Profitability Queries ─────────────────────────────
+
+export async function getProjectProfitability() {
+  const result = await db.execute(sql`
+    SELECT
+      p.id as project_id,
+      p.name as project_name,
+      p.client,
+      COALESCE(SUM(te.hours::numeric), 0) as total_hours,
+      COALESCE(SUM(CASE WHEN te.billable THEN te.hours::numeric ELSE 0 END), 0) as billable_hours,
+      COALESCE(inv_totals.revenue, 0) as revenue
+    FROM projects p
+    LEFT JOIN time_entries te ON te.project_id = p.id
+    LEFT JOIN (
+      SELECT e.id as engagement_id, p2.id as project_id, SUM(i.amount::numeric) as revenue
+      FROM invoices i
+      JOIN engagements e ON i.engagement_id = e.id
+      JOIN projects p2 ON p2.engagement_id = e.id
+      WHERE i.status = 'paid'
+      GROUP BY e.id, p2.id
+    ) inv_totals ON inv_totals.project_id = p.id
+    GROUP BY p.id, p.name, p.client, inv_totals.revenue
+    HAVING COALESCE(SUM(te.hours::numeric), 0) > 0 OR COALESCE(inv_totals.revenue, 0) > 0
+    ORDER BY COALESCE(inv_totals.revenue, 0) DESC
+  `);
+  return result as unknown as {
+    project_id: string;
+    project_name: string;
+    client: string | null;
+    total_hours: string;
+    billable_hours: string;
+    revenue: string;
+  }[];
+}
+
 // ── Analytics Queries ─────────────────────────────────
 
 export async function getPipelineVelocity() {

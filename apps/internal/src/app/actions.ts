@@ -873,6 +873,49 @@ export async function sendInvoiceAction(invoiceId: string) {
     ? (invoice.lineItems as { description: string; quantity: number; rate: number; amount: number }[])
     : [];
 
+  // Create Stripe payment link if Stripe is configured and no payment URL exists yet
+  let stripePaymentUrl = invoice.stripePaymentUrl;
+  let stripeInvoiceId = invoice.stripeInvoiceId;
+
+  if (!stripePaymentUrl && process.env.STRIPE_SECRET_KEY) {
+    try {
+      const { getOrCreateStripeCustomer, createAndSendStripeInvoice } = await import("@/lib/stripe");
+
+      // Find company by client name to get/create Stripe customer
+      const [company] = await db
+        .select({ id: companies.id })
+        .from(companies)
+        .where(eq(companies.name, invoice.clientName));
+
+      if (company) {
+        const customerId = await getOrCreateStripeCustomer(
+          company.id,
+          invoice.clientName,
+          invoice.clientEmail
+        );
+
+        const result = await createAndSendStripeInvoice({
+          stripeCustomerId: customerId,
+          lineItems: lineItems.map((li) => ({
+            description: li.description,
+            quantity: li.quantity,
+            rate: li.rate,
+          })),
+          dueDate: invoice.dueDate || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+          notes: invoice.notes || undefined,
+          invoiceNumber: invoice.invoiceNumber,
+        });
+
+        stripePaymentUrl = result.paymentUrl;
+        stripeInvoiceId = result.stripeInvoiceId;
+      }
+    } catch (err) {
+      console.error("[Stripe] Failed to create payment link:", err);
+      // Continue sending email without payment link
+    }
+  }
+
+  // Send styled invoice email via Resend
   const { sendInvoiceEmail } = await import("@/lib/invoice-email");
   await sendInvoiceEmail({
     invoiceNumber: invoice.invoiceNumber,
@@ -884,16 +927,19 @@ export async function sendInvoiceAction(invoiceId: string) {
     dueDate: invoice.dueDate ?? "",
     lineItems,
     notes: invoice.notes,
-    stripePaymentUrl: invoice.stripePaymentUrl,
+    stripePaymentUrl,
   });
 
-  // Update status to "sent" if currently draft
-  if (invoice.status === "draft") {
-    await db
-      .update(invoices)
-      .set({ status: "sent", issuedDate: invoice.issuedDate || new Date().toISOString().split("T")[0] })
-      .where(eq(invoices.id, invoiceId));
-  }
+  // Update invoice status and Stripe fields
+  await db
+    .update(invoices)
+    .set({
+      status: "sent",
+      issuedDate: invoice.issuedDate || new Date().toISOString().split("T")[0],
+      ...(stripeInvoiceId ? { stripeInvoiceId } : {}),
+      ...(stripePaymentUrl ? { stripePaymentUrl } : {}),
+    })
+    .where(eq(invoices.id, invoiceId));
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);

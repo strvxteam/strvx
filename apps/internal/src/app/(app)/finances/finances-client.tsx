@@ -72,6 +72,14 @@ interface BankTransaction {
   kind: string;
 }
 
+interface ProjectProfitability {
+  projectName: string;
+  client: string;
+  totalHours: number;
+  billableHours: number;
+  revenue: number;
+}
+
 export interface FinancesPageProps {
   invoices?: Invoice[];
   expenses?: Expense[];
@@ -81,6 +89,7 @@ export interface FinancesPageProps {
   mercuryConnected?: boolean;
   bankAccounts?: BankAccount[];
   bankTransactions?: BankTransaction[];
+  profitability?: ProjectProfitability[];
 }
 
 export default function FinancesPage({
@@ -92,6 +101,7 @@ export default function FinancesPage({
   mercuryConnected = false,
   bankAccounts = [],
   bankTransactions = [],
+  profitability = [],
 }: FinancesPageProps = {}) {
   const invoiceData = invoicesProp ?? [];
   const monthlyRevenueData = monthlyRevenueProp ?? [];
@@ -506,6 +516,48 @@ export default function FinancesPage({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Profitability by Project */}
+          {profitability.length > 0 && (
+            <div className="col-span-2 rounded-lg border border-[#e0e0e0] bg-white p-4">
+              <h2 className="mb-3 text-sm font-semibold text-[#333]">Profitability by Project</h2>
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[#e0e0e0]">
+                    <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">Project</th>
+                    <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">Revenue</th>
+                    <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">Hours</th>
+                    <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">$/hr</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {profitability.map((p) => {
+                    const effectiveRate = p.billableHours > 0 ? p.revenue / p.billableHours : 0;
+                    return (
+                      <tr key={p.projectName} className="border-b border-[#f0f0f0] hover:bg-[#fafafa]">
+                        <td className="py-2">
+                          <p className="text-[13px] font-medium text-[#222]">{p.projectName}</p>
+                          {p.client && <p className="text-[11px] text-[#888]">{p.client}</p>}
+                        </td>
+                        <td className="py-2 text-right text-[13px] font-medium text-[#27ae60]">
+                          ${p.revenue.toLocaleString()}
+                        </td>
+                        <td className="py-2 text-right text-[13px] text-[#555]">
+                          {p.billableHours.toFixed(1)}h
+                          {p.totalHours !== p.billableHours && (
+                            <span className="text-[11px] text-[#aaa]"> / {p.totalHours.toFixed(1)}h</span>
+                          )}
+                        </td>
+                        <td className={`py-2 text-right text-[13px] font-medium ${effectiveRate >= 150 ? "text-[#27ae60]" : effectiveRate >= 75 ? "text-[#e67e22]" : "text-[#c0392b]"}`}>
+                          {effectiveRate > 0 ? `$${Math.round(effectiveRate)}` : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

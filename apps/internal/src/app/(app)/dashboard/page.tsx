@@ -15,6 +15,9 @@ import {
   getPipelineVelocity,
   getWinLossRate,
   getOutreachFunnel,
+  getEngagementHealthScores,
+  getAtRiskItems,
+  getTeamWorkload,
 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { googleTokens } from "@/lib/google-calendar";
@@ -114,7 +117,7 @@ export default async function DashboardPage() {
     "maintain",
   ]);
 
-  const [recentActivityRaw, engData, dbCalEvents, dbInvoices, dbUsers, currentUser, velocityData, winLoss, outreachFunnel] =
+  const [recentActivityRaw, engData, dbCalEvents, dbInvoices, dbUsers, currentUser, velocityData, winLoss, outreachFunnel, healthScores, atRiskItems, teamWorkload] =
     await Promise.all([
       getRecentActivity(),
       getPipelineEngagements(),
@@ -125,6 +128,9 @@ export default async function DashboardPage() {
       getPipelineVelocity(),
       getWinLossRate(),
       getOutreachFunnel(),
+      getEngagementHealthScores(),
+      getAtRiskItems(),
+      getTeamWorkload(),
     ]);
 
   const calendarBusy = await getTeamCalendarBusy(dbUsers.map((u) => u.id));
@@ -196,6 +202,86 @@ export default async function DashboardPage() {
         </span>
       </div>
 
+
+      {/* Daily briefing */}
+      {(() => {
+        const overdueCount = atRiskItems.overdueActions.length;
+        const staleCount = (atRiskItems.staleEngagements as unknown[]).length;
+        const unprepCount = (atRiskItems.unpreparedMeetings as unknown[]).length;
+        const totalAlerts = overdueCount + staleCount + unprepCount;
+        if (totalAlerts === 0) return null;
+        return (
+          <div className="mb-6 rounded-lg border border-[#e0e0e0] bg-[#fffbf5] px-4 py-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#e67e22]">Daily Briefing</p>
+            <div className="flex flex-wrap gap-4 text-[13px]">
+              {overdueCount > 0 && (
+                <Link href="/tasks" className="flex items-center gap-1.5 text-[#c0392b] hover:underline">
+                  <span className="font-semibold">{overdueCount}</span> overdue action{overdueCount !== 1 ? "s" : ""}
+                </Link>
+              )}
+              {staleCount > 0 && (
+                <Link href="/clients" className="flex items-center gap-1.5 text-[#e67e22] hover:underline">
+                  <span className="font-semibold">{staleCount}</span> stale client{staleCount !== 1 ? "s" : ""} (no activity 7+ days)
+                </Link>
+              )}
+              {unprepCount > 0 && (
+                <Link href="/calendar" className="flex items-center gap-1.5 text-[#8e24aa] hover:underline">
+                  <span className="font-semibold">{unprepCount}</span> meeting{unprepCount !== 1 ? "s" : ""} without prep notes
+                </Link>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Client health alerts */}
+      {(() => {
+        const atRisk = healthScores.filter((h) => h.health === "at_risk");
+        const needsAttention = healthScores.filter((h) => h.health === "needs_attention");
+        if (atRisk.length === 0 && needsAttention.length === 0) return null;
+        return (
+          <div className="mb-6 rounded-lg border border-[#e0e0e0] bg-white">
+            {atRisk.length > 0 && (
+              <div className="border-b border-[#f0f0f0] px-4 py-2.5">
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#c0392b]">At Risk</p>
+                <div className="flex flex-wrap gap-2">
+                  {atRisk.map((h) => (
+                    <Link key={h.id} href={`/clients/${h.id}`}
+                      className="flex items-center gap-2 rounded-md border border-[#fde8e8] bg-[#fff5f5] px-2.5 py-1.5 text-[12px] transition-colors hover:bg-[#fde8e8]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#c0392b]" />
+                      <span className="font-medium text-[#222]">{h.company_name}</span>
+                      <span className="text-[#888]">
+                        {Number(h.overdue_actions) > 0 && `${h.overdue_actions} overdue`}
+                        {Number(h.overdue_actions) > 0 && Number(h.days_since_interaction) > 7 && " · "}
+                        {Number(h.days_since_interaction) > 7 && `${Math.round(Number(h.days_since_interaction))}d silent`}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            {needsAttention.length > 0 && (
+              <div className="px-4 py-2.5">
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#e67e22]">Needs Attention</p>
+                <div className="flex flex-wrap gap-2">
+                  {needsAttention.map((h) => (
+                    <Link key={h.id} href={`/clients/${h.id}`}
+                      className="flex items-center gap-2 rounded-md border border-[#fef3e2] bg-[#fffbf5] px-2.5 py-1.5 text-[12px] transition-colors hover:bg-[#fef3e2]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#e67e22]" />
+                      <span className="font-medium text-[#222]">{h.company_name}</span>
+                      <span className="text-[#888]">
+                        {Number(h.overdue_actions) > 0 && `${h.overdue_actions} overdue`}
+                        {Number(h.overdue_actions) > 0 && Number(h.days_since_interaction) > 3 && " · "}
+                        {Number(h.days_since_interaction) > 3 && `${Math.round(Number(h.days_since_interaction))}d silent`}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Two-column: today + active work */}
       <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
@@ -488,6 +574,44 @@ export default async function DashboardPage() {
           status: calendarBusy.get(u.id) === true ? "busy" : "available",
         }))}
       />
+
+      {/* Team workload */}
+      {teamWorkload.length > 0 && (
+        <section className="mt-6">
+          <h2 className="mb-3 text-[13px] font-semibold text-[#333]">Team Workload</h2>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {teamWorkload.map((member) => {
+              const maxTasks = Math.max(...teamWorkload.map((m) => m.open_tasks), 1);
+              const taskPct = (member.open_tasks / maxTasks) * 100;
+              return (
+                <div key={member.id} className="flex items-center gap-3 rounded-lg border border-[#e0e0e0] bg-white px-4 py-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f0f0f0] text-[12px] font-semibold text-[#555]">
+                    {member.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-[#222]">{member.name}</span>
+                      <span className="text-[12px] text-[#888]">{Number(member.hours_this_week)}h this week</span>
+                    </div>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#f0f0f0]">
+                        <div className={`h-full rounded-full transition-all ${taskPct > 80 ? "bg-[#c0392b]" : taskPct > 50 ? "bg-[#e67e22]" : "bg-[#1a73e8]"}`}
+                          style={{ width: `${taskPct}%` }} />
+                      </div>
+                      <span className="w-16 text-right text-[11px] text-[#555]">
+                        {member.open_tasks} task{member.open_tasks !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                    {member.urgent_tasks > 0 && (
+                      <p className="mt-1 text-[11px] text-[#c0392b]">{member.urgent_tasks} urgent</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       <QuickAddBar engagements={allEngagements} />
     </div>

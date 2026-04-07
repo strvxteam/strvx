@@ -1,6 +1,6 @@
 import FinancesPage from "./finances-client";
 import type { Invoice, Expense } from "@/lib/mock-finance";
-import { getInvoices, getExpenses, getMRR, getMonthlyRevenue, getPipelineEngagements } from "@/lib/queries";
+import { getInvoices, getExpenses, getMRR, getMonthlyRevenue, getPipelineEngagements, getProjectProfitability } from "@/lib/queries";
 import { getMercuryAccounts, getAllMercuryTransactions, isMercuryConfigured } from "@/lib/mercury";
 
 export const dynamic = 'force-dynamic';
@@ -8,12 +8,13 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: "Finances" };
 
 export default async function FinancesServerPage() {
-  const [realInvoices, realExpenses, mrr, monthlyRevenueRows, engagements] = await Promise.all([
+  const [realInvoices, realExpenses, mrr, monthlyRevenueRows, engagements, profitabilityRaw] = await Promise.all([
     getInvoices(),
     getExpenses(),
     getMRR(),
     getMonthlyRevenue(),
     getPipelineEngagements(),
+    getProjectProfitability(),
   ]);
 
   // Fetch Mercury bank data if configured
@@ -84,6 +85,14 @@ export default async function FinancesServerPage() {
     revenue: Number(r.revenue),
   }));
 
+  const profitability = profitabilityRaw.map((p) => ({
+    projectName: p.project_name,
+    client: p.client ?? "",
+    totalHours: Number(p.total_hours),
+    billableHours: Number(p.billable_hours),
+    revenue: Number(p.revenue),
+  }));
+
   return (
     <FinancesPage
       invoices={invoices}
@@ -94,6 +103,7 @@ export default async function FinancesServerPage() {
       mercuryConnected={mercuryConnected}
       bankAccounts={bankAccounts}
       bankTransactions={bankTransactions}
+      profitability={profitability}
     />
   );
 }
