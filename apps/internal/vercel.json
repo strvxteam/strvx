@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/monitor/check?secret=${MONITOR_SECRET}",
-      "schedule": "0 */6 * * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/reports/weekly?secret=${WEEKLY_REPORT_SECRET}",
