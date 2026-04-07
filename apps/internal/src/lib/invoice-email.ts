@@ -135,3 +135,28 @@ export async function sendInvoiceEmail(data: InvoiceEmailData) {
 
   return result;
 }
+
+export async function sendOverdueReminderEmail(data: InvoiceEmailData) {
+  const taxAmount = data.amount * (data.taxRate / 100);
+  const total = data.amount + taxAmount;
+
+  const overdueHtml = buildInvoiceHtml(data).replace(
+    "<!-- Header -->",
+    `<!-- Overdue Banner -->
+      <div style="background: #fde8e8; padding: 12px 32px; text-align: center;">
+        <p style="margin: 0; font-size: 13px; font-weight: 600; color: #c0392b;">
+          This invoice is past due. Please submit payment at your earliest convenience.
+        </p>
+      </div>
+      <!-- Header -->`
+  );
+
+  const result = await getResend().emails.send({
+    from: process.env.RESEND_FROM_EMAIL || "strvx <invoices@strvx.com>",
+    to: [data.clientEmail],
+    subject: `Reminder: Invoice ${data.invoiceNumber} is overdue — $${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    html: overdueHtml,
+  });
+
+  return result;
+}
