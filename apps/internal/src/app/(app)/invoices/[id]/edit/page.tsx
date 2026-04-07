@@ -28,6 +28,7 @@ export default async function EditInvoicePage({
     <InvoiceBuilderClient
       companies={companies}
       invoiceNumber={invoice.invoiceNumber}
+      engagements={[]}
       existingInvoice={{
         id: invoice.id,
         clientCompanyId: matchedCompany?.id || "",
