@@ -620,7 +620,7 @@ export async function createCalendarEventAction(data: {
       autoMeetLink =
         gcalEvent?.hangoutLink ??
         gcalEvent?.conferenceData?.entryPoints?.find(
-          (ep: { entryPointType?: string; uri?: string }) => ep.entryPointType === "video"
+          (ep) => ep.entryPointType === "video"
         )?.uri ??
         null;
     }
