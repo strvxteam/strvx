@@ -14,6 +14,10 @@ import {
   stageHistory,
   users,
   followUpLinks,
+  creditCards,
+  cardBudgets,
+  cardReceipts,
+  cardAlerts,
 } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -47,6 +51,10 @@ import {
   createRecurringScheduleSchema,
   updateRecurringScheduleSchema,
   manualReconciliationSchema,
+  upsertCardConfigSchema,
+  createCardBudgetSchema,
+  updateCardBudgetSchema,
+  upsertCardAlertSchema,
 } from "@/lib/validations";
 
 let _devFallbackWarned = false;
@@ -1792,4 +1800,209 @@ export async function manualReconcileAction(data: {
 
   revalidatePath("/invoices");
   revalidatePath("/finances");
+}
+
+// ── Credit Card Config ──────────────────────────────────
+
+export async function upsertCardConfig(data: {
+  mercuryCardId: string;
+  cardNickname?: string;
+  assignedEmployee?: string;
+  creditLimit?: number;
+  rewardRate?: number;
+}) {
+  await getCurrentUser();
+  const parsed = upsertCardConfigSchema.safeParse(data);
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const existing = await db
+    .select()
+    .from(creditCards)
+    .where(eq(creditCards.mercuryCardId, parsed.data.mercuryCardId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    const setData: Record<string, unknown> = {};
+    if (parsed.data.cardNickname !== undefined) setData.cardNickname = parsed.data.cardNickname;
+    if (parsed.data.assignedEmployee !== undefined) setData.assignedEmployee = parsed.data.assignedEmployee;
+    if (parsed.data.creditLimit !== undefined) setData.creditLimit = String(parsed.data.creditLimit);
+    if (parsed.data.rewardRate !== undefined) setData.rewardRate = String(parsed.data.rewardRate);
+
+    const [updated] = await db
+      .update(creditCards)
+      .set(setData)
+      .where(eq(creditCards.mercuryCardId, parsed.data.mercuryCardId))
+      .returning();
+    revalidatePath("/finances");
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(creditCards)
+    .values({
+      mercuryCardId: parsed.data.mercuryCardId,
+      cardNickname: parsed.data.cardNickname ?? null,
+      assignedEmployee: parsed.data.assignedEmployee ?? null,
+      creditLimit: parsed.data.creditLimit != null ? String(parsed.data.creditLimit) : null,
+      rewardRate: parsed.data.rewardRate != null ? String(parsed.data.rewardRate) : null,
+    })
+    .returning();
+  revalidatePath("/finances");
+  return created;
+}
+
+// ── Card Budgets ────────────────────────────────────────
+
+export async function createCardBudget(data: {
+  creditCardId: string;
+  category: string;
+  monthlyLimit: number;
+}) {
+  await getCurrentUser();
+  const parsed = createCardBudgetSchema.safeParse(data);
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const [budget] = await db
+    .insert(cardBudgets)
+    .values({
+      creditCardId: parsed.data.creditCardId,
+      category: parsed.data.category,
+      monthlyLimit: String(parsed.data.monthlyLimit),
+    })
+    .returning();
+  revalidatePath("/finances");
+  return budget;
+}
+
+export async function updateCardBudget(budgetId: string, data: {
+  category?: string;
+  monthlyLimit?: number;
+}) {
+  await getCurrentUser();
+  const parsedId = z.string().uuid().safeParse(budgetId);
+  if (!parsedId.success) throw new Error("Invalid budget ID");
+  const parsed = updateCardBudgetSchema.safeParse(data);
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const setData: Record<string, unknown> = {};
+  if (parsed.data.category !== undefined) setData.category = parsed.data.category;
+  if (parsed.data.monthlyLimit !== undefined) setData.monthlyLimit = String(parsed.data.monthlyLimit);
+
+  const [updated] = await db
+    .update(cardBudgets)
+    .set(setData)
+    .where(eq(cardBudgets.id, parsedId.data))
+    .returning();
+  revalidatePath("/finances");
+  return updated;
+}
+
+export async function deleteCardBudget(budgetId: string) {
+  await getCurrentUser();
+  const parsed = z.string().uuid().safeParse(budgetId);
+  if (!parsed.success) throw new Error("Invalid budget ID");
+
+  await db.delete(cardBudgets).where(eq(cardBudgets.id, parsed.data));
+  revalidatePath("/finances");
+}
+
+// ── Card Alerts ─────────────────────────────────────────
+
+export async function upsertCardAlert(data: {
+  creditCardId: string;
+  alertType: "limit_threshold" | "unusual_spend" | "payment_due";
+  thresholdValue: number;
+  enabled?: boolean;
+}) {
+  await getCurrentUser();
+  const parsed = upsertCardAlertSchema.safeParse(data);
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const existing = await db
+    .select()
+    .from(cardAlerts)
+    .where(
+      and(
+        eq(cardAlerts.creditCardId, parsed.data.creditCardId),
+        eq(cardAlerts.alertType, parsed.data.alertType)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    const [updated] = await db
+      .update(cardAlerts)
+      .set({
+        thresholdValue: String(parsed.data.thresholdValue),
+        enabled: parsed.data.enabled ?? true,
+      })
+      .where(eq(cardAlerts.id, existing[0].id))
+      .returning();
+    revalidatePath("/finances");
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(cardAlerts)
+    .values({
+      creditCardId: parsed.data.creditCardId,
+      alertType: parsed.data.alertType,
+      thresholdValue: String(parsed.data.thresholdValue),
+      enabled: parsed.data.enabled ?? true,
+    })
+    .returning();
+  revalidatePath("/finances");
+  return created;
+}
+
+export async function deleteCardAlert(alertId: string) {
+  await getCurrentUser();
+  const parsed = z.string().uuid().safeParse(alertId);
+  if (!parsed.success) throw new Error("Invalid alert ID");
+
+  await db.delete(cardAlerts).where(eq(cardAlerts.id, parsed.data));
+  revalidatePath("/finances");
+}
+
+// ── Card Receipts ───────────────────────────────────────
+
+export async function uploadCardReceipt(data: {
+  mercuryTransactionId: string;
+  creditCardId: string;
+  fileUrl: string;
+}) {
+  await getCurrentUser();
+  const parsed = z.object({
+    mercuryTransactionId: z.string().min(1),
+    creditCardId: z.string().uuid(),
+    fileUrl: z.string().url(),
+  }).safeParse(data);
+  if (!parsed.success) throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+
+  const existing = await db
+    .select()
+    .from(cardReceipts)
+    .where(eq(cardReceipts.mercuryTransactionId, parsed.data.mercuryTransactionId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    const [updated] = await db
+      .update(cardReceipts)
+      .set({ fileUrl: parsed.data.fileUrl })
+      .where(eq(cardReceipts.id, existing[0].id))
+      .returning();
+    revalidatePath("/finances");
+    return updated;
+  }
+
+  const [created] = await db
+    .insert(cardReceipts)
+    .values({
+      mercuryTransactionId: parsed.data.mercuryTransactionId,
+      creditCardId: parsed.data.creditCardId,
+      fileUrl: parsed.data.fileUrl,
+    })
+    .returning();
+  revalidatePath("/finances");
+  return created;
 }
