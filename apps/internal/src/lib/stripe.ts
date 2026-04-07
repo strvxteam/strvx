@@ -88,3 +88,24 @@ export async function createAndSendStripeInvoice(opts: {
 export async function voidStripeInvoice(stripeInvoiceId: string): Promise<void> {
   await getStripe().invoices.voidInvoice(stripeInvoiceId);
 }
+
+export async function getStripePayouts(options?: {
+  limit?: number;
+  created?: { gte?: number; lte?: number };
+}) {
+  const client = getStripe();
+  const payouts = await client.payouts.list({
+    limit: options?.limit ?? 30,
+    created: options?.created,
+  });
+  return payouts.data;
+}
+
+export async function getBalanceTransactionsForPayout(payoutId: string) {
+  const client = getStripe();
+  const txns = await client.balanceTransactions.list({
+    payout: payoutId,
+    limit: 100,
+  });
+  return txns.data;
+}
