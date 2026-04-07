@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { companies, contacts, engagements, interactions, stageHistory, users } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
 export async function POST(request: NextRequest) {
@@ -68,10 +68,12 @@ export async function POST(request: NextRequest) {
 
   // Idempotency: check if we already processed this event
   if (calendlyEventUri) {
-    const existing = await db.execute(
-      sql`SELECT id FROM interactions WHERE content LIKE '%' || ${calendlyEventUri} || '%' LIMIT 1`
-    );
-    if (existing && (existing as unknown[]).length > 0) {
+    const [existing] = await db
+      .select({ id: interactions.id })
+      .from(interactions)
+      .where(eq(interactions.externalRef, `calendly:${calendlyEventUri}`))
+      .limit(1);
+    if (existing) {
       return NextResponse.json({ ok: true, deduplicated: true });
     }
   }
@@ -134,7 +136,8 @@ export async function POST(request: NextRequest) {
         engagementId: engagement.id,
         authorId: systemUser.id,
         type: "meeting",
-        content: `Calendly booking: ${eventName} with ${inviteeName}${calendlyEventUri ? ` (${calendlyEventUri})` : ""}`,
+        content: `Calendly booking: ${eventName} with ${inviteeName}`,
+        externalRef: calendlyEventUri ? `calendly:${calendlyEventUri}` : null,
         scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
       });
     });

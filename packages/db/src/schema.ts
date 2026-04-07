@@ -9,6 +9,7 @@ import {
   integer,
   jsonb,
   pgEnum,
+  index,
 } from "drizzle-orm/pg-core";
 
 // ── Enums ──────────────────────────────────────────────
@@ -104,53 +105,66 @@ export const companies = pgTable("companies", {
 
 // ── Contacts ───────────────────────────────────────────
 
-export const contacts = pgTable("contacts", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  name: text("name").notNull(),
-  email: text("email"),
-  phone: text("phone"),
-  role: text("role"),
-  linkedinUrl: text("linkedin_url"),
-  apolloContactId: text("apollo_contact_id"),
-  companyId: uuid("company_id")
-    .notNull()
-    .references(() => companies.id, { onDelete: "cascade" }),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const contacts = pgTable(
+  "contacts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    email: text("email"),
+    phone: text("phone"),
+    role: text("role"),
+    linkedinUrl: text("linkedin_url"),
+    apolloContactId: text("apollo_contact_id"),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("contacts_company_idx").on(table.companyId),
+  ]
+);
 
 // ── Engagements (renamed from "clients" per autoplan) ──
 // One company can have multiple engagements (repeat clients).
 // Pipeline stage, interactions, and next_actions belong here.
 
-export const engagements = pgTable("engagements", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  companyId: uuid("company_id")
-    .notNull()
-    .references(() => companies.id, { onDelete: "cascade" }),
-  primaryContactId: uuid("primary_contact_id").references(() => contacts.id, {
-    onDelete: "set null",
-  }),
-  name: text("name").notNull(), // e.g. "AI Dashboard Project"
-  stage: stageEnum("stage").notNull().default("lead"),
-  stageEnteredAt: timestamp("stage_entered_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  dealValue: numeric("deal_value"),
-  expectedCloseDate: date("expected_close_date"),
-  probability: numeric("probability"),
-  source: text("source"),
-  maintenanceOptedIn: boolean("maintenance_opted_in").notNull().default(false),
-  maintenanceMonthlyFee: numeric("maintenance_monthly_fee"),
-  maintenanceNextCheckin: date("maintenance_next_checkin"),
-  tags: text("tags").array(),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const engagements = pgTable(
+  "engagements",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    primaryContactId: uuid("primary_contact_id").references(() => contacts.id, {
+      onDelete: "set null",
+    }),
+    name: text("name").notNull(), // e.g. "AI Dashboard Project"
+    stage: stageEnum("stage").notNull().default("lead"),
+    stageEnteredAt: timestamp("stage_entered_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    dealValue: numeric("deal_value"),
+    expectedCloseDate: date("expected_close_date"),
+    probability: numeric("probability"),
+    source: text("source"),
+    maintenanceOptedIn: boolean("maintenance_opted_in").notNull().default(false),
+    maintenanceMonthlyFee: numeric("maintenance_monthly_fee"),
+    maintenanceNextCheckin: date("maintenance_next_checkin"),
+    tags: text("tags").array(),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("engagements_archived_stage_idx").on(table.archivedAt, table.stage),
+    index("engagements_company_idx").on(table.companyId),
+  ]
+);
 
 // ── Stage History (preserves full stage duration data) ──
 
@@ -168,45 +182,59 @@ export const stageHistory = pgTable("stage_history", {
 
 // ── Interactions (append-only timeline) ────────────────
 
-export const interactions = pgTable("interactions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  engagementId: uuid("engagement_id")
-    .notNull()
-    .references(() => engagements.id, { onDelete: "cascade" }),
-  authorId: uuid("author_id")
-    .notNull()
-    .references(() => users.id),
-  type: interactionTypeEnum("type").notNull(),
-  content: text("content").notNull(),
-  scheduledAt: timestamp("scheduled_at", { withTimezone: true }), // for meetings
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const interactions = pgTable(
+  "interactions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    engagementId: uuid("engagement_id")
+      .notNull()
+      .references(() => engagements.id, { onDelete: "cascade" }),
+    authorId: uuid("author_id")
+      .notNull()
+      .references(() => users.id),
+    type: interactionTypeEnum("type").notNull(),
+    content: text("content").notNull(),
+    externalRef: text("external_ref").unique(),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }), // for meetings
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("interactions_engagement_created_idx").on(table.engagementId, table.createdAt),
+    index("interactions_scheduled_idx").on(table.scheduledAt),
+  ]
+);
 
 // ── Next Actions (mutable checklist) ───────────────────
 
-export const nextActions = pgTable("next_actions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  engagementId: uuid("engagement_id")
-    .notNull()
-    .references(() => engagements.id, { onDelete: "cascade" }),
-  ownerId: uuid("owner_id")
-    .notNull()
-    .references(() => users.id),
-  description: text("description").notNull(),
-  priority: priorityEnum("priority").notNull().default("normal"),
-  dueDate: date("due_date"),
-  completed: boolean("completed").notNull().default(false),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-  sourceInteractionId: uuid("source_interaction_id").references(
-    () => interactions.id
-  ),
-  archivedAt: timestamp("archived_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const nextActions = pgTable(
+  "next_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    engagementId: uuid("engagement_id")
+      .notNull()
+      .references(() => engagements.id, { onDelete: "cascade" }),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id),
+    description: text("description").notNull(),
+    priority: priorityEnum("priority").notNull().default("normal"),
+    dueDate: date("due_date"),
+    completed: boolean("completed").notNull().default(false),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    sourceInteractionId: uuid("source_interaction_id").references(
+      () => interactions.id
+    ),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("next_actions_engagement_completed_due_idx").on(table.engagementId, table.completed, table.dueDate),
+  ]
+);
 
 // ── Projects ──────────────────────────────────────────
 
@@ -276,18 +304,25 @@ export const calendarEvents = pgTable("calendar_events", {
 
 // ── Tasks ─────────────────────────────────────────────
 
-export const tasks = pgTable("tasks", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  title: text("title").notNull(),
-  description: text("description"),
-  status: text("status").notNull().default("todo"),
-  priority: text("priority").notNull().default("normal"),
-  engagementId: uuid("engagement_id").references(() => engagements.id, { onDelete: "set null" }),
-  projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
-  dueDate: date("due_date"),
-  completedAt: timestamp("completed_at", { withTimezone: true }),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    title: text("title").notNull(),
+    description: text("description"),
+    status: text("status").notNull().default("todo"),
+    priority: text("priority").notNull().default("normal"),
+    engagementId: uuid("engagement_id").references(() => engagements.id, { onDelete: "set null" }),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    dueDate: date("due_date"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("tasks_project_idx").on(table.projectId),
+    index("tasks_engagement_idx").on(table.engagementId),
+  ]
+);
 
 export const taskAssignees = pgTable("task_assignees", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -507,3 +542,24 @@ export const bookingMembers = pgTable("booking_members", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
 });
+
+// ── Audit Logs ──────────────────────────────────────────
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id),
+    action: text("action").notNull(), // e.g. "stage_change", "invoice.create", "engagement.delete"
+    entityType: text("entity_type").notNull(), // e.g. "engagement", "invoice", "prospect"
+    entityId: uuid("entity_id"),
+    metadata: jsonb("metadata"), // action-specific details (old/new values, etc.)
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("audit_logs_entity_idx").on(table.entityType, table.entityId),
+    index("audit_logs_user_idx").on(table.userId),
+    index("audit_logs_created_idx").on(table.createdAt),
+  ]
+);

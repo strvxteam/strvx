@@ -606,7 +606,7 @@ export async function deleteCalendarEvent(eventId: string) {
 
 // ── Task Queries ──────────────────────────────────────
 
-export async function getTasks() {
+export async function getTasks(limit = 500) {
   const rows = await db
     .select({
       id: tasks.id,
@@ -625,7 +625,8 @@ export async function getTasks() {
     .from(tasks)
     .leftJoin(taskAssignees, eq(tasks.id, taskAssignees.taskId))
     .leftJoin(users, eq(taskAssignees.userId, users.id))
-    .orderBy(tasks.createdAt);
+    .orderBy(tasks.createdAt)
+    .limit(limit);
 
   // Aggregate: one row per task with assignees as arrays
   const taskMap = new Map<string, {
@@ -735,8 +736,8 @@ export async function getProject(id: string) {
 
 // ── Invoice Queries ───────────────────────────────────
 
-export async function getInvoices() {
-  return db.select().from(invoices).orderBy(desc(invoices.createdAt));
+export async function getInvoices(limit = 500) {
+  return db.select().from(invoices).orderBy(desc(invoices.createdAt)).limit(limit);
 }
 
 export async function getInvoice(id: string) {
@@ -837,8 +838,8 @@ export async function getOverdueUnremindedInvoices() {
 
 // ── Expense Queries ───────────────────────────────────
 
-export async function getExpenses() {
-  return db.select().from(expenses).orderBy(desc(expenses.date));
+export async function getExpenses(limit = 500) {
+  return db.select().from(expenses).orderBy(desc(expenses.date)).limit(limit);
 }
 
 // ── Goal Queries ──────────────────────────────────────
@@ -849,13 +850,13 @@ export async function getGoals() {
 
 // ── Marketing Queries ─────────────────────────────────
 
-export async function getMarketingPosts() {
-  return db.select().from(marketingPosts).orderBy(desc(marketingPosts.createdAt));
+export async function getMarketingPosts(limit = 200) {
+  return db.select().from(marketingPosts).orderBy(desc(marketingPosts.createdAt)).limit(limit);
 }
 
 // ── Document Queries ──────────────────────────────────
 
-export async function getDocuments() {
+export async function getDocuments(limit = 200) {
   return db
     .select({
       id: documents.id,
@@ -866,7 +867,8 @@ export async function getDocuments() {
       createdAt: documents.createdAt,
     })
     .from(documents)
-    .orderBy(desc(documents.updatedAt));
+    .orderBy(desc(documents.updatedAt))
+    .limit(limit);
 }
 
 export async function getDocument(id: string) {

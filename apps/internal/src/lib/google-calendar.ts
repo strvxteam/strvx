@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
+import { encrypt, decrypt, isEncrypted } from "./crypto";
 
 // Schema import for google_tokens table (define inline since we just created it)
 import { pgTable, uuid, text, bigint, timestamp } from "drizzle-orm/pg-core";
@@ -72,20 +73,28 @@ export async function getAuthedClient(userId: string) {
 
   if (!token) return null;
 
+  // Decrypt tokens (with plaintext fallback for pre-encryption data)
+  const accessToken = isEncrypted(token.accessToken)
+    ? decrypt(token.accessToken)
+    : token.accessToken;
+  const refreshToken = isEncrypted(token.refreshToken)
+    ? decrypt(token.refreshToken)
+    : token.refreshToken;
+
   const oauth2Client = getOAuth2Client();
   oauth2Client.setCredentials({
-    access_token: token.accessToken,
-    refresh_token: token.refreshToken,
+    access_token: accessToken,
+    refresh_token: refreshToken,
     expiry_date: token.expiryDate,
   });
 
-  // Auto-refresh if expired
+  // Auto-refresh if expired — encrypt new tokens before persisting
   oauth2Client.on("tokens", async (newTokens) => {
     await db
       .update(googleTokens)
       .set({
-        accessToken: newTokens.access_token || token.accessToken,
-        refreshToken: newTokens.refresh_token || token.refreshToken,
+        accessToken: encrypt(newTokens.access_token || accessToken),
+        refreshToken: encrypt(newTokens.refresh_token || refreshToken),
         expiryDate: newTokens.expiry_date || token.expiryDate,
         updatedAt: new Date(),
       })
@@ -262,19 +271,22 @@ export async function saveGoogleTokens(
     throw new Error("Missing access_token or refresh_token");
   }
 
+  const encryptedAccess = encrypt(tokens.access_token);
+  const encryptedRefresh = encrypt(tokens.refresh_token);
+
   await db
     .insert(googleTokens)
     .values({
       userId,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
+      accessToken: encryptedAccess,
+      refreshToken: encryptedRefresh,
       expiryDate: tokens.expiry_date || 0,
     })
     .onConflictDoUpdate({
       target: googleTokens.userId,
       set: {
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
+        accessToken: encryptedAccess,
+        refreshToken: encryptedRefresh,
         expiryDate: tokens.expiry_date || 0,
         updatedAt: new Date(),
       },

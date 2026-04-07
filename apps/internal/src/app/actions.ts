@@ -18,6 +18,7 @@ import {
 import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/audit";
 import { getUserByEmail, createCompany, getCompanies } from "@/lib/queries";
 import { createGoogleCalendarEvent, updateGoogleCalendarEvent, deleteGoogleCalendarEvent, isGoogleCalendarConnected } from "@/lib/google-calendar";
 import {
@@ -47,6 +48,8 @@ import {
   updateRecurringScheduleSchema,
   manualReconciliationSchema,
 } from "@/lib/validations";
+
+let _devFallbackWarned = false;
 
 async function getCurrentUser() {
   // Try real Supabase Auth first
@@ -83,8 +86,11 @@ async function getCurrentUser() {
     throw new Error("Unauthorized");
   }
 
-  // Dev fallback: use strvx account with a warning
-  console.warn("[DEV] Auth not configured — using dev fallback user (strvxteam@strvx.com)");
+  // Dev fallback: use strvx account (log once to avoid noise)
+  if (!_devFallbackWarned) {
+    _devFallbackWarned = true;
+    console.warn("[DEV] Auth not configured — using dev fallback user (strvxteam@strvx.com)");
+  }
   const dbUser = await getUserByEmail("strvxteam@strvx.com");
   if (!dbUser) throw new Error("No users in database. Run seed first.");
   return dbUser;
@@ -306,6 +312,14 @@ export async function changeStage(
     });
   });
 
+  await logAudit({
+    userId: user.id,
+    action: "stage_change",
+    entityType: "engagement",
+    entityId: engagementId,
+    metadata: { from: oldStage, to: newStage },
+  });
+
   revalidatePath("/dashboard");
   revalidatePath("/pipeline");
   revalidatePath(`/clients/${engagementId}`);
@@ -448,7 +462,7 @@ export async function updateContact(
 // ── Archive Engagement ─────────────────────────────────
 
 export async function archiveEngagement(engagementId: string) {
-  await getCurrentUser();
+  const user = await getCurrentUser();
   const parsed = uuidSchema.safeParse(engagementId);
   if (!parsed.success) throw new Error("Invalid engagement ID");
 
@@ -456,6 +470,13 @@ export async function archiveEngagement(engagementId: string) {
     .update(engagements)
     .set({ archivedAt: new Date() })
     .where(eq(engagements.id, engagementId));
+
+  await logAudit({
+    userId: user.id,
+    action: "archive",
+    entityType: "engagement",
+    entityId: engagementId,
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/pipeline");
@@ -465,7 +486,7 @@ export async function archiveEngagement(engagementId: string) {
 // ── Delete Engagement ──────────────────────────────────
 
 export async function deleteEngagement(engagementId: string) {
-  await getCurrentUser();
+  const user = await getCurrentUser();
   const parsed = uuidSchema.safeParse(engagementId);
   if (!parsed.success) throw new Error("Invalid engagement ID");
 
@@ -506,6 +527,14 @@ export async function deleteEngagement(engagementId: string) {
   if (!otherCompanyEng && !otherCompanyContact) {
     await db.delete(companies).where(eq(companies.id, eng.companyId));
   }
+
+  await logAudit({
+    userId: user.id,
+    action: "delete",
+    entityType: "engagement",
+    entityId: parsed.data,
+    metadata: { companyId: eng.companyId },
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/pipeline");
@@ -833,7 +862,7 @@ export async function createInvoice(data: {
   notes?: string;
   engagementId?: string;
 }) {
-  await getCurrentUser();
+  const user = await getCurrentUser();
   const parsed = createInvoiceSchema.safeParse(data);
   if (!parsed.success) {
     throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
@@ -855,13 +884,22 @@ export async function createInvoice(data: {
       engagementId: parsed.data.engagementId || null,
     })
     .returning();
+
+  await logAudit({
+    userId: user.id,
+    action: "create",
+    entityType: "invoice",
+    entityId: invoice.id,
+    metadata: { invoiceNumber: invoice.invoiceNumber, amount: parsed.data.amount, clientName: parsed.data.clientName },
+  });
+
   revalidatePath("/invoices");
   revalidatePath("/finances");
   return invoice;
 }
 
 export async function sendInvoiceAction(invoiceId: string) {
-  await getCurrentUser();
+  const user = await getCurrentUser();
   const parsedId = uuidSchema.safeParse(invoiceId);
   if (!parsedId.success) throw new Error("Invalid invoice ID");
   const { getInvoice } = await import("@/lib/queries");
@@ -940,6 +978,14 @@ export async function sendInvoiceAction(invoiceId: string) {
       ...(stripePaymentUrl ? { stripePaymentUrl } : {}),
     })
     .where(eq(invoices.id, invoiceId));
+
+  await logAudit({
+    userId: user.id,
+    action: "send",
+    entityType: "invoice",
+    entityId: invoiceId,
+    metadata: { stripeInvoiceId, invoiceNumber: invoice.invoiceNumber },
+  });
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
@@ -1528,7 +1574,7 @@ export async function saveInvoiceDraft(data: {
 }
 
 export async function voidInvoiceAction(invoiceId: string) {
-  await getCurrentUser();
+  const user = await getCurrentUser();
   const parsedId = uuidSchema.safeParse(invoiceId);
   if (!parsedId.success) throw new Error("Invalid invoice ID");
 
@@ -1550,13 +1596,20 @@ export async function voidInvoiceAction(invoiceId: string) {
     .set({ status: "cancelled" })
     .where(eq(invoices.id, invoiceId));
 
+  await logAudit({
+    userId: user.id,
+    action: "void",
+    entityType: "invoice",
+    entityId: invoiceId,
+  });
+
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${invoiceId}`);
   revalidatePath("/finances");
 }
 
 export async function markInvoicePaidAction(invoiceId: string) {
-  await getCurrentUser();
+  const user = await getCurrentUser();
   const parsedId = uuidSchema.safeParse(invoiceId);
   if (!parsedId.success) throw new Error("Invalid invoice ID");
 
@@ -1567,6 +1620,13 @@ export async function markInvoicePaidAction(invoiceId: string) {
       paidDate: new Date().toISOString().split("T")[0],
     })
     .where(eq(invoices.id, parsedId.data));
+
+  await logAudit({
+    userId: user.id,
+    action: "mark_paid",
+    entityType: "invoice",
+    entityId: parsedId.data,
+  });
 
   revalidatePath("/invoices");
   revalidatePath(`/invoices/${parsedId.data}`);

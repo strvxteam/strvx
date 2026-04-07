@@ -125,6 +125,10 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
         return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
       }
       if (sortBy === "dueDate") {
+        // Push tasks without a due date to the end
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
         return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
       }
       return b.createdAt.getTime() - a.createdAt.getTime();
@@ -209,7 +213,18 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
       if (targetStatus !== originalStatus) {
         updateTaskAction(activeTaskId, { status: targetStatus })
           .then(() => { toast.success("Task updated"); })
-          .catch((err) => { console.error(err); toast.error("Failed to update task"); });
+          .catch((err) => {
+            console.error(err);
+            toast.error("Failed to update task");
+            // Optimistic rollback
+            if (originalStatus) {
+              setTasks((prev) =>
+                prev.map((t) =>
+                  t.id === activeTaskId ? { ...t, status: originalStatus } : t
+                )
+              );
+            }
+          });
       }
       return;
     }
@@ -243,7 +258,16 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
     if (finalColumn && originalStatus && finalColumn !== originalStatus) {
       updateTaskAction(activeTaskId, { status: finalColumn })
         .then(() => { toast.success("Task updated"); })
-        .catch((err) => { console.error(err); toast.error("Failed to update task"); });
+        .catch((err) => {
+          console.error(err);
+          toast.error("Failed to update task");
+          // Optimistic rollback
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === activeTaskId ? { ...t, status: originalStatus } : t
+            )
+          );
+        });
     }
   }
 
