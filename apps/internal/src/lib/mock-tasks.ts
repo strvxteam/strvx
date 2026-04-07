@@ -11,7 +11,7 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  assignees: ("Nick" | "Alex" | "Hari")[];
+  assignees: ("Nick" | "Alex")[];
   dueDate: string;
   projectId: string | null;
   engagementId: string | null;
@@ -49,7 +49,7 @@ export const mockTasks: Task[] = [
     description: "Configure GitHub Actions for automatic deployment to staging environment.",
     status: "done",
     priority: "normal",
-    assignees: ["Hari"],
+    assignees: ["Nick"],
     dueDate: daysAgo(3).toISOString().split("T")[0],
     projectId: "proj-1", engagementId: null,
     createdAt: daysAgo(10),
@@ -71,7 +71,7 @@ export const mockTasks: Task[] = [
     description: "Compare LangChain, Vercel AI SDK, and custom RAG solutions for Meridian Labs.",
     status: "in_progress",
     priority: "high",
-    assignees: ["Hari"],
+    assignees: ["Nick"],
     dueDate: daysFromNow(4).toISOString().split("T")[0],
     projectId: null, engagementId: "eng-3",
     createdAt: daysAgo(2),
@@ -104,7 +104,7 @@ export const mockTasks: Task[] = [
     description: "Document all REST endpoints for the workflow API.",
     status: "in_progress",
     priority: "low",
-    assignees: ["Hari"],
+    assignees: ["Alex"],
     dueDate: daysFromNow(10).toISOString().split("T")[0],
     projectId: "proj-1", engagementId: null,
     createdAt: daysAgo(6),
@@ -137,7 +137,7 @@ export const mockTasks: Task[] = [
     description: "Stripe webhooks timing out intermittently. Investigate and fix.",
     status: "blocked",
     priority: "urgent",
-    assignees: ["Hari"],
+    assignees: ["Nick"],
     dueDate: daysFromNow(1).toISOString().split("T")[0],
     projectId: "proj-3", engagementId: null,
     createdAt: daysAgo(1),
@@ -159,7 +159,7 @@ export const mockTasks: Task[] = [
     description: "Fix cart total calculation bug reported by Summit Retail.",
     status: "done",
     priority: "urgent",
-    assignees: ["Hari"],
+    assignees: ["Nick"],
     dueDate: daysAgo(2).toISOString().split("T")[0],
     projectId: "proj-3", engagementId: null,
     createdAt: daysAgo(3),
@@ -218,7 +218,7 @@ export const COLUMN_COLORS: Record<TaskStatus, string> = {
   done: "#27ae60",
 };
 
-export const ASSIGNEES = ["Nick", "Alex", "Hari"] as const;
+export const ASSIGNEES = ["Nick", "Alex"] as const;
 
 export const PRIORITY_ORDER: Record<TaskPriority, number> = {
   urgent: 0,

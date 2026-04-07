@@ -19,14 +19,12 @@ const PRIORITY_LEFT: Record<string, string> = {
 
 const TEAM_AVATARS: Record<string, string> = {
   Nick: "/avatars/nick.png",
-  Hari: "/avatars/hari.png",
   Alex: "/avatars/alex.png",
 };
 
 const ASSIGNEE_COLORS: Record<string, { bg: string; text: string }> = {
   Nick: { bg: "#e8f0fe", text: "#1a73e8" },
   Alex: { bg: "#f3e5f5", text: "#8e24aa" },
-  Hari: { bg: "#e8f5e9", text: "#27ae60" },
 };
 
 interface TaskCardProps {

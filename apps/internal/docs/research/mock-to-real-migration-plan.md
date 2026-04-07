@@ -337,7 +337,7 @@ The mock data is realistic and represents the actual STRVX client portfolio. We 
 
 | Table | Source | Count | Notes |
 |-------|--------|-------|-------|
-| `users` | Hardcoded | 3 | Nick, Alex, Hari (already may exist from prior setup) |
+| `users` | Hardcoded | 2 | Nick, Alex (already may exist from prior setup) |
 | `companies` | `mockEngagements` | 8 | Extract unique companies |
 | `contacts` | `mockContacts` | 8 | Link to companies |
 | `engagements` | `mockEngagements` | 8 | Link to companies and contacts |

@@ -18,7 +18,6 @@ import { toast } from "sonner";
 
 const TEAM_AVATARS: Record<string, string> = {
   Nick: "/avatars/nick.png",
-  Hari: "/avatars/hari.png",
   Alex: "/avatars/alex.png",
 };
 
@@ -474,7 +473,6 @@ function ProjectModal({
               options={[
                 { value: "Nick", label: "Nick" },
                 { value: "Alex", label: "Alex" },
-                { value: "Hari", label: "Hari" },
               ]}
             />
           </FieldLabel>

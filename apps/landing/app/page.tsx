@@ -1114,18 +1114,6 @@ export default function Home() {
                 "Startup Operator & Technical Lead",
               ],
             },
-            {
-              name: "Hariharan Natarajan",
-              photo: "/cofounder-3.jpeg",
-              focus: "Data & Analytics",
-              linkedin: "https://www.linkedin.com/in/hariharan7natarajan/",
-              bullets: [
-                "Mathematics, Data Science & Predictive Analytics",
-                "Singapore Police Force, Group Leader",
-                "Project Planning & Operations Management",
-                "Research, APEX Lab & Experiential Robotics Lab",
-              ],
-            },
           ].map((person, i) => (
             <motion.div
               key={i}

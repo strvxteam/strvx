@@ -1,7 +1,7 @@
 # Agency Management Tools: Market Analysis for STRVX
 
 **Date:** March 30, 2026
-**Prepared for:** Nick, Hari, Alex -- STRVX Cofounders
+**Prepared for:** Nick, Alex -- STRVX Cofounders
 
 ---
 

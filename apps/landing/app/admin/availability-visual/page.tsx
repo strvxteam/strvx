@@ -30,7 +30,7 @@ type DebugResponse = {
 
 const PT = "America/Los_Angeles";
 const HOURS = Array.from({ length: 24 }, (_, i) => 9 + i * 0.5).filter(h => h < 21); // 9:00–20:30
-const MEMBERS = ["Alex", "Nick", "Hari"];
+const MEMBERS = ["Alex", "Nick"];
 
 function toPacificDateKey(date: Date) {
   return date.toLocaleDateString("en-CA", { timeZone: PT });

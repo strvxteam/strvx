@@ -249,7 +249,7 @@ This gives personalization without the complexity of a full grid layout system.
 
 - Kanban board with 4 columns: Todo, In Progress, Blocked, Done
 - Drag-and-drop via `@dnd-kit/core`
-- Task model: id, title, description, status, priority (urgent/high/normal/low), assignee (Nick/Alex/Hari), dueDate, linkedEntity (deal or project), createdAt
+- Task model: id, title, description, status, priority (urgent/high/normal/low), assignee (Nick/Alex), dueDate, linkedEntity (deal or project), createdAt
 - Filters: assignee, priority, sort by (priority/dueDate/createdAt)
 - Task detail drawer: edit title, description, status, priority, assignee, due date, linked entity. Delete with confirmation.
 - All data is client-side mock data. No Supabase persistence for tasks yet.
@@ -294,7 +294,7 @@ This gives personalization without the complexity of a full grid layout system.
 **Proposed improvement:**
 1. **Time estimate on task creation:** Add optional "Estimated hours" field to the Add Task modal.
 2. **Time logging in task detail drawer:** Add a "Log time" button that records `{ hours, date, person }` entries. Show total logged vs. estimate.
-3. **Utilization view:** On the Tasks page, add a "Workload" tab showing hours allocated per person this week: Nick = 24h estimated (of 40h), Alex = 32h, Hari = 18h. Surfaces over/under-allocation.
+3. **Utilization view:** On the Tasks page, add a "Workload" tab showing hours allocated per person this week: Nick = 24h estimated (of 40h), Alex = 32h. Surfaces over/under-allocation.
 4. **Burndown per project:** On the project detail page, show estimated vs. actual hours in a simple bar chart.
 5. **Integration with invoicing:** Time entries become the basis for invoice line items (see Finance improvements).
 

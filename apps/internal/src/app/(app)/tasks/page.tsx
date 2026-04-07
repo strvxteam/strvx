@@ -31,8 +31,8 @@ export default async function TasksPage({
     name: e.companyName ? `${e.companyName} — ${e.name}` : e.name,
   }));
 
-  type AssigneeName = "Nick" | "Alex" | "Hari";
-  const validNames = new Set<string>(["Nick", "Alex", "Hari"]);
+  type AssigneeName = "Nick" | "Alex";
+  const validNames = new Set<string>(["Nick", "Alex"]);
 
   const initialTasks: Task[] = dbTasks.map((t) => {
     const assignees = t.assigneeNames

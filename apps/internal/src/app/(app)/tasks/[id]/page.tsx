@@ -42,8 +42,8 @@ export default async function TaskDetailPage({
     userNameToId[u.name] = u.id;
   }
 
-  type AssigneeName = "Nick" | "Alex" | "Hari";
-  const validNames = new Set<string>(["Nick", "Alex", "Hari"]);
+  type AssigneeName = "Nick" | "Alex";
+  const validNames = new Set<string>(["Nick", "Alex"]);
   const assignees = dbTask.assigneeNames
     .filter((name): name is AssigneeName => validNames.has(name));
 

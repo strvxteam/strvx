@@ -72,15 +72,14 @@ async function main() {
 
   // ── 2. Users ───────────────────────────────────────────
   console.log("Seeding users...");
-  const [nick, hari, alex] = await db
+  const [nick, alex] = await db
     .insert(schema.users)
     .values([
       { name: "Nick", email: "nick@strvx.com" },
-      { name: "Hari", email: "hari@strvx.com" },
       { name: "Alex", email: "alex@strvx.com" },
     ])
     .returning();
-  log("users", 3);
+  log("users", 2);
 
   // ── 3. Companies ───────────────────────────────────────
   console.log("Seeding companies...");
@@ -397,7 +396,7 @@ async function main() {
     // AI Ops Dashboard interactions
     { engagementId: eng["AI Ops Dashboard"], authorId: nick.id, type: "note" as const, content: "Initial intro call with Jesse. They need a centralized dashboard for their AI operations across 3 departments. Currently using spreadsheets and Notion. Pain point is visibility into model performance and cost tracking.", createdAt: daysAgo(58) },
     { engagementId: eng["AI Ops Dashboard"], authorId: nick.id, type: "meeting" as const, content: "Discovery deep-dive: walked through their current workflow. They have 12 AI models in production across customer support, HR screening, and document processing. Main ask is real-time cost monitoring and performance alerts.", scheduledAt: daysAgo(38), createdAt: daysAgo(38) },
-    { engagementId: eng["AI Ops Dashboard"], authorId: hari.id, type: "note" as const, content: "Technical assessment complete. Their infra is AWS-based, models deployed on SageMaker. We can pull CloudWatch metrics + cost explorer data via APIs. Estimated 3-week build for v1.", createdAt: daysAgo(35) },
+    { engagementId: eng["AI Ops Dashboard"], authorId: nick.id, type: "note" as const, content: "Technical assessment complete. Their infra is AWS-based, models deployed on SageMaker. We can pull CloudWatch metrics + cost explorer data via APIs. Estimated 3-week build for v1.", createdAt: daysAgo(35) },
     { engagementId: eng["AI Ops Dashboard"], authorId: nick.id, type: "stage_change" as const, content: "Moved to proposal stage. Sent SOW with $35K fixed-price quote for dashboard + 3 months maintenance.", createdAt: daysAgo(28) },
     { engagementId: eng["AI Ops Dashboard"], authorId: nick.id, type: "meeting" as const, content: "Proposal walkthrough with Jesse and their VP of Engineering. They want to add anomaly detection to the monitoring — added as phase 2 scope. Verbal approval received.", scheduledAt: daysAgo(18), createdAt: daysAgo(18) },
     { engagementId: eng["AI Ops Dashboard"], authorId: nick.id, type: "stage_change" as const, content: "Contract signed. Moving to build. Kickoff scheduled for Monday.", createdAt: daysAgo(12) },
@@ -408,13 +407,13 @@ async function main() {
     { engagementId: eng["Speaker Dashboard & Website Redesign"], authorId: nick.id, type: "meeting" as const, content: "Discovery session with Bob. He has 200+ speaking engagements per year. Needs calendar management, automated follow-up emails, and a media kit page. Budget is flexible for the right solution.", scheduledAt: daysAgo(33), createdAt: daysAgo(33) },
     { engagementId: eng["Speaker Dashboard & Website Redesign"], authorId: nick.id, type: "stage_change" as const, content: "Sent proposal: $28K for website redesign + speaker dashboard. Includes $1,500/mo maintenance with content updates.", createdAt: daysAgo(20) },
     { engagementId: eng["Speaker Dashboard & Website Redesign"], authorId: nick.id, type: "meeting" as const, content: "Bob approved the proposal with minor tweaks — wants the testimonial carousel to support video. Added to scope at no extra cost since it's straightforward.", scheduledAt: daysAgo(10), createdAt: daysAgo(10) },
-    { engagementId: eng["Speaker Dashboard & Website Redesign"], authorId: nick.id, type: "stage_change" as const, content: "Moving to build. Alex taking lead on frontend, Hari on the CMS integration.", createdAt: daysAgo(8) },
+    { engagementId: eng["Speaker Dashboard & Website Redesign"], authorId: nick.id, type: "stage_change" as const, content: "Moving to build. Alex taking lead on frontend, Nick on the CMS integration.", createdAt: daysAgo(8) },
     { engagementId: eng["Speaker Dashboard & Website Redesign"], authorId: alex.id, type: "note" as const, content: "Homepage and about page mockups approved by Bob. Using Next.js with a headless CMS (Sanity). Design language is clean, authoritative — inspired by Simon Sinek's site.", createdAt: daysAgo(3) },
 
     // Research Data Pipeline interactions
     { engagementId: eng["Research Data Pipeline"], authorId: nick.id, type: "note" as const, content: "Inbound from LinkedIn — Sarah saw our post about AI data pipelines. Meridian Labs is a Series B biotech running genomics research. They need to automate their data cleaning and annotation workflow.", createdAt: daysAgo(20) },
     { engagementId: eng["Research Data Pipeline"], authorId: nick.id, type: "meeting" as const, content: "Intro call with Sarah. They process ~2TB of genomics data weekly. Current pipeline is a mess of Python scripts and manual QC steps. She wants an automated pipeline with validation gates and audit logging.", scheduledAt: daysAgo(15), createdAt: daysAgo(15) },
-    { engagementId: eng["Research Data Pipeline"], authorId: hari.id, type: "note" as const, content: "Reviewed their codebase. They use AWS Batch for compute, S3 for storage. Pipeline orchestration with Airflow but it's barely maintained. We could rebuild on Step Functions + Lambda with proper monitoring.", createdAt: daysAgo(12) },
+    { engagementId: eng["Research Data Pipeline"], authorId: nick.id, type: "note" as const, content: "Reviewed their codebase. They use AWS Batch for compute, S3 for storage. Pipeline orchestration with Airflow but it's barely maintained. We could rebuild on Step Functions + Lambda with proper monitoring.", createdAt: daysAgo(12) },
     { engagementId: eng["Research Data Pipeline"], authorId: nick.id, type: "meeting" as const, content: "Technical deep-dive with Sarah and their bioinformatics lead. Agreed on Step Functions approach. They need HIPAA compliance since some data links to patient records. Adjusting scope and pricing.", scheduledAt: daysAgo(8), createdAt: daysAgo(8) },
     { engagementId: eng["Research Data Pipeline"], authorId: nick.id, type: "stage_change" as const, content: "Proposal sent. $42K for HIPAA-compliant data pipeline with monitoring dashboard. Includes compliance documentation and audit trail.", createdAt: daysAgo(5) },
     { engagementId: eng["Research Data Pipeline"], authorId: nick.id, type: "note" as const, content: "Sarah says the proposal is with their CFO for budget approval. Expects decision by end of week. She's pushing hard internally.", createdAt: daysAgo(2) },
@@ -427,7 +426,7 @@ async function main() {
     // Prism Analytics interactions
     { engagementId: eng["Automated Reporting Module"], authorId: nick.id, type: "note" as const, content: "Referral from Jesse at Stability Group. Aisha needs automated client-facing reports. Currently their analysts spend 15 hours/week generating PDF reports manually.", createdAt: daysAgo(29) },
     { engagementId: eng["Automated Reporting Module"], authorId: nick.id, type: "meeting" as const, content: "Discovery call with Aisha. They need templated reports that pull from their Snowflake warehouse, apply client-specific branding, and auto-distribute via email. Want AI-generated executive summaries.", scheduledAt: daysAgo(16), createdAt: daysAgo(16) },
-    { engagementId: eng["Automated Reporting Module"], authorId: hari.id, type: "note" as const, content: "Scoped the tech: Snowflake connector -> report template engine (React PDF) -> AI summary via Claude -> email distribution via SendGrid. Clean architecture, 2-week build.", createdAt: daysAgo(13) },
+    { engagementId: eng["Automated Reporting Module"], authorId: nick.id, type: "note" as const, content: "Scoped the tech: Snowflake connector -> report template engine (React PDF) -> AI summary via Claude -> email distribution via SendGrid. Clean architecture, 2-week build.", createdAt: daysAgo(13) },
     { engagementId: eng["Automated Reporting Module"], authorId: nick.id, type: "stage_change" as const, content: "Sent proposal at $22K. Includes report template builder, AI summaries, and automated distribution.", createdAt: daysAgo(10) },
     { engagementId: eng["Automated Reporting Module"], authorId: nick.id, type: "meeting" as const, content: "Negotiation call with Aisha and their CFO. They want to bring it down to $18K. Countered at $20K with 2 months of included support instead of 1. Waiting on response.", scheduledAt: daysAgo(2), createdAt: daysAgo(2) },
     { engagementId: eng["Automated Reporting Module"], authorId: nick.id, type: "stage_change" as const, content: "Moved to negotiation. They're reviewing our counter-offer.", createdAt: daysAgo(2) },
@@ -441,7 +440,7 @@ async function main() {
     { engagementId: eng["AI Product Recommendations Engine"], authorId: nick.id, type: "note" as const, content: "Inbound from website contact form. Linda is looking for an AI recommendation engine for their Shopify Plus store. ~50K SKUs, 200K monthly visitors. Currently using Shopify's basic recommendations.", createdAt: daysAgo(1) },
 
     // Vantage Health interactions
-    { engagementId: eng["Patient Intake Automation"], authorId: hari.id, type: "note" as const, content: "Monthly maintenance check-in: system running smoothly. Processed 4,200 patient intakes this month with 99.7% accuracy. Fixed a minor timezone bug in the PDF generation.", createdAt: daysAgo(5) },
+    { engagementId: eng["Patient Intake Automation"], authorId: nick.id, type: "note" as const, content: "Monthly maintenance check-in: system running smoothly. Processed 4,200 patient intakes this month with 99.7% accuracy. Fixed a minor timezone bug in the PDF generation.", createdAt: daysAgo(5) },
     { engagementId: eng["Patient Intake Automation"], authorId: nick.id, type: "meeting" as const, content: "Quarterly review with Tom. They want to add insurance verification automation — could be a significant expansion. Scheduling a discovery call for the add-on.", scheduledAt: daysAgo(10), createdAt: daysAgo(10) },
 
     // Internal Knowledge Base (closed_lost)
@@ -470,7 +469,7 @@ async function main() {
     },
     {
       engagementId: eng["AI Ops Dashboard"],
-      ownerId: hari.id,
+      ownerId: nick.id,
       description: "Set up anomaly detection model training pipeline for phase 2",
       priority: "normal" as const,
       dueDate: dateStr(14),
@@ -484,7 +483,7 @@ async function main() {
     },
     {
       engagementId: eng["Speaker Dashboard & Website Redesign"],
-      ownerId: hari.id,
+      ownerId: nick.id,
       description: "Integrate Sanity CMS for blog and testimonials content management",
       priority: "normal" as const,
       dueDate: dateStr(7),
@@ -505,7 +504,7 @@ async function main() {
     },
     {
       engagementId: eng["Fleet Tracking AI Integration"],
-      ownerId: hari.id,
+      ownerId: nick.id,
       description: "Research Samsara API capabilities and rate limits",
       priority: "normal" as const,
       dueDate: dateStr(5),
@@ -594,21 +593,21 @@ async function main() {
     { industrySlug: "hvac", firstName: "James", lastName: "Morrison", email: "james@morrisonhvac.com", phone: "+1 (480) 555-1001", title: "Owner", companyName: "Morrison HVAC Services", companyDomain: "morrisonhvac.com", companySize: "10-25", location: "Phoenix, AZ", stage: "warm" as const, source: "apollo", assignedToId: nick.id, notes: "Responded to initial email. Interested in scheduling demo." },
     { industrySlug: "hvac", firstName: "Patricia", lastName: "Reeves", email: "patricia@comfortzone.com", phone: "+1 (602) 555-1002", title: "Operations Manager", companyName: "Comfort Zone Heating & Cooling", companyDomain: "comfortzone.com", companySize: "25-50", location: "Scottsdale, AZ", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
     { industrySlug: "electrical", firstName: "Robert", lastName: "Tran", email: "rtran@brightwirecorp.com", phone: "+1 (510) 555-1003", title: "CEO", companyName: "BrightWire Electrical", companyDomain: "brightwirecorp.com", companySize: "10-25", location: "Oakland, CA", stage: "hot" as const, source: "referral", assignedToId: nick.id, notes: "Referral from James Morrison. Very interested. Wants a proposal by next week." },
-    { industrySlug: "electrical", firstName: "Angela", lastName: "Foster", email: "angela@fosterelectric.com", title: "Office Manager", companyName: "Foster Electric Inc", companyDomain: "fosterelectric.com", companySize: "5-10", location: "Portland, OR", stage: "cold" as const, source: "apollo", assignedToId: hari.id },
+    { industrySlug: "electrical", firstName: "Angela", lastName: "Foster", email: "angela@fosterelectric.com", title: "Office Manager", companyName: "Foster Electric Inc", companyDomain: "fosterelectric.com", companySize: "5-10", location: "Portland, OR", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
     { industrySlug: "plumbing", firstName: "Michael", lastName: "Dunn", email: "mike@dunnplumbing.com", phone: "+1 (303) 555-1005", title: "Owner", companyName: "Dunn & Sons Plumbing", companyDomain: "dunnplumbing.com", companySize: "10-25", location: "Denver, CO", stage: "warm" as const, source: "linkedin", assignedToId: nick.id, notes: "Connected on LinkedIn. Has pain points with scheduling and dispatch." },
-    { industrySlug: "plumbing", firstName: "Sandra", lastName: "Wells", email: "sandra@wellsplumbing.net", title: "General Manager", companyName: "Wells Plumbing & Drain", companyDomain: "wellsplumbing.net", companySize: "5-10", location: "Austin, TX", stage: "cold" as const, source: "apollo", assignedToId: hari.id },
+    { industrySlug: "plumbing", firstName: "Sandra", lastName: "Wells", email: "sandra@wellsplumbing.net", title: "General Manager", companyName: "Wells Plumbing & Drain", companyDomain: "wellsplumbing.net", companySize: "5-10", location: "Austin, TX", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
     { industrySlug: "roofing", firstName: "Carlos", lastName: "Mendez", email: "carlos@peakroofing.com", phone: "+1 (720) 555-1007", title: "President", companyName: "Peak Roofing Solutions", companyDomain: "peakroofing.com", companySize: "25-50", location: "Denver, CO", stage: "converted" as const, source: "cold_outreach", assignedToId: nick.id, notes: "Converted to client. Started AI estimator project.", convertedAt: daysAgo(15) },
     { industrySlug: "roofing", firstName: "Diana", lastName: "Cho", email: "diana@skylineroofs.com", title: "VP Operations", companyName: "Skyline Roofing Co", companyDomain: "skylineroofs.com", companySize: "50-100", location: "Seattle, WA", stage: "warm" as const, source: "apollo", assignedToId: alex.id, notes: "Opened 3 emails. Clicked through to case study." },
     { industrySlug: "solar", firstName: "Kevin", lastName: "Nguyen", email: "kevin@sunpathsolar.com", phone: "+1 (408) 555-1009", title: "Founder", companyName: "SunPath Solar", companyDomain: "sunpathsolar.com", companySize: "10-25", location: "San Jose, CA", stage: "hot" as const, source: "referral", assignedToId: nick.id, notes: "Referral from Carlos Mendez. Needs AI for solar panel placement optimization." },
-    { industrySlug: "solar", firstName: "Michelle", lastName: "Grant", email: "michelle@greenlightenergy.com", title: "Sales Director", companyName: "GreenLight Energy", companyDomain: "greenlightenergy.com", companySize: "25-50", location: "Las Vegas, NV", stage: "cold" as const, source: "apollo", assignedToId: hari.id },
+    { industrySlug: "solar", firstName: "Michelle", lastName: "Grant", email: "michelle@greenlightenergy.com", title: "Sales Director", companyName: "GreenLight Energy", companyDomain: "greenlightenergy.com", companySize: "25-50", location: "Las Vegas, NV", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
     { industrySlug: "tech", firstName: "Ryan", lastName: "Cooper", email: "ryan@coopertech.io", phone: "+1 (415) 555-1011", title: "CTO", companyName: "CooperTech Solutions", companyDomain: "coopertech.io", companySize: "5-10", location: "San Francisco, CA", stage: "warm" as const, source: "linkedin", assignedToId: nick.id, notes: "Met at SF Tech Meetup. Wants AI agents for customer support." },
     { industrySlug: "tech", firstName: "Emily", lastName: "Zhang", email: "emily@datastreamio.com", title: "Head of Product", companyName: "DataStream.io", companyDomain: "datastreamio.com", companySize: "25-50", location: "New York, NY", stage: "lost" as const, source: "email", assignedToId: nick.id, notes: "Went with a larger consultancy. Keep in touch for future work." },
     { industrySlug: "healthcare", firstName: "Dr. Steven", lastName: "Park", email: "spark@brighthealthclinic.com", phone: "+1 (858) 555-1013", title: "Medical Director", companyName: "Bright Health Clinic", companyDomain: "brighthealthclinic.com", companySize: "10-25", location: "San Diego, CA", stage: "warm" as const, source: "referral", assignedToId: nick.id, notes: "Referral from Tom Williams at Vantage Health. Interested in patient intake automation." },
-    { industrySlug: "healthcare", firstName: "Laura", lastName: "Bennett", email: "laura@pinnaclemedical.com", title: "Practice Administrator", companyName: "Pinnacle Medical Group", companyDomain: "pinnaclemedical.com", companySize: "25-50", location: "Chicago, IL", stage: "cold" as const, source: "apollo", assignedToId: hari.id },
+    { industrySlug: "healthcare", firstName: "Laura", lastName: "Bennett", email: "laura@pinnaclemedical.com", title: "Practice Administrator", companyName: "Pinnacle Medical Group", companyDomain: "pinnaclemedical.com", companySize: "25-50", location: "Chicago, IL", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
     { industrySlug: "finance", firstName: "Nathan", lastName: "Torres", email: "nathan@torreswealth.com", phone: "+1 (212) 555-1015", title: "Managing Partner", companyName: "Torres Wealth Management", companyDomain: "torreswealth.com", companySize: "5-10", location: "New York, NY", stage: "hot" as const, source: "referral", assignedToId: nick.id, notes: "Referral from David Kim at Apex Financial. Needs compliance automation." },
     { industrySlug: "finance", firstName: "Rachel", lastName: "Simmons", email: "rachel@capitaledge.co", title: "VP Technology", companyName: "Capital Edge Partners", companyDomain: "capitaledge.co", companySize: "10-25", location: "Boston, MA", stage: "cold" as const, source: "apollo", assignedToId: alex.id },
     { industrySlug: "hvac", firstName: "Derek", lastName: "Wallace", email: "derek@wallaceair.com", phone: "+1 (817) 555-1017", title: "Owner", companyName: "Wallace Air Systems", companyDomain: "wallaceair.com", companySize: "10-25", location: "Fort Worth, TX", stage: "warm" as const, source: "email", assignedToId: nick.id, notes: "Replied to second email. Wants to know pricing before committing to a call." },
-    { industrySlug: "electrical", firstName: "Stephanie", lastName: "Liu", email: "steph@voltageelectric.com", title: "Operations Director", companyName: "Voltage Electric Corp", companyDomain: "voltageelectric.com", companySize: "50-100", location: "Houston, TX", stage: "cold" as const, source: "apollo", assignedToId: hari.id },
+    { industrySlug: "electrical", firstName: "Stephanie", lastName: "Liu", email: "steph@voltageelectric.com", title: "Operations Director", companyName: "Voltage Electric Corp", companyDomain: "voltageelectric.com", companySize: "50-100", location: "Houston, TX", stage: "cold" as const, source: "apollo", assignedToId: nick.id },
   ];
   const insertedProspects = await db
     .insert(schema.prospects)
@@ -700,7 +699,7 @@ async function main() {
       engagementId: eng["AI Ops Dashboard"],
       startDate: dateStr(-12),
       endDate: dateStr(18),
-      team: ["Nick", "Alex", "Hari"],
+      team: ["Nick", "Alex"],
     },
     {
       name: "Dr. Bob Nelson — Website & Dashboard",
@@ -710,7 +709,7 @@ async function main() {
       engagementId: eng["Speaker Dashboard & Website Redesign"],
       startDate: dateStr(-8),
       endDate: dateStr(30),
-      team: ["Nick", "Alex", "Hari"],
+      team: ["Nick", "Alex"],
     },
     {
       name: "Apex Compliance Tool — Maintenance",
@@ -720,7 +719,7 @@ async function main() {
       engagementId: eng["Compliance Workflow Tool"],
       startDate: dateStr(-20),
       endDate: dateStr(70),
-      team: ["Hari"],
+      team: ["Nick"],
     },
     {
       name: "Vantage Patient Intake — Maintenance",
@@ -730,7 +729,7 @@ async function main() {
       engagementId: eng["Patient Intake Automation"],
       startDate: dateStr(-35),
       endDate: dateStr(330),
-      team: ["Hari"],
+      team: ["Nick"],
     },
     {
       name: "STRVX Internal Dashboard",
@@ -755,12 +754,12 @@ async function main() {
   const projectMembersData = [
     { projectId: proj["AI Ops Dashboard — v1"], userId: nick.id, role: "lead" },
     { projectId: proj["AI Ops Dashboard — v1"], userId: alex.id, role: "engineer" },
-    { projectId: proj["AI Ops Dashboard — v1"], userId: hari.id, role: "engineer" },
+    { projectId: proj["AI Ops Dashboard — v1"], userId: nick.id, role: "engineer" },
     { projectId: proj["Dr. Bob Nelson — Website & Dashboard"], userId: nick.id, role: "lead" },
     { projectId: proj["Dr. Bob Nelson — Website & Dashboard"], userId: alex.id, role: "engineer" },
-    { projectId: proj["Dr. Bob Nelson — Website & Dashboard"], userId: hari.id, role: "engineer" },
-    { projectId: proj["Apex Compliance Tool — Maintenance"], userId: hari.id, role: "lead" },
-    { projectId: proj["Vantage Patient Intake — Maintenance"], userId: hari.id, role: "lead" },
+    { projectId: proj["Dr. Bob Nelson — Website & Dashboard"], userId: nick.id, role: "engineer" },
+    { projectId: proj["Apex Compliance Tool — Maintenance"], userId: nick.id, role: "lead" },
+    { projectId: proj["Vantage Patient Intake — Maintenance"], userId: nick.id, role: "lead" },
     { projectId: proj["STRVX Internal Dashboard"], userId: nick.id, role: "lead" },
     { projectId: proj["STRVX Internal Dashboard"], userId: alex.id, role: "engineer" },
   ];
@@ -886,17 +885,17 @@ async function main() {
     // AI Ops Dashboard tasks
     { title: "Implement Slack webhook integration for alerts", description: "Connect to Slack API, allow users to configure alert channels and thresholds.", status: "in_progress", priority: "high", assigneeId: alex.id, engagementId: eng["AI Ops Dashboard"], projectId: proj["AI Ops Dashboard — v1"], dueDate: dateStr(4) },
     { title: "Build cost breakdown chart component", description: "Recharts bar chart showing daily/weekly/monthly AI costs by model and department.", status: "todo", priority: "high", assigneeId: alex.id, engagementId: eng["AI Ops Dashboard"], projectId: proj["AI Ops Dashboard — v1"], dueDate: dateStr(6) },
-    { title: "Set up CloudWatch metrics ingestion cron", description: "Lambda function running every 5 minutes to pull CloudWatch metrics into our DB.", status: "done", priority: "high", assigneeId: hari.id, engagementId: eng["AI Ops Dashboard"], projectId: proj["AI Ops Dashboard — v1"], dueDate: dateStr(-3), completedAt: daysAgo(5) },
-    { title: "Design anomaly detection data model", description: "Schema for storing anomaly scores, thresholds, and alert history for phase 2.", status: "todo", priority: "normal", assigneeId: hari.id, engagementId: eng["AI Ops Dashboard"], projectId: proj["AI Ops Dashboard — v1"], dueDate: dateStr(12) },
+    { title: "Set up CloudWatch metrics ingestion cron", description: "Lambda function running every 5 minutes to pull CloudWatch metrics into our DB.", status: "done", priority: "high", assigneeId: nick.id, engagementId: eng["AI Ops Dashboard"], projectId: proj["AI Ops Dashboard — v1"], dueDate: dateStr(-3), completedAt: daysAgo(5) },
+    { title: "Design anomaly detection data model", description: "Schema for storing anomaly scores, thresholds, and alert history for phase 2.", status: "todo", priority: "normal", assigneeId: nick.id, engagementId: eng["AI Ops Dashboard"], projectId: proj["AI Ops Dashboard — v1"], dueDate: dateStr(12) },
 
     // Dr. Bob Nelson tasks
     { title: "Build testimonials carousel with video support", description: "Swipeable carousel supporting both text and embedded video testimonials.", status: "in_progress", priority: "high", assigneeId: alex.id, engagementId: eng["Speaker Dashboard & Website Redesign"], projectId: proj["Dr. Bob Nelson — Website & Dashboard"], dueDate: dateStr(5) },
-    { title: "Integrate Sanity CMS for blog content", description: "Set up Sanity studio, configure schemas for blog posts, and build preview/publish workflow.", status: "todo", priority: "normal", assigneeId: hari.id, engagementId: eng["Speaker Dashboard & Website Redesign"], projectId: proj["Dr. Bob Nelson — Website & Dashboard"], dueDate: dateStr(8) },
+    { title: "Integrate Sanity CMS for blog content", description: "Set up Sanity studio, configure schemas for blog posts, and build preview/publish workflow.", status: "todo", priority: "normal", assigneeId: nick.id, engagementId: eng["Speaker Dashboard & Website Redesign"], projectId: proj["Dr. Bob Nelson — Website & Dashboard"], dueDate: dateStr(8) },
     { title: "Speaking engagement calendar — responsive design", description: "Calendar view showing upcoming/past speaking engagements with location, date, and topic filters.", status: "in_progress", priority: "high", assigneeId: alex.id, engagementId: eng["Speaker Dashboard & Website Redesign"], projectId: proj["Dr. Bob Nelson — Website & Dashboard"], dueDate: dateStr(3) },
 
     // Maintenance tasks
-    { title: "Fix timezone bug in Vantage PDF reports", description: "Patient intake PDFs showing wrong appointment times for Pacific timezone users.", status: "done", priority: "urgent", assigneeId: hari.id, engagementId: eng["Patient Intake Automation"], projectId: proj["Vantage Patient Intake — Maintenance"], dueDate: dateStr(-5), completedAt: daysAgo(6) },
-    { title: "Update Apex compliance rules for Q2 regulations", description: "New SEC filing requirements effective April 1. Update rule engine and notification templates.", status: "todo", priority: "high", assigneeId: hari.id, engagementId: eng["Compliance Workflow Tool"], projectId: proj["Apex Compliance Tool — Maintenance"], dueDate: dateStr(2) },
+    { title: "Fix timezone bug in Vantage PDF reports", description: "Patient intake PDFs showing wrong appointment times for Pacific timezone users.", status: "done", priority: "urgent", assigneeId: nick.id, engagementId: eng["Patient Intake Automation"], projectId: proj["Vantage Patient Intake — Maintenance"], dueDate: dateStr(-5), completedAt: daysAgo(6) },
+    { title: "Update Apex compliance rules for Q2 regulations", description: "New SEC filing requirements effective April 1. Update rule engine and notification templates.", status: "todo", priority: "high", assigneeId: nick.id, engagementId: eng["Compliance Workflow Tool"], projectId: proj["Apex Compliance Tool — Maintenance"], dueDate: dateStr(2) },
 
     // Internal dashboard tasks
     { title: "Add drag-and-drop to pipeline kanban", description: "Use dnd-kit to enable drag-and-drop stage changes on the engagement pipeline board.", status: "in_progress", priority: "normal", assigneeId: alex.id, projectId: proj["STRVX Internal Dashboard"], dueDate: dateStr(7) },
@@ -906,7 +905,7 @@ async function main() {
     // Standalone tasks
     { title: "Prepare case study: Apex Financial compliance tool", description: "Write up the Apex engagement as a case study for the website and LinkedIn. Include metrics on 70% reduction in manual compliance tasks.", status: "todo", priority: "normal", assigneeId: nick.id, dueDate: dateStr(7) },
     { title: "Review and update Calendly booking page", description: "Update Calendly availability, add new meeting types, and refresh the booking page branding.", status: "done", priority: "low", assigneeId: nick.id, dueDate: dateStr(-10), completedAt: daysAgo(12) },
-    { title: "Set up monitoring for Vantage Health uptime", description: "Configure BetterStack or similar for 99.9% uptime monitoring on the patient intake system.", status: "todo", priority: "normal", assigneeId: hari.id, dueDate: dateStr(5) },
+    { title: "Set up monitoring for Vantage Health uptime", description: "Configure BetterStack or similar for 99.9% uptime monitoring on the patient intake system.", status: "todo", priority: "normal", assigneeId: nick.id, dueDate: dateStr(5) },
   ];
   const insertedTasks = await db
     .insert(schema.tasks)
@@ -1225,7 +1224,7 @@ async function main() {
     },
     {
       title: "Meeting Notes — Q1 Retro",
-      content: "# Q1 2026 Retrospective\n**Date:** March 28, 2026\n**Attendees:** Nick, Hari, Alex\n\n## What Went Well\n- Closed Apex Financial and Vantage Health — both very happy clients\n- Built strong referral pipeline (David Kim -> Nathan Torres, Carlos Mendez -> Kevin Nguyen)\n- Internal dashboard shipping fast\n\n## What Could Improve\n- Need better project estimation — Vantage project ran 2 weeks over\n- Outreach cadence inconsistent — too many cold prospects sitting untouched\n- Documentation could be better (SOWs, internal processes)\n\n## Action Items\n- [ ] Nick: Create project estimation checklist\n- [ ] Hari: Set up weekly outreach review\n- [ ] Alex: Document component library for reuse across projects\n\n## Q2 Focus\n- Land 2-3 more maintenance contracts for MRR\n- Push harder on trade services vertical\n- Ship internal dashboard v1 and dogfood it",
+      content: "# Q1 2026 Retrospective\n**Date:** March 28, 2026\n**Attendees:** Nick, Alex\n\n## What Went Well\n- Closed Apex Financial and Vantage Health — both very happy clients\n- Built strong referral pipeline (David Kim -> Nathan Torres, Carlos Mendez -> Kevin Nguyen)\n- Internal dashboard shipping fast\n\n## What Could Improve\n- Need better project estimation — Vantage project ran 2 weeks over\n- Outreach cadence inconsistent — too many cold prospects sitting untouched\n- Documentation could be better (SOWs, internal processes)\n\n## Action Items\n- [ ] Nick: Create project estimation checklist and set up weekly outreach review\n- [ ] Alex: Document component library for reuse across projects\n\n## Q2 Focus\n- Land 2-3 more maintenance contracts for MRR\n- Push harder on trade services vertical\n- Ship internal dashboard v1 and dogfood it",
       folder: "internal",
       authorId: nick.id,
     },

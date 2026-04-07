@@ -1,6 +1,5 @@
 const TEAM_AVATARS: Record<string, string> = {
   Nick: "/avatars/nick.png",
-  Hari: "/avatars/hari.png",
   Alex: "/avatars/alex.png",
 };
 
