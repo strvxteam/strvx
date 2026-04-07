@@ -197,3 +197,38 @@ export const updateDocumentSchema = z.object({
 export const uuidSchema = z.string().uuid("Invalid ID");
 
 export const searchQuerySchema = z.string().min(1, "Search query is required").max(500);
+
+export const createRecurringScheduleSchema = z.object({
+  engagementId: z.string().uuid("Select an engagement"),
+  type: z.enum(["retainer", "milestone", "commission"]),
+  frequency: z.enum(["weekly", "biweekly", "monthly", "quarterly"]),
+  nextRunDate: z.string().min(1, "Start date required"),
+  autoSend: z.boolean().default(false),
+  notes: z.string().max(5000).optional(),
+  lineItemTemplate: z.array(z.object({
+    description: z.string().min(1, "Description required"),
+    quantity: z.number().positive("Quantity must be positive"),
+    rate: z.number().min(0, "Rate must be non-negative"),
+  })).optional(),
+  commissionRate: z.number().min(0).max(100).optional(),
+  commissionSourceUrl: z.string().url("Valid URL required").optional(),
+  milestoneSchedule: z.array(z.object({
+    date: z.string().min(1, "Date required"),
+    description: z.string().min(1, "Description required"),
+    amount: z.number().positive("Amount must be positive"),
+  })).optional(),
+});
+
+export const updateRecurringScheduleSchema = z.object({
+  status: z.enum(["active", "paused", "cancelled"]).optional(),
+  frequency: z.enum(["weekly", "biweekly", "monthly", "quarterly"]).optional(),
+  nextRunDate: z.string().optional(),
+  autoSend: z.boolean().optional(),
+  notes: z.string().max(5000).optional(),
+});
+
+export const manualReconciliationSchema = z.object({
+  invoiceId: z.string().uuid("Invalid invoice ID"),
+  mercuryTransactionId: z.string().min(1, "Mercury transaction ID required"),
+  mercuryAmount: z.number().positive("Amount must be positive"),
+});
