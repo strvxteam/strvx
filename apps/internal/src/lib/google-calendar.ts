@@ -104,6 +104,56 @@ export async function getAuthedClient(userId: string) {
   return { oauth2Client, calendarId: token.calendarId };
 }
 
+/** Fetch calendar events using a personal refresh token (users.googleRefreshToken),
+ *  pulling from ALL calendars on the account. */
+export async function getPersonalCalendarEvents(refreshToken: string, timeMin: string, timeMax: string) {
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  try {
+    const calListRes = await calendar.calendarList.list({ minAccessRole: "freeBusyReader" });
+    const calendarIds = (calListRes.data.items ?? []).map((c) => c.id!).filter(Boolean);
+    if (calendarIds.length === 0) calendarIds.push("primary");
+
+    const allEvents = new Map<string, ReturnType<typeof mapCalendarEvent>>();
+
+    await Promise.all(
+      calendarIds.map(async (calId) => {
+        try {
+          let pageToken: string | undefined;
+          do {
+            const response = await calendar.events.list({
+              calendarId: calId,
+              timeMin,
+              timeMax,
+              singleEvents: true,
+              orderBy: "startTime",
+              maxResults: 2500,
+              pageToken,
+            });
+            for (const event of response.data.items || []) {
+              if (event.id && !allEvents.has(event.id)) {
+                allEvents.set(event.id, mapCalendarEvent(event));
+              }
+            }
+            pageToken = response.data.nextPageToken ?? undefined;
+          } while (pageToken);
+        } catch {
+          // Skip calendars that fail
+        }
+      })
+    );
+
+    return Array.from(allEvents.values()).sort(
+      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+    );
+  } catch (error) {
+    console.error("[Google Calendar] Failed to fetch personal events:", error);
+    return [];
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapCalendarEvent(event: any) {
   return {

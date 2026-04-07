@@ -16,7 +16,7 @@ import {
   getTeamWorkload,
 } from "@/lib/queries";
 import { db } from "@/lib/db";
-import { googleTokens, getGoogleCalendarEvents } from "@/lib/google-calendar";
+import { googleTokens, getPersonalCalendarEvents } from "@/lib/google-calendar";
 import { QuickAddBar } from "@/components/quick-add-bar";
 import { TeamStatus } from "./team-status";
 
@@ -134,7 +134,7 @@ export default async function DashboardPage() {
     await Promise.all([
       getRecentActivity(),
       getPipelineEngagements(),
-      currentUser ? getGoogleCalendarEvents(currentUser.id, todayTimeMin, todayTimeMax) : Promise.resolve([]),
+      currentUser?.googleRefreshToken ? getPersonalCalendarEvents(currentUser.googleRefreshToken, todayTimeMin, todayTimeMax) : Promise.resolve([]),
       getInvoices(),
       getUsers(),
       getPipelineVelocity(),
