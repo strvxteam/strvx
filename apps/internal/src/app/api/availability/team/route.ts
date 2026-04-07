@@ -13,7 +13,6 @@ import { inArray } from "drizzle-orm";
 export const TEAM_MEMBERS = [
   { email: "alex@strvx.com", name: "Alex", color: "#1a73e8" },
   { email: "strvxteam@strvx.com", name: "Nick", color: "#0f9d58" },
-  { email: "hari@strvx.com", name: "Hari", color: "#e91e63" },
 ] as const;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
