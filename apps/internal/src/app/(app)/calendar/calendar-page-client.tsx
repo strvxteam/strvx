@@ -589,7 +589,7 @@ function EventFormModal({
       startHour: startH,
       durationHours,
       client: client || null,
-      zoomLink: zoomLink.trim() || null,
+      zoomLink: event?.zoomLink ?? null,
       projectId: event?.projectId ?? null,
     });
   }
@@ -724,21 +724,32 @@ function EventFormModal({
               />
             </div>
 
-            {/* Zoom Link */}
-            <div>
-              <label className={labelClass}>
-                <span className="flex items-center gap-1.5">
-                  <Video size={12} strokeWidth={2} />
-                  Zoom / Meeting Link (optional)
+            {/* Meet Link */}
+            {isEdit && zoomLink ? (
+              <div>
+                <label className={labelClass}>
+                  <span className="flex items-center gap-1.5">
+                    <Video size={12} strokeWidth={2} />
+                    Meeting Link
+                  </span>
+                </label>
+                <a
+                  href={zoomLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block truncate rounded-lg border border-[#e0e0e0] bg-[#f8fbff] px-3 py-2 text-[13px] text-[#1a73e8] hover:underline"
+                >
+                  {zoomLink}
+                </a>
+              </div>
+            ) : !isEdit ? (
+              <div className="flex items-center gap-2 rounded-lg border border-dashed border-[#d0e3ff] bg-[#f8fbff] px-3 py-2.5">
+                <Video size={13} className="shrink-0 text-[#1a73e8]" />
+                <span className="text-[12px] text-[#5a8fd4]">
+                  Google Meet link will be auto-generated on save
                 </span>
-              </label>
-              <input
-                value={zoomLink}
-                onChange={(e) => setZoomLink(e.target.value)}
-                className={inputClass}
-                placeholder="https://zoom.us/j/..."
-              />
-            </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-6 flex items-center justify-between border-t border-[#f0f0f0] pt-4">

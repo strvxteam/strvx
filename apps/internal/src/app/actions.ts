@@ -603,8 +603,9 @@ export async function createCalendarEventAction(data: {
   const user = await getCurrentUser();
   const { createCalendarEvent } = await import("@/lib/queries");
 
-  // Push to Google Calendar if connected, capture the Google event ID
+  // Push to Google Calendar if connected, capture the Google event ID and Meet link
   let googleEventId: string | null = null;
+  let autoMeetLink: string | null = null;
   try {
     const isConnected = await isGoogleCalendarConnected(user.id);
     if (isConnected) {
@@ -616,6 +617,12 @@ export async function createCalendarEventAction(data: {
         endTime: endDate.toISOString(),
       });
       googleEventId = gcalEvent?.id ?? null;
+      autoMeetLink =
+        gcalEvent?.hangoutLink ??
+        gcalEvent?.conferenceData?.entryPoints?.find(
+          (ep: { entryPointType?: string; uri?: string }) => ep.entryPointType === "video"
+        )?.uri ??
+        null;
     }
   } catch (e) {
     console.error("[Google Calendar] Failed to sync event:", e);
@@ -624,7 +631,7 @@ export async function createCalendarEventAction(data: {
   const event = await createCalendarEvent({
     ...parsed.data,
     client: parsed.data.client || null,
-    zoomLink: parsed.data.zoomLink || null,
+    zoomLink: autoMeetLink || null,
     createdBy: user.id,
     googleEventId,
   });
