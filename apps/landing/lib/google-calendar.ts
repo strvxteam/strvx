@@ -231,8 +231,8 @@ export async function createCalendarEvent(
     conferenceDataVersion: 1,
     sendUpdates: "none",
     requestBody: {
-      summary: `Discovery Call — ${booking.clientName}`,
-      description: `strvx discovery call with ${booking.clientName} (${booking.clientEmail}).`,
+      summary: `${booking.serviceType === "proposal" ? "Proposal Call" : booking.serviceType === "revision" ? "Revision Call" : "Discovery Call"} — ${booking.clientName}`,
+      description: `strvx ${booking.serviceType === "proposal" ? "proposal" : booking.serviceType === "revision" ? "revision" : "discovery"} call with ${booking.clientName} (${booking.clientEmail}).`,
       start: { dateTime: booking.startTime.toISOString(), timeZone: TIMEZONE },
       end: { dateTime: booking.endTime.toISOString(), timeZone: TIMEZONE },
       conferenceData: {

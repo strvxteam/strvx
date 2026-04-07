@@ -152,7 +152,7 @@ export async function POST(
       meetLink: meetLink ?? "",
     };
 
-    await Promise.allSettled([
+    const emailResults = await Promise.allSettled([
       sendFollowUpConfirmation(emailPayload),
       sendFollowUpTeamNotification({
         clientName,
@@ -165,6 +165,11 @@ export async function POST(
         notes: notes ?? null,
       }),
     ]);
+    const [clientEmailResult, teamEmailResult] = emailResults;
+    if (clientEmailResult.status === "rejected")
+      console.error("[follow-up confirm] Client confirmation email failed:", clientEmailResult.reason);
+    if (teamEmailResult.status === "rejected")
+      console.error("[follow-up confirm] Team notification email failed:", teamEmailResult.reason);
 
     return NextResponse.json({ success: true, bookingId: booking.id, meetLink: meetLink ?? "" });
   } catch (err) {

@@ -117,7 +117,7 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
           <Check className="text-emerald-400" size={24} />
         </div>
         <h2 className="mb-2 text-xl font-bold">You&apos;re booked.</h2>
-        <p className="mb-6 text-[#666]">{formatDate(confirmed.startTime)}</p>
+        <p className="mb-6 text-[#666]">{formatDate(confirmed.startTime)} at {formatTime(confirmed.startTime)}</p>
         <a
           href={confirmed.meetLink}
           className="inline-block rounded-lg bg-white px-6 py-3 text-sm font-semibold text-[#0a0a0a] hover:bg-white/90 transition-colors"
