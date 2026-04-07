@@ -352,6 +352,18 @@ export async function toggleAction(actionId: string) {
   revalidatePath("/clients");
 }
 
+export async function deleteAction(actionId: string) {
+  await getCurrentUser();
+  const parsed = uuidSchema.safeParse(actionId);
+  if (!parsed.success) throw new Error("Invalid action ID");
+
+  await db.delete(nextActions).where(eq(nextActions.id, actionId));
+
+  revalidatePath("/dashboard");
+  revalidatePath("/pipeline");
+  revalidatePath("/clients");
+}
+
 // ── Update Engagement Details ──────────────────────────
 
 export async function updateEngagement(

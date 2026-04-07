@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
-import { toggleAction } from "@/app/actions";
+import { toggleAction, deleteAction } from "@/app/actions";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react";
 
 type Action = {
   id: string;
@@ -33,6 +34,13 @@ export function ActionList({ actions }: { actions: Action[] }) {
     });
   }
 
+  function handleDelete(actionId: string) {
+    startTransition(async () => {
+      await deleteAction(actionId);
+      router.refresh();
+    });
+  }
+
   if (actions.length === 0) {
     return <p className="text-[13px] text-[#aaa]">No actions yet.</p>;
   }
@@ -49,7 +57,7 @@ export function ActionList({ actions }: { actions: Action[] }) {
         return (
           <div
             key={action.id}
-            className="flex items-start gap-2 py-1 text-[13px]"
+            className="group flex items-start gap-2 py-1 text-[13px]"
           >
             <button
               onClick={() => handleToggle(action.id)}
@@ -87,6 +95,14 @@ export function ActionList({ actions }: { actions: Action[] }) {
                 )}
               </span>
             )}
+            <button
+              onClick={() => handleDelete(action.id)}
+              disabled={isPending}
+              className="shrink-0 text-[#ccc] opacity-0 transition-opacity hover:text-[#c0392b] group-hover:opacity-100"
+              aria-label={`Delete: ${action.description}`}
+            >
+              <X size={13} />
+            </button>
           </div>
         );
       })}
@@ -100,7 +116,7 @@ export function ActionList({ actions }: { actions: Action[] }) {
             {completed.map((action) => (
               <div
                 key={action.id}
-                className="flex items-start gap-2 py-1 text-[13px] line-through"
+                className="group flex items-start gap-2 py-1 text-[13px] line-through"
               >
                 <button
                   onClick={() => handleToggle(action.id)}
@@ -108,7 +124,15 @@ export function ActionList({ actions }: { actions: Action[] }) {
                   className="mt-0.5 h-4 w-4 shrink-0 rounded border border-[#ccc] bg-[#27ae60]"
                   aria-label={`Undo: ${action.description}`}
                 />
-                <span>{action.description}</span>
+                <span className="flex-1">{action.description}</span>
+                <button
+                  onClick={() => handleDelete(action.id)}
+                  disabled={isPending}
+                  className="shrink-0 text-[#ccc] opacity-0 transition-opacity hover:text-[#c0392b] group-hover:opacity-100"
+                  aria-label={`Delete: ${action.description}`}
+                >
+                  <X size={13} />
+                </button>
               </div>
             ))}
           </div>
