@@ -434,6 +434,19 @@ export const documents = pgTable("documents", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// ── Portal Access Tokens ─────────────────────────────
+
+export const portalTokens = pgTable("portal_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  companyId: uuid("company_id")
+    .notNull()
+    .references(() => companies.id, { onDelete: "cascade" }),
+  token: text("token").notNull().unique(),
+  contactEmail: text("contact_email").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ── Gmail Sync State ─────────────────────────────────
 
 export const gmailSyncState = pgTable("gmail_sync_state", {

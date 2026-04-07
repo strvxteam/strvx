@@ -946,6 +946,27 @@ export async function sendInvoiceAction(invoiceId: string) {
   revalidatePath("/finances");
 }
 
+// ── Portal Access ────────────────────────────────────
+
+export async function createPortalToken(companyId: string, contactEmail: string) {
+  await getCurrentUser();
+  if (!companyId || !contactEmail) throw new Error("Company and email are required");
+
+  const { portalTokens } = await import("@/lib/db/schema");
+  const token = crypto.randomUUID().replace(/-/g, "").slice(0, 16).toUpperCase();
+
+  const [result] = await db
+    .insert(portalTokens)
+    .values({
+      companyId,
+      contactEmail,
+      token,
+    })
+    .returning({ token: portalTokens.token });
+
+  return result.token;
+}
+
 // ── Expenses ──────────────────────────────────────────
 
 export async function createExpense(data: {

@@ -16,6 +16,7 @@ import {
   Zap,
   ArrowRightLeft,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { changeStage, quickAdd, toggleAction as serverToggleAction, updateEngagement, updateCompanyName, updateContact as updateContactAction, deleteEngagement } from "@/app/actions";
 import { toast } from "sonner";
@@ -489,6 +490,10 @@ export function ClientDetailView({
   const [, startTransition] = useTransition();
   const router = useRouter();
   const [now] = useState(() => Date.now());
+  const [proposalText, setProposalText] = useState<string | null>(null);
+  const [proposalLoading, setProposalLoading] = useState(false);
+  const [sentiment, setSentiment] = useState<{ score: number; trend: string; summary: string; recommendation: string } | null>(null);
+  const [sentimentLoading, setSentimentLoading] = useState(false);
 
   const daysInStage = Math.floor(
     (now - new Date(engagement.stageEnteredAt).getTime()) / (1000 * 60 * 60 * 24)
@@ -580,6 +585,51 @@ export function ClientDetailView({
               });
             }}
           />
+          <button
+            onClick={async () => {
+              setSentimentLoading(true);
+              try {
+                const res = await fetch("/api/ai/sentiment", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ engagementId: engagement.id }),
+                });
+                const data = await res.json();
+                if (data.score) setSentiment(data);
+                else toast.error(data.error || "Failed to analyze");
+              } catch { toast.error("Failed to analyze sentiment"); }
+              finally { setSentimentLoading(false); }
+            }}
+            disabled={sentimentLoading}
+            className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] px-3 py-1.5 text-[12px] font-medium text-[#555] transition-colors hover:bg-[#f5f5f5] disabled:opacity-40"
+          >
+            {sentimentLoading ? "..." : sentiment ? (
+              <span className={`flex items-center gap-1 ${sentiment.score >= 7 ? "text-[#27ae60]" : sentiment.score >= 4 ? "text-[#e67e22]" : "text-[#c0392b]"}`}>
+                {sentiment.score}/10 {sentiment.trend === "improving" ? "↑" : sentiment.trend === "declining" ? "↓" : "→"}
+              </span>
+            ) : "Sentiment"}
+          </button>
+          <button
+            onClick={async () => {
+              setProposalLoading(true);
+              try {
+                const res = await fetch("/api/ai/proposal", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ engagementId: engagement.id }),
+                });
+                const data = await res.json();
+                if (data.proposal) setProposalText(data.proposal);
+                else toast.error(data.error || "Failed to generate proposal");
+              } catch { toast.error("Failed to generate proposal"); }
+              finally { setProposalLoading(false); }
+            }}
+            disabled={proposalLoading}
+            className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] px-3 py-1.5 text-[12px] font-medium text-[#555] transition-colors hover:bg-[#f5f5f5] disabled:opacity-40"
+          >
+            <Sparkles size={12} />
+            {proposalLoading ? "Generating..." : "Generate Proposal"}
+          </button>
           <DeleteConfirmDialog
             name={engagement.companyName}
             onConfirm={async () => {
@@ -600,6 +650,24 @@ export function ClientDetailView({
           />
         </div>
       </div>
+
+      {/* Sentiment card */}
+      {sentiment && (
+        <div className="mb-4 flex items-start gap-4 rounded-lg border border-[#e0e0e0] bg-white px-4 py-3">
+          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[16px] font-bold ${
+            sentiment.score >= 7 ? "bg-[#e6f9e6] text-[#27ae60]" : sentiment.score >= 4 ? "bg-[#fff3e0] text-[#e67e22]" : "bg-[#fde8e8] text-[#c0392b]"
+          }`}>
+            {sentiment.score}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-medium text-[#222]">{sentiment.summary}</p>
+            <p className="mt-1 text-[12px] text-[#1a73e8]">{sentiment.recommendation}</p>
+          </div>
+          <button onClick={() => setSentiment(null)} className="shrink-0 rounded p-1 text-[#ccc] hover:bg-[#f0f0f0]">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Section headers row */}
       <div className="mb-3 grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -864,6 +932,50 @@ export function ClientDetailView({
 
         </div>
       </div>
+
+      {/* Proposal Modal */}
+      {proposalText && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col rounded-xl border border-[#e0e0e0] bg-white shadow-lg">
+            <div className="flex items-center justify-between border-b border-[#f0f0f0] px-6 py-4">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-[#8e24aa]" />
+                <h2 className="text-[16px] font-semibold text-[#222]">Generated Proposal</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(proposalText);
+                    toast.success("Copied to clipboard");
+                  }}
+                  className="rounded-lg border border-[#e0e0e0] px-3 py-1.5 text-[12px] font-medium text-[#555] hover:bg-[#f5f5f5]"
+                >
+                  Copy
+                </button>
+                <button
+                  onClick={() => setProposalText(null)}
+                  className="rounded p-1 text-[#888] hover:bg-[#f0f0f0]"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="overflow-y-auto px-6 py-4">
+              <div className="prose prose-sm max-w-none text-[13px] text-[#333]">
+                {proposalText.split("\n").map((line, i) => {
+                  if (line.startsWith("# ")) return <h1 key={i} className="mb-2 mt-4 text-[18px] font-bold text-[#111]">{line.slice(2)}</h1>;
+                  if (line.startsWith("## ")) return <h2 key={i} className="mb-2 mt-3 text-[15px] font-semibold text-[#222]">{line.slice(3)}</h2>;
+                  if (line.startsWith("### ")) return <h3 key={i} className="mb-1 mt-2 text-[14px] font-semibold text-[#333]">{line.slice(4)}</h3>;
+                  if (line.startsWith("- ")) return <li key={i} className="ml-4 text-[13px] text-[#555]">{line.slice(2)}</li>;
+                  if (line.startsWith("**") && line.endsWith("**")) return <p key={i} className="font-semibold text-[#222]">{line.slice(2, -2)}</p>;
+                  if (line.trim() === "") return <div key={i} className="h-2" />;
+                  return <p key={i} className="text-[13px] leading-relaxed text-[#555]">{line}</p>;
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
