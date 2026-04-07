@@ -21,6 +21,10 @@ import {
   followUpLinks,
   recurringInvoiceSchedules,
   invoiceReconciliations,
+  creditCards,
+  cardBudgets,
+  cardReceipts,
+  cardAlerts,
 } from "./db/schema";
 import { eq, desc, and, lte, isNull, isNotNull, sql, count } from "drizzle-orm";
 
@@ -1282,4 +1286,63 @@ export async function getFollowUpLinksForEngagement(engagementId: string) {
     .from(followUpLinks)
     .where(eq(followUpLinks.engagementId, engagementId))
     .orderBy(desc(followUpLinks.createdAt));
+}
+
+// ── Credit Cards ─────────────────────────────────────
+
+export async function getCreditCards() {
+  return db.select().from(creditCards).orderBy(desc(creditCards.createdAt));
+}
+
+export async function getCreditCardByMercuryId(mercuryCardId: string) {
+  const rows = await db
+    .select()
+    .from(creditCards)
+    .where(eq(creditCards.mercuryCardId, mercuryCardId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getCardBudgets(creditCardId: string) {
+  return db
+    .select()
+    .from(cardBudgets)
+    .where(eq(cardBudgets.creditCardId, creditCardId))
+    .orderBy(cardBudgets.category);
+}
+
+export async function getAllCardBudgets() {
+  return db.select().from(cardBudgets).orderBy(cardBudgets.category);
+}
+
+export async function getCardReceipts(creditCardId: string) {
+  return db
+    .select()
+    .from(cardReceipts)
+    .where(eq(cardReceipts.creditCardId, creditCardId))
+    .orderBy(desc(cardReceipts.uploadedAt));
+}
+
+export async function getReceiptByTransactionId(mercuryTransactionId: string) {
+  const rows = await db
+    .select()
+    .from(cardReceipts)
+    .where(eq(cardReceipts.mercuryTransactionId, mercuryTransactionId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getAllCardReceipts() {
+  return db.select().from(cardReceipts);
+}
+
+export async function getCardAlerts(creditCardId: string) {
+  return db
+    .select()
+    .from(cardAlerts)
+    .where(eq(cardAlerts.creditCardId, creditCardId));
+}
+
+export async function getAllCardAlerts() {
+  return db.select().from(cardAlerts);
 }
