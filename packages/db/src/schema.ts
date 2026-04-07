@@ -41,6 +41,38 @@ export const interactionTypeEnum = pgEnum("interaction_type", [
   "stage_change",
 ]);
 
+export const recurringTypeEnum = pgEnum("recurring_type", [
+  "retainer",
+  "milestone",
+  "commission",
+]);
+
+export const recurringStatusEnum = pgEnum("recurring_status", [
+  "active",
+  "paused",
+  "cancelled",
+  "completed",
+]);
+
+export const recurringFrequencyEnum = pgEnum("recurring_frequency", [
+  "weekly",
+  "biweekly",
+  "monthly",
+  "quarterly",
+]);
+
+export const reconciliationStatusEnum = pgEnum("reconciliation_status", [
+  "matched",
+  "unmatched",
+  "partial",
+  "manual",
+]);
+
+export const matchMethodEnum = pgEnum("match_method", [
+  "auto",
+  "manual",
+]);
+
 // ── Users ──────────────────────────────────────────────
 
 export const users = pgTable("users", {
@@ -263,12 +295,33 @@ export const taskAssignees = pgTable("task_assignees", {
   userId: uuid("user_id").notNull().references(() => users.id),
 });
 
+// ── Recurring Invoice Schedules ───────────────────────
+
+export const recurringInvoiceSchedules = pgTable("recurring_invoice_schedules", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  engagementId: uuid("engagement_id")
+    .notNull()
+    .references(() => engagements.id, { onDelete: "cascade" }),
+  type: recurringTypeEnum("type").notNull(),
+  status: recurringStatusEnum("status").notNull().default("active"),
+  frequency: recurringFrequencyEnum("frequency").notNull().default("monthly"),
+  nextRunDate: date("next_run_date").notNull(),
+  lineItemTemplate: jsonb("line_item_template"),
+  commissionRate: numeric("commission_rate"),
+  commissionSourceUrl: text("commission_source_url"),
+  milestoneSchedule: jsonb("milestone_schedule"),
+  notes: text("notes"),
+  autoSend: boolean("auto_send").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // ── Invoices ──────────────────────────────────────────
 
 export const invoices = pgTable("invoices", {
   id: uuid("id").primaryKey().defaultRandom(),
   invoiceNumber: text("invoice_number").notNull(),
   engagementId: uuid("engagement_id").references(() => engagements.id, { onDelete: "set null" }),
+  recurringScheduleId: uuid("recurring_schedule_id").references(() => recurringInvoiceSchedules.id, { onDelete: "set null" }),
   clientName: text("client_name").notNull(),
   amount: numeric("amount").notNull(),
   taxRate: numeric("tax_rate").default("0"),
@@ -281,6 +334,25 @@ export const invoices = pgTable("invoices", {
   stripeInvoiceId: text("stripe_invoice_id"),
   stripePaymentUrl: text("stripe_payment_url"),
   clientEmail: text("client_email"),
+  commissionRevenue: numeric("commission_revenue"),
+  reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Invoice Reconciliations ──────────────────────────
+
+export const invoiceReconciliations = pgTable("invoice_reconciliations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  invoiceId: uuid("invoice_id")
+    .notNull()
+    .references(() => invoices.id, { onDelete: "cascade" }),
+  stripePayoutId: text("stripe_payout_id"),
+  mercuryTransactionId: text("mercury_transaction_id"),
+  stripeAmount: numeric("stripe_amount"),
+  mercuryAmount: numeric("mercury_amount"),
+  status: reconciliationStatusEnum("status").notNull().default("unmatched"),
+  matchedAt: timestamp("matched_at", { withTimezone: true }),
+  matchMethod: matchMethodEnum("match_method").notNull().default("auto"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
