@@ -563,3 +563,46 @@ export const auditLogs = pgTable(
     index("audit_logs_created_idx").on(table.createdAt),
   ]
 );
+
+// ── Credit Cards (local enrichment for Mercury cards) ─────────────
+
+export const creditCards = pgTable("credit_cards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mercuryCardId: text("mercury_card_id").notNull().unique(),
+  cardNickname: text("card_nickname"),
+  assignedEmployee: text("assigned_employee"),
+  creditLimit: numeric("credit_limit"),
+  rewardRate: numeric("reward_rate"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cardBudgets = pgTable("card_budgets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creditCardId: uuid("credit_card_id")
+    .notNull()
+    .references(() => creditCards.id, { onDelete: "cascade" }),
+  category: text("category").notNull(),
+  monthlyLimit: numeric("monthly_limit").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cardReceipts = pgTable("card_receipts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mercuryTransactionId: text("mercury_transaction_id").notNull(),
+  creditCardId: uuid("credit_card_id")
+    .notNull()
+    .references(() => creditCards.id, { onDelete: "cascade" }),
+  fileUrl: text("file_url").notNull(),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const cardAlerts = pgTable("card_alerts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  creditCardId: uuid("credit_card_id")
+    .notNull()
+    .references(() => creditCards.id, { onDelete: "cascade" }),
+  alertType: text("alert_type").notNull(),
+  thresholdValue: numeric("threshold_value").notNull(),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
