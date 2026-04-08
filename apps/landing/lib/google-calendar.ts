@@ -226,30 +226,44 @@ export async function createCalendarEvent(
 
   const requestId = `strvx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
-  const event = await calendar.events.insert({
-    calendarId: teamCalendarId,
-    conferenceDataVersion: 1,
-    sendUpdates: "none",
-    requestBody: {
-      summary: `${booking.serviceType === "proposal" ? "Proposal Call" : booking.serviceType === "revision" ? "Revision Call" : "Discovery Call"} — ${booking.clientName}`,
-      description: `strvx ${booking.serviceType === "proposal" ? "proposal" : booking.serviceType === "revision" ? "revision" : "discovery"} call with ${booking.clientName} (${booking.clientEmail}).`,
-      start: { dateTime: booking.startTime.toISOString(), timeZone: TIMEZONE },
-      end: { dateTime: booking.endTime.toISOString(), timeZone: TIMEZONE },
-      conferenceData: {
-        createRequest: {
-          requestId,
-          conferenceSolutionKey: { type: "hangoutsMeet" },
+  let event;
+  try {
+    event = await calendar.events.insert({
+      calendarId: teamCalendarId,
+      conferenceDataVersion: 1,
+      sendUpdates: "none",
+      requestBody: {
+        summary: `${booking.serviceType === "proposal" ? "Proposal Call" : booking.serviceType === "revision" ? "Revision Call" : "Discovery Call"} — ${booking.clientName}`,
+        description: `strvx ${booking.serviceType === "proposal" ? "proposal" : booking.serviceType === "revision" ? "revision" : "discovery"} call with ${booking.clientName} (${booking.clientEmail}).`,
+        start: { dateTime: booking.startTime.toISOString(), timeZone: TIMEZONE },
+        end: { dateTime: booking.endTime.toISOString(), timeZone: TIMEZONE },
+        conferenceData: {
+          createRequest: {
+            requestId,
+            conferenceSolutionKey: { type: "hangoutsMeet" },
+          },
+        },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: "email", minutes: 24 * 60 },
+            { method: "popup", minutes: 30 },
+          ],
         },
       },
-      reminders: {
-        useDefault: false,
-        overrides: [
-          { method: "email", minutes: 24 * 60 },
-          { method: "popup", minutes: 30 },
-        ],
-      },
-    },
-  });
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/invalid_grant/i.test(msg)) {
+      console.error(
+        "[createCalendarEvent] GOOGLE_TEAM_REFRESH_TOKEN is expired or revoked. " +
+        "Re-authenticate strvxteam@gmail.com by visiting: " +
+        `/api/auth/google/team-connect?secret=<ADMIN_SECRET>`
+      );
+      throw new Error("Calendar authentication expired — please contact team@strvx.com");
+    }
+    throw err;
+  }
 
   const eventId = event.data.id!;
   const meetLink =

@@ -24,8 +24,15 @@ export async function GET(request: NextRequest) {
     const tokens = await handleOAuthCallback(code);
 
     if (!tokens.refresh_token) {
-      console.warn(`No refresh_token for member ${memberId}. User may need to revoke access and reconnect.`);
+      console.warn(`No refresh_token for ${memberId}. User may need to revoke access and reconnect.`);
       return NextResponse.redirect(new URL("/admin/calendar-connected?error=no_refresh_token", request.url));
+    }
+
+    // Special case: team calendar re-auth — show token so admin can update Vercel env var
+    if (memberId === "TEAM_CALENDAR") {
+      console.log("[team-calendar] New refresh token obtained. Update GOOGLE_TEAM_REFRESH_TOKEN in Vercel.");
+      const params = new URLSearchParams({ token: tokens.refresh_token });
+      return NextResponse.redirect(new URL(`/admin/calendar-connected?team_token=1&${params}`, request.url));
     }
 
     await db

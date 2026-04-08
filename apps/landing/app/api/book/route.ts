@@ -256,9 +256,10 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    const stack = err instanceof Error ? err.stack : undefined;
-    console.error("Booking error:", message, stack);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Booking error:", err);
+    return NextResponse.json(
+      { error: "Something went wrong. Please try again or contact us at team@strvx.com." },
+      { status: 500 }
+    );
   }
 }
