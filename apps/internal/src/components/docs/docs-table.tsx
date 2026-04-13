@@ -47,7 +47,7 @@ export function DocsTable({ docs }: { docs: DocRow[] }) {
           (d.contentText && d.contentText.toLowerCase().includes(q))
       );
     }
-    return results.sort((a, b) => {
+    return [...results].sort((a, b) => {
       const dir = sortDir === "asc" ? 1 : -1;
       if (sortField === "title") return dir * a.title.localeCompare(b.title);
       if (sortField === "author")

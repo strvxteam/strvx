@@ -32,8 +32,7 @@ interface InvoiceEmailData {
 }
 
 function buildInvoiceHtml(data: InvoiceEmailData): string {
-  const taxAmount = data.amount * (data.taxRate / 100);
-  const total = data.amount + taxAmount;
+  const total = data.amount;
 
   const lineItemRows = data.lineItems
     .map(
@@ -100,8 +99,6 @@ function buildInvoiceHtml(data: InvoiceEmailData): string {
 
         <!-- Totals -->
         <div style="margin-top: 16px; text-align: right;">
-          <p style="margin: 4px 0; font-size: 13px; color: #555;">Subtotal: $${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-          ${data.taxRate > 0 ? `<p style="margin: 4px 0; font-size: 13px; color: #555;">Tax (${data.taxRate}%): $${taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>` : ""}
           <p style="margin: 8px 0 0; font-size: 18px; font-weight: 700; color: #111;">Total: $${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
         </div>
 
@@ -123,13 +120,10 @@ function buildInvoiceHtml(data: InvoiceEmailData): string {
 export async function sendInvoiceEmail(data: InvoiceEmailData) {
   const html = buildInvoiceHtml(data);
 
-  const taxAmount = data.amount * (data.taxRate / 100);
-  const total = data.amount + taxAmount;
-
   const result = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL || "strvx <invoices@strvx.com>",
     to: [data.clientEmail],
-    subject: `Invoice ${data.invoiceNumber} — $${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    subject: `Invoice ${data.invoiceNumber} — $${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
     html,
   });
 
@@ -137,9 +131,6 @@ export async function sendInvoiceEmail(data: InvoiceEmailData) {
 }
 
 export async function sendOverdueReminderEmail(data: InvoiceEmailData) {
-  const taxAmount = data.amount * (data.taxRate / 100);
-  const total = data.amount + taxAmount;
-
   const overdueHtml = buildInvoiceHtml(data).replace(
     "<!-- Header -->",
     `<!-- Overdue Banner -->
@@ -154,7 +145,7 @@ export async function sendOverdueReminderEmail(data: InvoiceEmailData) {
   const result = await getResend().emails.send({
     from: process.env.RESEND_FROM_EMAIL || "strvx <invoices@strvx.com>",
     to: [data.clientEmail],
-    subject: `Reminder: Invoice ${data.invoiceNumber} is overdue — $${total.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+    subject: `Reminder: Invoice ${data.invoiceNumber} is overdue — $${data.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
     html: overdueHtml,
   });
 

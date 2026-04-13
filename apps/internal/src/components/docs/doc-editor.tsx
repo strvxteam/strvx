@@ -43,6 +43,7 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
   const providerRef = useRef<SupabaseYjsProvider | null>(null);
   const titleSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveContentRef = useRef<() => void>(() => {});
+  const hydrateFromDbRef = useRef<() => void>(() => {});
   const [ydoc] = useState(() => new Y.Doc());
 
   const userColor = getCursorColor(currentUser.id);
@@ -55,13 +56,6 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
       },
     },
     immediatelyRender: false,
-    onCreate: ({ editor: ed }) => {
-      // Collaboration extension manages content via Y.Doc, ignoring the content prop.
-      // On fresh page load the Y.Doc is empty, so we must hydrate from the DB.
-      if (ed.isEmpty && doc.content) {
-        ed.commands.setContent(doc.content);
-      }
-    },
   });
 
   const saveContent = useCallback(async () => {
@@ -82,11 +76,19 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
     }
   }, [editor, doc.id, title]);
 
-  // Keep ref in sync so the provider always calls the latest save function
+  // Keep refs in sync so the provider always calls the latest functions
   // without needing to be recreated on every title/editor change
   useEffect(() => {
     saveContentRef.current = saveContent;
   }, [saveContent]);
+
+  useEffect(() => {
+    hydrateFromDbRef.current = () => {
+      if (editor?.isEmpty && doc.content) {
+        editor.commands.setContent(doc.content);
+      }
+    };
+  }, [editor, doc.content]);
 
   useEffect(() => {
     if (ydoc == null) return;
@@ -100,6 +102,7 @@ export function DocEditor({ doc, currentUser }: DocEditorProps) {
         userColor,
       },
       onPresenceChange: setPresenceUsers,
+      onNoPeers: () => hydrateFromDbRef.current(),
     });
 
     provider.onSaveRequested = () => {

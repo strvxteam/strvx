@@ -9,6 +9,8 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  pointerWithin,
+  type CollisionDetection,
   type DragStartEvent,
   type DragOverEvent,
   type DragEndEvent,
@@ -35,6 +37,13 @@ import {
 } from "@/app/actions";
 import { toast } from "sonner";
 import type { ProjectOption, ClientOption } from "./tasks-board-loader";
+
+// Detect empty columns correctly: check pointer-within first, then fall back to closestCorners
+const kanbanCollision: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  if (pointerCollisions.length > 0) return pointerCollisions;
+  return closestCorners(args);
+};
 
 type Assignee = (typeof ASSIGNEES)[number];
 
@@ -387,7 +396,7 @@ export function TasksBoard({ initialTasks, userNameToId, projects, clients, auto
       {/* Kanban Board */}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={kanbanCollision}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}

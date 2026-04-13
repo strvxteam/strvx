@@ -36,6 +36,7 @@ export function PipelineBoard({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [prevInitial, setPrevInitial] = useState(initialEngagements);
   const serverStateRef = useRef(initialEngagements);
+  const pendingStageRef = useRef<{ id: string; stage: string } | null>(null);
   const [, startTransition] = useTransition();
 
   // Sync with server data when props change (render-time adjustment)
@@ -103,6 +104,8 @@ export function PipelineBoard({
 
       if (!targetStage || sourceStage === targetStage) return;
 
+      pendingStageRef.current = { id: activeEngId, stage: targetStage };
+
       // Move engagement between stages
       setEngagementsByStage((prev) => {
         const engagement = prev[sourceStage].find(
@@ -130,16 +133,13 @@ export function PipelineBoard({
       setActiveId(null);
 
       const activeEngId = event.active.id as string;
-      let newStage: string | null = null;
+      const pending = pendingStageRef.current;
+      pendingStageRef.current = null;
 
-      for (const [stage, engs] of Object.entries(engagementsByStage)) {
-        if (engs.some((e) => e.id === activeEngId)) {
-          newStage = stage;
-          break;
-        }
-      }
+      // Only proceed if this drag had an actual cross-column move
+      if (!pending || pending.id !== activeEngId) return;
 
-      if (!newStage) return;
+      const newStage = pending.stage;
 
       let originalStage: string | null = null;
       for (const [stage, engs] of Object.entries(serverStateRef.current)) {
@@ -149,7 +149,7 @@ export function PipelineBoard({
         }
       }
 
-      if (newStage && originalStage && newStage !== originalStage) {
+      if (originalStage && newStage !== originalStage) {
         startTransition(async () => {
           try {
             await changeStage(activeEngId, newStage as Parameters<typeof changeStage>[1]);
@@ -161,11 +161,12 @@ export function PipelineBoard({
         });
       }
     },
-    [engagementsByStage, startTransition]
+    [startTransition]
   );
 
   const handleDragCancel = useCallback(() => {
     setActiveId(null);
+    pendingStageRef.current = null;
     setEngagementsByStage(serverStateRef.current);
   }, []);
 

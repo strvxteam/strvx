@@ -57,8 +57,7 @@ export function InvoiceDetailClient({
   const [view, setView] = useState<"dashboard" | "document">("dashboard");
 
   const subtotal = invoice.lineItems.reduce((sum, li) => sum + li.amount, 0);
-  const tax = Math.round(subtotal * 0.0875 * 100) / 100;
-  const total = subtotal + tax;
+  const total = subtotal;
 
   const completedSteps = getCompletedSteps(invoice, reconciliation);
 
@@ -207,18 +206,6 @@ export function InvoiceDetailClient({
               {/* Totals row */}
               <div className="mt-2 flex justify-end">
                 <div className="w-64">
-                  <div className="flex justify-between border-b border-[#f0f0f0] py-2">
-                    <span className="text-[13px] text-[#888]">Subtotal</span>
-                    <span className="text-[13px] text-[#222]">
-                      ${subtotal.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between border-b border-[#f0f0f0] py-2">
-                    <span className="text-[13px] text-[#888]">Tax (8.75%)</span>
-                    <span className="text-[13px] text-[#222]">
-                      ${tax.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
                   <div className="flex justify-between py-2">
                     <span className="text-[14px] font-semibold text-[#222]">
                       Total

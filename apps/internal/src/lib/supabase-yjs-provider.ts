@@ -13,6 +13,7 @@ interface SupabaseProviderOptions {
   ydoc: Y.Doc;
   user: PresenceUser;
   onPresenceChange?: (users: PresenceUser[]) => void;
+  onNoPeers?: () => void;
 }
 
 export class SupabaseYjsProvider {
@@ -26,6 +27,9 @@ export class SupabaseYjsProvider {
   private destroyed = false;
 
   awareness: Map<string, PresenceUser> = new Map();
+  private syncReceived = false;
+  private noPeersTimer: ReturnType<typeof setTimeout> | null = null;
+  private onNoPeers?: () => void;
 
   constructor(opts: SupabaseProviderOptions) {
     this.supabase = createClient();
@@ -33,6 +37,7 @@ export class SupabaseYjsProvider {
     this.documentId = opts.documentId;
     this.user = opts.user;
     this.onPresenceChange = opts.onPresenceChange;
+    this.onNoPeers = opts.onNoPeers;
 
     this.channel = this.supabase.channel(`doc:${this.documentId}`, {
       config: { broadcast: { self: false } },
@@ -56,6 +61,12 @@ export class SupabaseYjsProvider {
       })
       .on("broadcast", { event: "yjs-sync-response" }, (payload) => {
         if (this.destroyed) return;
+        // A peer responded — cancel the "no peers" fallback hydration
+        this.syncReceived = true;
+        if (this.noPeersTimer) {
+          clearTimeout(this.noPeersTimer);
+          this.noPeersTimer = null;
+        }
         const update = new Uint8Array(payload.payload.update);
         Y.applyUpdate(this.ydoc, update, "remote");
       })
@@ -79,6 +90,13 @@ export class SupabaseYjsProvider {
             event: "yjs-sync-request",
             payload: {},
           });
+          // If no peer responds within 400ms, we're the only one open —
+          // signal the editor to hydrate content from the database.
+          this.noPeersTimer = setTimeout(() => {
+            if (!this.syncReceived && !this.destroyed) {
+              this.onNoPeers?.();
+            }
+          }, 400);
         }
       });
 
@@ -106,6 +124,10 @@ export class SupabaseYjsProvider {
     this.destroyed = true;
     this.ydoc.off("update", this.handleLocalUpdate);
     if (this.saveTimer) clearTimeout(this.saveTimer);
+    if (this.noPeersTimer) {
+      clearTimeout(this.noPeersTimer);
+      this.noPeersTimer = null;
+    }
     this.onSaveRequested?.();
     try {
       await this.channel.untrack();

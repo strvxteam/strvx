@@ -56,6 +56,7 @@ export function PipelineCard({
     >
       <Link
         href={`/clients/${engagement.id}`}
+        draggable={false}
         onClick={(e) => {
           if (isDragging) e.preventDefault();
         }}
