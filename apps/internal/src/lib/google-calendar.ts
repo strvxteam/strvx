@@ -305,6 +305,62 @@ export async function deleteGoogleCalendarEvent(userId: string, googleEventId: s
   });
 }
 
+// Fetches ALL events from every calendar accessible to strvxteam@gmail.com:
+// strvxteam's own events + any personal calendars Alex/Nick have shared with it.
+export async function getTeamCalendarEvents(timeMin: string, timeMax: string) {
+  const teamRefreshToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN;
+  if (!teamRefreshToken) {
+    console.warn("[getTeamCalendarEvents] GOOGLE_TEAM_REFRESH_TOKEN not set");
+    return [];
+  }
+
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({ refresh_token: teamRefreshToken });
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  try {
+    const calListRes = await calendar.calendarList.list({ minAccessRole: "freeBusyReader" });
+    const calendarIds = (calListRes.data.items ?? []).map((c) => c.id!).filter(Boolean);
+    if (calendarIds.length === 0) calendarIds.push("primary");
+
+    const allEvents = new Map<string, ReturnType<typeof mapCalendarEvent>>();
+
+    await Promise.all(
+      calendarIds.map(async (calId) => {
+        try {
+          let pageToken: string | undefined;
+          do {
+            const response = await calendar.events.list({
+              calendarId: calId,
+              timeMin,
+              timeMax,
+              singleEvents: true,
+              orderBy: "startTime",
+              maxResults: 2500,
+              pageToken,
+            });
+            for (const event of response.data.items || []) {
+              if (event.id && !allEvents.has(event.id)) {
+                allEvents.set(event.id, mapCalendarEvent(event));
+              }
+            }
+            pageToken = response.data.nextPageToken ?? undefined;
+          } while (pageToken);
+        } catch {
+          // Skip calendars that fail
+        }
+      })
+    );
+
+    return Array.from(allEvents.values()).sort(
+      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()
+    );
+  } catch (error) {
+    console.error("[Google Calendar] Failed to fetch team events:", error);
+    return [];
+  }
+}
+
 export async function isGoogleCalendarConnected(userId: string): Promise<boolean> {
   const [token] = await db
     .select({ id: googleTokens.id })

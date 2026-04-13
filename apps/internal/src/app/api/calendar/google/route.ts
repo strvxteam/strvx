@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPersonalCalendarEvents } from "@/lib/google-calendar";
+import { getTeamCalendarEvents } from "@/lib/google-calendar";
 import { createClient } from "@/lib/supabase/server";
-import { getUserByEmail } from "@/lib/queries";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -19,15 +18,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const dbUser = await getUserByEmail(user.email);
-    if (!dbUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    if (!dbUser.googleRefreshToken) {
-      return NextResponse.json({ events: [] });
-    }
-    const events = await getPersonalCalendarEvents(dbUser.googleRefreshToken, timeMin, timeMax);
+    const events = await getTeamCalendarEvents(timeMin, timeMax);
     return NextResponse.json({ events });
   } catch (err) {
     console.error("[Google Calendar API] Error:", err);

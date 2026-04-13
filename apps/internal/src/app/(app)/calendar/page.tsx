@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { getCalendarEvents, getUserByEmail, getCompanies } from "@/lib/queries";
-import { isGoogleCalendarConnected, getGoogleCalendarEvents } from "@/lib/google-calendar";
-import { createClient } from "@/lib/supabase/server";
+import { getCalendarEvents, getCompanies } from "@/lib/queries";
+import { getTeamCalendarEvents } from "@/lib/google-calendar";
 
 export const metadata: Metadata = { title: "Calendar" };
 import { type CalendarEvent } from "@/lib/mock-calendar";
@@ -27,59 +26,47 @@ export default async function CalendarPage() {
     projectId: e.projectId,
   }));
 
-  // Check Google Calendar connection and fetch events if connected
-  let googleConnected = false;
+  // Fetch all events from strvxteam@gmail.com — includes strvx team events
+  // and any personal calendars Alex/Nick have shared with the team account.
+  const googleConnected = !!process.env.GOOGLE_TEAM_REFRESH_TOKEN;
   let googleEvents: CalendarEvent[] = [];
 
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    if (googleConnected) {
+      const now = new Date();
+      const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+      const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
 
-    if (user?.email) {
-      const dbUser = await getUserByEmail(user.email);
-      if (dbUser) {
-        googleConnected = await isGoogleCalendarConnected(dbUser.id);
+      const gEvents = await getTeamCalendarEvents(timeMin, timeMax);
 
-        if (googleConnected) {
-          // Fetch Google Calendar events for current month +/- 1 month
-          const now = new Date();
-          const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
-          const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      googleEvents = gEvents.map((ge: any) => {
+        const start = new Date(ge.start);
+        const end = new Date(ge.end);
+        const pacificStart = new Date(start.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+        const pacificEnd = new Date(end.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
+        const date = ge.isAllDay
+          ? ge.start
+          : `${pacificStart.getFullYear()}-${String(pacificStart.getMonth() + 1).padStart(2, "0")}-${String(pacificStart.getDate()).padStart(2, "0")}`;
+        const startHour = ge.isAllDay ? 0 : pacificStart.getHours() + pacificStart.getMinutes() / 60;
+        const durationMs = pacificEnd.getTime() - pacificStart.getTime();
+        const durationHours = ge.isAllDay ? 24 : durationMs / (1000 * 60 * 60);
 
-          const gEvents = await getGoogleCalendarEvents(dbUser.id, timeMin, timeMax);
-
-          // Convert Google events to CalendarEvent format (Central Time)
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          googleEvents = gEvents.map((ge: any) => {
-            // Convert to Central Time by formatting in that timezone
-            const start = new Date(ge.start);
-            const end = new Date(ge.end);
-            const centralStart = new Date(start.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-            const centralEnd = new Date(end.toLocaleString("en-US", { timeZone: "America/Los_Angeles" }));
-            const date = ge.isAllDay
-              ? ge.start
-              : `${centralStart.getFullYear()}-${String(centralStart.getMonth() + 1).padStart(2, "0")}-${String(centralStart.getDate()).padStart(2, "0")}`;
-            const startHour = ge.isAllDay ? 0 : centralStart.getHours() + centralStart.getMinutes() / 60;
-            const durationMs = centralEnd.getTime() - centralStart.getTime();
-            const durationHours = ge.isAllDay ? 24 : durationMs / (1000 * 60 * 60);
-
-            return {
-              id: `gcal-${ge.googleEventId}`,
-              title: ge.title,
-              type: "client_call" as CalendarEvent["type"],
-              date,
-              startHour,
-              durationHours: Math.min(durationHours, 8), // Cap display at 8 hours
-              client: null,
-              zoomLink: ge.meetLink || null,
-              projectId: null,
-            };
-          });
-        }
-      }
+        return {
+          id: `gcal-${ge.googleEventId}`,
+          title: ge.title,
+          type: "client_call" as CalendarEvent["type"],
+          date,
+          startHour,
+          durationHours: Math.min(durationHours, 8),
+          client: null,
+          zoomLink: ge.meetLink || null,
+          projectId: null,
+        };
+      });
     }
   } catch (err) {
-    console.error("[Calendar] Google Calendar fetch failed:", err);
+    console.error("[Calendar] Team calendar fetch failed:", err);
   }
 
   // Merge DB events with Google Calendar events, deduplicating by googleEventId (precise) or title+date (fallback)
