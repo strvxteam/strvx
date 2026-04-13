@@ -305,9 +305,14 @@ export async function deleteGoogleCalendarEvent(userId: string, googleEventId: s
   });
 }
 
-// Fetches ALL events from every calendar accessible to strvxteam@gmail.com:
-// strvxteam's own events + any personal calendars Alex/Nick have shared with it.
-export async function getTeamCalendarEvents(timeMin: string, timeMax: string) {
+// Fetches events via strvxteam@gmail.com's access.
+// Pass specificCalendarIds to limit to e.g. [teamCalendarId, userEmail].
+// If omitted, fetches from ALL accessible calendars (all shared personal calendars included).
+export async function getTeamCalendarEvents(
+  timeMin: string,
+  timeMax: string,
+  specificCalendarIds?: string[]
+) {
   const teamRefreshToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN;
   if (!teamRefreshToken) {
     console.warn("[getTeamCalendarEvents] GOOGLE_TEAM_REFRESH_TOKEN not set");
@@ -319,9 +324,14 @@ export async function getTeamCalendarEvents(timeMin: string, timeMax: string) {
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
   try {
-    const calListRes = await calendar.calendarList.list({ minAccessRole: "freeBusyReader" });
-    const calendarIds = (calListRes.data.items ?? []).map((c) => c.id!).filter(Boolean);
-    if (calendarIds.length === 0) calendarIds.push("primary");
+    let calendarIds: string[];
+    if (specificCalendarIds && specificCalendarIds.length > 0) {
+      calendarIds = specificCalendarIds;
+    } else {
+      const calListRes = await calendar.calendarList.list({ minAccessRole: "freeBusyReader" });
+      calendarIds = (calListRes.data.items ?? []).map((c) => c.id!).filter(Boolean);
+      if (calendarIds.length === 0) calendarIds.push("primary");
+    }
 
     const allEvents = new Map<string, ReturnType<typeof mapCalendarEvent>>();
 

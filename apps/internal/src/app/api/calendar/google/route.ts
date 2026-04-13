@@ -18,7 +18,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const events = await getTeamCalendarEvents(timeMin, timeMax);
+    const teamCalendarId = process.env.TEAM_CALENDAR_ID ?? "strvxteam@gmail.com";
+    const events = await getTeamCalendarEvents(timeMin, timeMax, [teamCalendarId, user.email]);
     return NextResponse.json({ events });
   } catch (err) {
     console.error("[Google Calendar API] Error:", err);

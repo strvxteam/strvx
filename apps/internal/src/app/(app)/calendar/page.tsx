@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getCalendarEvents, getCompanies } from "@/lib/queries";
 import { getTeamCalendarEvents } from "@/lib/google-calendar";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Calendar" };
 import { type CalendarEvent } from "@/lib/mock-calendar";
@@ -26,18 +27,27 @@ export default async function CalendarPage() {
     projectId: e.projectId,
   }));
 
-  // Fetch all events from strvxteam@gmail.com — includes strvx team events
-  // and any personal calendars Alex/Nick have shared with the team account.
+  // Fetch strvx team events + the logged-in user's personal calendar.
+  // strvxteam@gmail.com has shared access to both Alex's and Nick's personal calendars,
+  // so we filter to [teamCalendar, userEmail] to avoid showing one person's personal
+  // events to the other.
   const googleConnected = !!process.env.GOOGLE_TEAM_REFRESH_TOKEN;
   let googleEvents: CalendarEvent[] = [];
 
   try {
     if (googleConnected) {
+      const supabase = await createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      const teamCalendarId = process.env.TEAM_CALENDAR_ID ?? "strvxteam@gmail.com";
+      const calendarIds = user?.email
+        ? [teamCalendarId, user.email]
+        : [teamCalendarId];
+
       const now = new Date();
       const timeMin = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
       const timeMax = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString();
 
-      const gEvents = await getTeamCalendarEvents(timeMin, timeMax);
+      const gEvents = await getTeamCalendarEvents(timeMin, timeMax, calendarIds);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       googleEvents = gEvents.map((ge: any) => {
