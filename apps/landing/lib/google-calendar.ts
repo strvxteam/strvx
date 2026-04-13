@@ -1,5 +1,4 @@
 import { google } from "googleapis";
-import type { TeamMember } from "./types";
 
 const TIMEZONE = "America/Los_Angeles";
 const BUSINESS_HOURS_START = 9;  // 9 AM Pacific
@@ -58,62 +57,49 @@ async function getMemberCalendarIds(calendar: ReturnType<typeof google.calendar>
   }
 }
 
-export async function getTeamBusyTimes(
-  members: TeamMember[],
+// Queries ALL calendars accessible to the shared team account (strvxteam@gmail.com),
+// which includes any personal calendars Alex/Nick have shared with it.
+// This is the single source of truth for booking availability.
+export async function getSharedCalendarBusyTimes(
   timeMin: Date,
   timeMax: Date,
   bufferMs: number = BUFFER_MS
-): Promise<Map<string, BusySlot[]>> {
-  const results = new Map<string, BusySlot[]>();
+): Promise<BusySlot[]> {
+  const teamRefreshToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN;
+  if (!teamRefreshToken) {
+    throw new Error("GOOGLE_TEAM_REFRESH_TOKEN is not set");
+  }
 
-  await Promise.all(
-    members.map(async (member) => {
-      if (!member.googleRefreshToken) {
-        results.set(member.id, [{ start: timeMin.toISOString(), end: timeMax.toISOString() }]);
-        return;
-      }
+  const oauth2Client = createOAuth2Client();
+  oauth2Client.setCredentials({ refresh_token: teamRefreshToken });
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-      try {
-        const oauth2Client = createOAuth2Client();
-        oauth2Client.setCredentials({ refresh_token: member.googleRefreshToken });
+  // All calendars accessible to the team account — includes shared personal calendars
+  const calendarIds = await getMemberCalendarIds(calendar);
+  console.log(`[availability] querying ${calendarIds.length} calendar(s):`, calendarIds);
 
-        const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  const res = await calendar.freebusy.query({
+    requestBody: {
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      timeZone: TIMEZONE,
+      items: calendarIds.map((id) => ({ id })),
+    },
+  });
 
-        // Fetch all calendars on this account, not just primary
-        const calendarIds = await getMemberCalendarIds(calendar);
+  const allBusy: BusySlot[] = [];
+  for (const calId of calendarIds) {
+    const busy = res.data.calendars?.[calId]?.busy ?? [];
+    for (const b of busy) {
+      if (!b.start || !b.end) continue;
+      allBusy.push({
+        start: new Date(new Date(b.start).getTime() - bufferMs).toISOString(),
+        end: new Date(new Date(b.end).getTime() + bufferMs).toISOString(),
+      });
+    }
+  }
 
-        const res = await calendar.freebusy.query({
-          requestBody: {
-            timeMin: timeMin.toISOString(),
-            timeMax: timeMax.toISOString(),
-            timeZone: TIMEZONE,
-            items: calendarIds.map((id) => ({ id })),
-          },
-        });
-
-        // Merge busy slots from all calendars, then add buffer on each side
-        const allBusy: BusySlot[] = [];
-        for (const calId of calendarIds) {
-          const busy = res.data.calendars?.[calId]?.busy ?? [];
-          for (const b of busy) {
-            if (!b.start || !b.end) continue;
-            allBusy.push({
-              start: new Date(new Date(b.start).getTime() - bufferMs).toISOString(),
-              end: new Date(new Date(b.end).getTime() + bufferMs).toISOString(),
-            });
-          }
-        }
-
-        results.set(member.id, allBusy);
-      } catch (err) {
-        // On error, treat member as fully busy (safe fallback)
-        console.error(`[getTeamBusyTimes] Failed for member ${member.name} (${member.email}):`, err);
-        results.set(member.id, [{ start: timeMin.toISOString(), end: timeMax.toISOString() }]);
-      }
-    })
-  );
-
-  return results;
+  return allBusy;
 }
 
 // ── Availability calculation ──────────────────────────────────────────────────
@@ -190,6 +176,43 @@ export function calculateAvailability(
           allAvailable: availableMembers.length === memberIds.length,
         });
       }
+    }
+
+    cursor = new Date(cursor.getTime() + stepMs);
+  }
+
+  return slots;
+}
+
+// Simple slot generator against a flat busy list (used with getSharedCalendarBusyTimes).
+// A slot is returned only if it has zero overlap with any busy period.
+export function calculateSlotsFromBusy(
+  busySlots: BusySlot[],
+  dateStart: Date,
+  dateEnd: Date,
+  slotDurationMinutes: number = SLOT_DURATION_MINUTES,
+  businessHoursEnd: number = BUSINESS_HOURS_END
+): { start: Date; end: Date }[] {
+  const slots: { start: Date; end: Date }[] = [];
+  const stepMs = slotDurationMinutes * 60 * 1000;
+
+  let cursor = new Date(Math.ceil(dateStart.getTime() / stepMs) * stepMs);
+
+  while (cursor < dateEnd) {
+    const slotEnd = new Date(cursor.getTime() + stepMs);
+    if (slotEnd > dateEnd) break;
+
+    const decimalHour = toPacificDecimalHour(cursor);
+    const decimalHourEnd = toPacificDecimalHour(slotEnd);
+
+    if (decimalHour >= BUSINESS_HOURS_START && decimalHour < businessHoursEnd && decimalHourEnd <= businessHoursEnd) {
+      const isFree = !busySlots.some((b) => {
+        const bStart = new Date(b.start).getTime();
+        const bEnd = new Date(b.end).getTime();
+        return cursor.getTime() < bEnd && slotEnd.getTime() > bStart;
+      });
+
+      if (isFree) slots.push({ start: new Date(cursor), end: new Date(slotEnd) });
     }
 
     cursor = new Date(cursor.getTime() + stepMs);

@@ -11,16 +11,14 @@ import {
   stageHistory,
   interactions,
 } from "@strvx/db/schema";
-import { eq, and, isNotNull, ilike } from "drizzle-orm";
-import type { TeamMember } from "@/lib/types";
+import { eq, ilike } from "drizzle-orm";
 import {
-  getTeamBusyTimes,
-  calculateAvailability,
+  getSharedCalendarBusyTimes,
+  calculateSlotsFromBusy,
   createCalendarEvent,
 } from "@/lib/google-calendar";
 import { sendConfirmationEmail, sendTeamNotification } from "@/lib/email";
 
-const MIN_REQUIRED = parseInt(process.env.MIN_REQUIRED_MEMBERS ?? "3", 10);
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,25 +56,9 @@ export async function POST(request: NextRequest) {
 
     const slotEnd = new Date(slotStart.getTime() + duration * 60 * 1000);
 
-    const members = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        googleRefreshToken: users.googleRefreshToken,
-        calendarId: users.calendarId,
-        isActive: users.isActive,
-      })
-      .from(users)
-      .where(and(eq(users.isActive, true), isNotNull(users.googleRefreshToken)));
-
-    if (!members || members.length === 0) {
-      return NextResponse.json({ error: "Booking unavailable at this time" }, { status: 500 });
-    }
-
-    const busyMap = await getTeamBusyTimes(members as TeamMember[], slotStart, slotEnd);
-    const memberIds = members.map((m) => m.id);
-    const available = calculateAvailability(busyMap, memberIds, slotStart, slotEnd, duration, MIN_REQUIRED);
+    // Verify slot is still free against the shared team calendar
+    const busySlots = await getSharedCalendarBusyTimes(slotStart, slotEnd);
+    const available = calculateSlotsFromBusy(busySlots, slotStart, slotEnd, duration);
 
     if (available.length === 0) {
       return NextResponse.json(
@@ -85,15 +67,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const chosenSlot = available[0];
-    const availableMembers = members.filter((m) =>
-      chosenSlot.availableMembers.includes(m.id)
-    );
-
-    const organizer = availableMembers.find((m) => m.googleRefreshToken);
-    if (!organizer) {
-      return NextResponse.json({ error: "No connected team member available" }, { status: 500 });
-    }
+    // All active members are considered part of every booking
+    const members = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(eq(users.isActive, true));
 
     const { eventId, meetLink } = await createCalendarEvent({
       clientName,
@@ -102,8 +80,6 @@ export async function POST(request: NextRequest) {
       endTime: slotEnd,
       serviceType,
     });
-
-    const googleEventIds = [{ member_id: organizer.id, event_id: eventId }];
 
     const [booking] = await db
       .insert(bookings)
@@ -118,16 +94,18 @@ export async function POST(request: NextRequest) {
         endTime: slotEnd,
         durationMinutes: duration,
         status: "confirmed",
-        googleEventIds,
+        googleEventIds: [{ event_id: eventId }],
         meetLink,
       })
       .returning();
 
-    await db.insert(bookingMembers).values(
-      availableMembers.map((m) => ({ bookingId: booking.id, memberId: m.id }))
-    );
+    if (members.length > 0) {
+      await db.insert(bookingMembers).values(
+        members.map((m) => ({ bookingId: booking.id, memberId: m.id }))
+      );
+    }
 
-    const memberNames = availableMembers.map((m) => m.name);
+    const memberNames = members.map((m) => m.name);
 
     // ── Create CRM records (company → contact → engagement → timeline) ──
     try {

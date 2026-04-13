@@ -2,10 +2,9 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@strvx/db";
-import { followUpLinks, users } from "@strvx/db/schema";
-import { eq, and, isNotNull } from "drizzle-orm";
-import { getTeamBusyTimes, calculateAvailability } from "@/lib/google-calendar";
-import type { TeamMember } from "@/lib/types";
+import { followUpLinks } from "@strvx/db/schema";
+import { eq } from "drizzle-orm";
+import { getSharedCalendarBusyTimes, calculateSlotsFromBusy } from "@/lib/google-calendar";
 
 const BUFFER_15_MIN = 15 * 60 * 1000;
 const BUSINESS_HOURS_END_5PM = 17;
@@ -42,40 +41,9 @@ export async function GET(
       return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
     }
 
-    // Get all active team members with Google Calendar connected
-    const members = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        googleRefreshToken: users.googleRefreshToken,
-        calendarId: users.calendarId,
-        isActive: users.isActive,
-      })
-      .from(users)
-      .where(and(eq(users.isActive, true), isNotNull(users.googleRefreshToken)));
-
-    if (!members.length) {
-      return NextResponse.json({ slots: {} });
-    }
-
-    // 15-min buffer, all members must be free, end at 5 PM
-    const busyMap = await getTeamBusyTimes(
-      members as TeamMember[],
-      dateStart,
-      dateEnd,
-      BUFFER_15_MIN
-    );
-
-    const slots = calculateAvailability(
-      busyMap,
-      members.map((m) => m.id),
-      dateStart,
-      dateEnd,
-      30,
-      members.length, // all must be free
-      BUSINESS_HOURS_END_5PM
-    );
+    // 15-min buffer, end at 5 PM — single shared calendar as source of truth
+    const busySlots = await getSharedCalendarBusyTimes(dateStart, dateEnd, BUFFER_15_MIN);
+    const slots = calculateSlotsFromBusy(busySlots, dateStart, dateEnd, 30, BUSINESS_HOURS_END_5PM);
 
     const grouped: Record<string, { start: string; end: string }[]> = {};
     for (const slot of slots) {

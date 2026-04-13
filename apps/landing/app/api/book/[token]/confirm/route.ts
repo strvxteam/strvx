@@ -11,11 +11,9 @@ import {
   companies,
   contacts,
 } from "@strvx/db/schema";
-import { eq, and, isNotNull, desc } from "drizzle-orm";
-import { getTeamBusyTimes } from "@/lib/google-calendar";
-import { createCalendarEvent } from "@/lib/google-calendar";
+import { eq, and, desc } from "drizzle-orm";
+import { getSharedCalendarBusyTimes, createCalendarEvent } from "@/lib/google-calendar";
 import { sendFollowUpConfirmation, sendFollowUpTeamNotification } from "@/lib/email";
-import type { TeamMember } from "@/lib/types";
 
 const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -56,46 +54,31 @@ export async function POST(
       return NextResponse.json({ error: "This booking link has expired" }, { status: 410 });
     }
 
-    // Verify the slot is still available (quick re-check)
+    // Verify the slot is still available against the shared team calendar
     const slotStart = new Date(startTime);
     const slotEnd = new Date(endTime);
     const bufferMs = 15 * 60 * 1000;
 
-    const activeMembers = await db
-      .select({
-        id: users.id,
-        name: users.name,
-        email: users.email,
-        googleRefreshToken: users.googleRefreshToken,
-        calendarId: users.calendarId,
-        isActive: users.isActive,
-      })
-      .from(users)
-      .where(and(eq(users.isActive, true), isNotNull(users.googleRefreshToken)));
-
     const checkStart = new Date(slotStart.getTime() - bufferMs);
     const checkEnd = new Date(slotEnd.getTime() + bufferMs);
-    const busyMap = await getTeamBusyTimes(
-      activeMembers as TeamMember[],
-      checkStart,
-      checkEnd,
-      bufferMs
-    );
-
-    for (const member of activeMembers) {
-      const busy = busyMap.get(member.id) ?? [];
-      const conflict = busy.some((b) => {
-        const bStart = new Date(b.start).getTime();
-        const bEnd = new Date(b.end).getTime();
-        return slotStart.getTime() < bEnd && slotEnd.getTime() > bStart;
-      });
-      if (conflict) {
-        return NextResponse.json(
-          { error: "This time slot is no longer available. Please pick another time." },
-          { status: 409 }
-        );
-      }
+    const busySlots = await getSharedCalendarBusyTimes(checkStart, checkEnd, bufferMs);
+    const conflict = busySlots.some((b) => {
+      const bStart = new Date(b.start).getTime();
+      const bEnd = new Date(b.end).getTime();
+      return slotStart.getTime() < bEnd && slotEnd.getTime() > bStart;
+    });
+    if (conflict) {
+      return NextResponse.json(
+        { error: "This time slot is no longer available. Please pick another time." },
+        { status: 409 }
+      );
     }
+
+    // Get all active members for the booking record
+    const activeMembers = await db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(users)
+      .where(eq(users.isActive, true));
 
     // Create calendar event on team calendar
     const { eventId, meetLink } = await createCalendarEvent({
