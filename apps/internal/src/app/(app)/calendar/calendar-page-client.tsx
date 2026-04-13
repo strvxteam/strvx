@@ -107,11 +107,9 @@ function timeToHours(t: string): number {
 
 export function CalendarPageClient({
   initialEvents,
-  googleConnected = false,
   initialCompanies = [],
 }: {
   initialEvents: CalendarEvent[];
-  googleConnected?: boolean;
   initialCompanies?: Company[];
 }) {
   const [events, setEvents] = useState<CalendarEvent[]>(initialEvents);
@@ -131,8 +129,6 @@ export function CalendarPageClient({
 
   // Fetch Google Calendar events for the newly visible date range
   const handleDatesSet = useCallback(async (info: { start: Date; end: Date }) => {
-    if (!googleConnected) return;
-
     // Key by year-month of start so each calendar month is fetched once
     const rangeKey = `${info.start.toISOString()}/${info.end.toISOString()}`;
     if (fetchedRangesRef.current.has(rangeKey)) return;
@@ -187,7 +183,7 @@ export function CalendarPageClient({
     } catch {
       // Non-fatal — calendar still shows DB events
     }
-  }, [googleConnected]);
+  }, []);
 
   const handleEventClick = useCallback((info: EventClickArg) => {
     const evt = info.event.extendedProps.calendarEvent as CalendarEvent;
@@ -290,19 +286,10 @@ export function CalendarPageClient({
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-semibold">Calendar</h1>
         <div className="flex items-center gap-3">
-          {googleConnected ? (
-            <span className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-[12px] font-medium text-green-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-              Google Calendar synced
-            </span>
-          ) : (
-            <a
-              href="/api/auth/google"
-              className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#555] transition-colors hover:bg-[#f5f5f5]"
-            >
-              Connect Google Calendar
-            </a>
-          )}
+          <span className="flex items-center gap-1.5 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1.5 text-[12px] font-medium text-green-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+            Google Calendar synced
+          </span>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 rounded-lg bg-[#111] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#333]"
