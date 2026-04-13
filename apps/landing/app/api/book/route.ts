@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
       console.error("CRM record creation failed:", crmErr);
     }
 
-    Promise.allSettled([
+    const emailResults = await Promise.allSettled([
       sendConfirmationEmail({
         bookingId: booking.id,
         clientName,
@@ -217,10 +217,9 @@ export async function POST(request: NextRequest) {
         endTime: slotEnd.toISOString(),
         meetLink: meetLink ?? "",
       }),
-    ]).then((results) => {
-      results.forEach((r) => {
-        if (r.status === "rejected") console.error("Email error:", r.reason);
-      });
+    ]);
+    emailResults.forEach((r) => {
+      if (r.status === "rejected") console.error("Email error:", r.reason);
     });
 
     return NextResponse.json({
