@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
         teamMemberNames: memberNames,
         meetLink: meetLink ?? "",
       }),
-      sendTeamNotification(["strvxteam@gmail.com"], {
+      sendTeamNotification(["team@strvx.com"], {
         clientName,
         clientEmail,
         clientPhone,
