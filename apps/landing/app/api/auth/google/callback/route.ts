@@ -42,7 +42,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.redirect(new URL("/admin/calendar-connected?success=true", request.url));
   } catch (err) {
-    console.error("OAuth callback error:", err);
-    return NextResponse.redirect(new URL("/admin/calendar-connected?error=server_error", request.url));
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("OAuth callback error:", message);
+    return NextResponse.redirect(new URL(`/admin/calendar-connected?error=${encodeURIComponent(message.slice(0, 200))}`, request.url));
   }
 }
