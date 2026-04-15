@@ -486,6 +486,150 @@ export const gmailSyncState = pgTable("gmail_sync_state", {
   lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
   syncedMessageCount: integer("synced_message_count").notNull().default(0),
 });
+// ── Partner Enums ────────────────────────────────────
+
+export const partnerStageEnum = pgEnum("partner_stage", [
+  "prospective",
+  "onboarding",
+  "active",
+  "on_hold",
+  "churned",
+]);
+
+export const partnerLinkRoleEnum = pgEnum("partner_link_role", [
+  "referrer",
+  "subcontractor",
+  "co_builder",
+  "consultant",
+  "vendor",
+]);
+
+export const partnerInteractionTypeEnum = pgEnum("partner_interaction_type", [
+  "note",
+  "meeting",
+  "call",
+  "email",
+  "stage_change",
+]);
+
+export const partnerInvoiceDirectionEnum = pgEnum("partner_invoice_direction", [
+  "payable",
+  "receivable",
+]);
+
+export const partnerInvoiceStatusEnum = pgEnum("partner_invoice_status", [
+  "draft",
+  "sent",
+  "paid",
+  "overdue",
+  "cancelled",
+]);
+
+// ── Partners ─────────────────────────────────────────
+
+export const partners = pgTable("partners", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  company: text("company"),
+  website: text("website"),
+  linkedinUrl: text("linkedin_url"),
+  stage: partnerStageEnum("stage").notNull().default("prospective"),
+  stageEnteredAt: timestamp("stage_entered_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  tags: text("tags").array(),
+  commissionRate: numeric("commission_rate"),
+  hourlyRate: numeric("hourly_rate"),
+  flatRate: numeric("flat_rate"),
+  notes: text("notes"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const partnerContacts = pgTable("partner_contacts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partnerId: uuid("partner_id")
+    .notNull()
+    .references(() => partners.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  email: text("email"),
+  phone: text("phone"),
+  role: text("role"),
+  linkedinUrl: text("linkedin_url"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const partnerLinks = pgTable("partner_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partnerId: uuid("partner_id")
+    .notNull()
+    .references(() => partners.id, { onDelete: "cascade" }),
+  engagementId: uuid("engagement_id").references(() => engagements.id, {
+    onDelete: "cascade",
+  }),
+  projectId: uuid("project_id").references(() => projects.id, {
+    onDelete: "cascade",
+  }),
+  role: partnerLinkRoleEnum("role").notNull(),
+  terms: text("terms"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const partnerInteractions = pgTable("partner_interactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partnerId: uuid("partner_id")
+    .notNull()
+    .references(() => partners.id, { onDelete: "cascade" }),
+  type: partnerInteractionTypeEnum("type").notNull(),
+  content: text("content").notNull(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const partnerInvoices = pgTable("partner_invoices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partnerId: uuid("partner_id")
+    .notNull()
+    .references(() => partners.id, { onDelete: "cascade" }),
+  engagementId: uuid("engagement_id").references(() => engagements.id, {
+    onDelete: "set null",
+  }),
+  direction: partnerInvoiceDirectionEnum("direction").notNull(),
+  amount: numeric("amount").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  description: text("description").notNull(),
+  status: partnerInvoiceStatusEnum("status").notNull().default("draft"),
+  issuedAt: timestamp("issued_at", { withTimezone: true }),
+  dueAt: timestamp("due_at", { withTimezone: true }),
+  paidAt: timestamp("paid_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const partnerStageHistory = pgTable("partner_stage_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  partnerId: uuid("partner_id")
+    .notNull()
+    .references(() => partners.id, { onDelete: "cascade" }),
+  stage: partnerStageEnum("stage").notNull(),
+  enteredAt: timestamp("entered_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  exitedAt: timestamp("exited_at", { withTimezone: true }),
+});
 
 // ── Booking Status ───────────────────────────────────
 export const bookingStatusEnum = pgEnum("booking_status", [

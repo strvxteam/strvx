@@ -19,6 +19,13 @@ import {
   cardBudgets,
   cardReceipts,
   cardAlerts,
+  partners,
+  partnerContacts,
+  partnerLinks,
+  partnerInteractions,
+  partnerInvoices,
+  partnerStageHistory,
+  partnerStageEnum,
 } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -57,6 +64,16 @@ import {
   updateCardBudgetSchema,
   upsertCardAlertSchema,
 } from "@/lib/validations";
+import {
+  createPartnerSchema,
+  updatePartnerSchema,
+  changePartnerStageSchema,
+  createPartnerContactSchema,
+  createPartnerLinkSchema,
+  createPartnerInteractionSchema,
+  createPartnerInvoiceSchema,
+  updatePartnerInvoiceSchema,
+} from "@/lib/partner-validations";
 
 let _devFallbackWarned = false;
 
@@ -2013,4 +2030,385 @@ export async function uploadCardReceipt(data: {
     .returning();
   revalidatePath("/finances");
   return created;
+}
+
+// ── Partner Actions ─────────────────────────────────────
+
+export async function createPartner(formData: FormData) {
+  const user = await getCurrentUser();
+  const parsed = createPartnerSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+    company: formData.get("company"),
+    website: formData.get("website"),
+    linkedinUrl: formData.get("linkedinUrl"),
+    stage: formData.get("stage") || "prospective",
+    tags: formData.getAll("tags").filter(Boolean) as string[],
+    commissionRate: formData.get("commissionRate"),
+    hourlyRate: formData.get("hourlyRate"),
+    flatRate: formData.get("flatRate"),
+    notes: formData.get("notes"),
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  }
+
+  const partner = await db.transaction(async (tx) => {
+    const [p] = await tx
+      .insert(partners)
+      .values({
+        name: parsed.data.name,
+        email: parsed.data.email || null,
+        phone: parsed.data.phone || null,
+        company: parsed.data.company || null,
+        website: parsed.data.website || null,
+        linkedinUrl: parsed.data.linkedinUrl || null,
+        stage: (parsed.data.stage as (typeof partnerStageEnum.enumValues)[number]) ?? "prospective",
+        tags: parsed.data.tags?.length ? parsed.data.tags : null,
+        commissionRate: parsed.data.commissionRate || null,
+        hourlyRate: parsed.data.hourlyRate || null,
+        flatRate: parsed.data.flatRate || null,
+        notes: parsed.data.notes || null,
+      })
+      .returning();
+
+    await tx.insert(partnerStageHistory).values({
+      partnerId: p.id,
+      stage: p.stage,
+    });
+
+    await tx.insert(partnerInteractions).values({
+      partnerId: p.id,
+      userId: user.id,
+      type: "note",
+      content: `Created partner "${parsed.data.name}"`,
+    });
+
+    return p;
+  });
+
+  revalidatePath("/partners");
+  revalidatePath("/partners/pipeline");
+  return partner;
+}
+
+export async function updatePartner(partnerId: string, data: Record<string, unknown>) {
+  await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(partnerId);
+  if (!parsedId.success) throw new Error("Invalid partner ID");
+  const parsed = updatePartnerSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  }
+
+  const updateData: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(parsed.data)) {
+    if (value !== undefined) {
+      updateData[key] = value === "" ? null : value;
+    }
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    await db
+      .update(partners)
+      .set(updateData)
+      .where(eq(partners.id, partnerId));
+  }
+
+  revalidatePath(`/partners/${partnerId}`);
+  revalidatePath("/partners");
+  revalidatePath("/partners/pipeline");
+}
+
+export async function changePartnerStage(
+  partnerId: string,
+  newStage: (typeof partnerStageEnum.enumValues)[number]
+) {
+  const user = await getCurrentUser();
+  const parsed = changePartnerStageSchema.safeParse({ partnerId, newStage });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  }
+
+  await db.transaction(async (tx) => {
+    // Close current stage history
+    await tx
+      .update(partnerStageHistory)
+      .set({ exitedAt: new Date() })
+      .where(
+        and(
+          eq(partnerStageHistory.partnerId, partnerId),
+          isNull(partnerStageHistory.exitedAt)
+        )
+      );
+
+    // Update partner
+    await tx
+      .update(partners)
+      .set({ stage: newStage, stageEnteredAt: new Date() })
+      .where(eq(partners.id, partnerId));
+
+    // New stage history entry
+    await tx.insert(partnerStageHistory).values({
+      partnerId,
+      stage: newStage,
+    });
+
+    // Log interaction
+    await tx.insert(partnerInteractions).values({
+      partnerId,
+      userId: user.id,
+      type: "stage_change",
+      content: `Stage changed to ${newStage}`,
+    });
+  });
+
+  revalidatePath(`/partners/${partnerId}`);
+  revalidatePath("/partners");
+  revalidatePath("/partners/pipeline");
+  revalidatePath("/dashboard");
+}
+
+export async function archivePartner(partnerId: string) {
+  await getCurrentUser();
+  const parsed = uuidSchema.safeParse(partnerId);
+  if (!parsed.success) throw new Error("Invalid partner ID");
+
+  await db
+    .update(partners)
+    .set({ archivedAt: new Date() })
+    .where(eq(partners.id, parsed.data));
+
+  revalidatePath("/partners");
+  revalidatePath("/partners/pipeline");
+  revalidatePath("/dashboard");
+}
+
+export async function createPartnerContact(formData: FormData) {
+  await getCurrentUser();
+  const parsed = createPartnerContactSchema.safeParse({
+    partnerId: formData.get("partnerId"),
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone"),
+    role: formData.get("role"),
+    linkedinUrl: formData.get("linkedinUrl"),
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  }
+
+  const [contact] = await db
+    .insert(partnerContacts)
+    .values({
+      partnerId: parsed.data.partnerId,
+      name: parsed.data.name,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      role: parsed.data.role || null,
+      linkedinUrl: parsed.data.linkedinUrl || null,
+    })
+    .returning();
+
+  revalidatePath(`/partners/${parsed.data.partnerId}`);
+  return contact;
+}
+
+export async function deletePartnerContact(contactId: string) {
+  await getCurrentUser();
+  const parsed = uuidSchema.safeParse(contactId);
+  if (!parsed.success) throw new Error("Invalid contact ID");
+
+  const [contact] = await db
+    .select({ partnerId: partnerContacts.partnerId })
+    .from(partnerContacts)
+    .where(eq(partnerContacts.id, parsed.data));
+
+  await db.delete(partnerContacts).where(eq(partnerContacts.id, parsed.data));
+
+  if (contact) revalidatePath(`/partners/${contact.partnerId}`);
+}
+
+export async function createPartnerLink(formData: FormData) {
+  const parsed = createPartnerLinkSchema.safeParse({
+    partnerId: formData.get("partnerId"),
+    engagementId: formData.get("engagementId"),
+    projectId: formData.get("projectId"),
+    role: formData.get("role"),
+    terms: formData.get("terms"),
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  }
+
+  if (!parsed.data.engagementId && !parsed.data.projectId) {
+    throw new Error("Must link to an engagement or project");
+  }
+
+  await getCurrentUser();
+
+  const [link] = await db
+    .insert(partnerLinks)
+    .values({
+      partnerId: parsed.data.partnerId,
+      engagementId: parsed.data.engagementId || null,
+      projectId: parsed.data.projectId || null,
+      role: parsed.data.role,
+      terms: parsed.data.terms || null,
+    })
+    .returning();
+
+  revalidatePath(`/partners/${parsed.data.partnerId}`);
+  if (parsed.data.engagementId) revalidatePath(`/clients/${parsed.data.engagementId}`);
+  if (parsed.data.projectId) revalidatePath(`/projects/${parsed.data.projectId}`);
+  return link;
+}
+
+export async function deletePartnerLink(linkId: string) {
+  await getCurrentUser();
+  const parsed = uuidSchema.safeParse(linkId);
+  if (!parsed.success) throw new Error("Invalid link ID");
+
+  const [link] = await db
+    .select({
+      partnerId: partnerLinks.partnerId,
+      engagementId: partnerLinks.engagementId,
+      projectId: partnerLinks.projectId,
+    })
+    .from(partnerLinks)
+    .where(eq(partnerLinks.id, parsed.data));
+
+  await db.delete(partnerLinks).where(eq(partnerLinks.id, parsed.data));
+
+  if (link) {
+    revalidatePath(`/partners/${link.partnerId}`);
+    if (link.engagementId) revalidatePath(`/clients/${link.engagementId}`);
+    if (link.projectId) revalidatePath(`/projects/${link.projectId}`);
+  }
+}
+
+export async function createPartnerInteraction(formData: FormData) {
+  const user = await getCurrentUser();
+  const parsed = createPartnerInteractionSchema.safeParse({
+    partnerId: formData.get("partnerId"),
+    type: formData.get("type"),
+    content: formData.get("content"),
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  }
+
+  const [interaction] = await db
+    .insert(partnerInteractions)
+    .values({
+      partnerId: parsed.data.partnerId,
+      userId: user.id,
+      type: parsed.data.type,
+      content: parsed.data.content,
+    })
+    .returning();
+
+  revalidatePath(`/partners/${parsed.data.partnerId}`);
+  return interaction;
+}
+
+export async function createPartnerInvoice(data: {
+  partnerId: string;
+  engagementId?: string;
+  direction: "payable" | "receivable";
+  amount: number;
+  currency?: string;
+  description: string;
+  status?: string;
+  issuedAt?: string;
+  dueAt?: string;
+}) {
+  await getCurrentUser();
+  const parsed = createPartnerInvoiceSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  }
+
+  const [invoice] = await db
+    .insert(partnerInvoices)
+    .values({
+      partnerId: parsed.data.partnerId,
+      engagementId: parsed.data.engagementId || null,
+      direction: parsed.data.direction,
+      amount: String(parsed.data.amount),
+      currency: parsed.data.currency ?? "USD",
+      description: parsed.data.description,
+      status: (parsed.data.status as "draft" | "sent" | "paid" | "overdue" | "cancelled") ?? "draft",
+      issuedAt: parsed.data.issuedAt ? new Date(parsed.data.issuedAt) : null,
+      dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null,
+    })
+    .returning();
+
+  revalidatePath(`/partners/${parsed.data.partnerId}`);
+  revalidatePath("/partners/invoices");
+  return invoice;
+}
+
+export async function updatePartnerInvoice(
+  invoiceId: string,
+  data: Record<string, unknown>
+) {
+  await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(invoiceId);
+  if (!parsedId.success) throw new Error("Invalid invoice ID");
+  const parsed = updatePartnerInvoiceSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
+  }
+
+  const updateData: Record<string, unknown> = {};
+  if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
+  if (parsed.data.amount !== undefined) updateData.amount = String(parsed.data.amount);
+  if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
+  if (parsed.data.issuedAt !== undefined) updateData.issuedAt = parsed.data.issuedAt ? new Date(parsed.data.issuedAt) : null;
+  if (parsed.data.dueAt !== undefined) updateData.dueAt = parsed.data.dueAt ? new Date(parsed.data.dueAt) : null;
+  if (parsed.data.paidAt !== undefined) updateData.paidAt = parsed.data.paidAt ? new Date(parsed.data.paidAt) : null;
+
+  if (parsed.data.status === "paid" && !parsed.data.paidAt) {
+    updateData.paidAt = new Date();
+  }
+
+  const [invoice] = await db
+    .select({ partnerId: partnerInvoices.partnerId })
+    .from(partnerInvoices)
+    .where(eq(partnerInvoices.id, invoiceId));
+
+  await db
+    .update(partnerInvoices)
+    .set(updateData)
+    .where(eq(partnerInvoices.id, invoiceId));
+
+  if (invoice) revalidatePath(`/partners/${invoice.partnerId}`);
+  revalidatePath("/partners/invoices");
+}
+
+export async function quickAddPartnerNote(partnerId: string, content: string) {
+  const user = await getCurrentUser();
+  if (!partnerId || !content) throw new Error("Partner ID and content required");
+
+  const parsedId = uuidSchema.safeParse(partnerId);
+  if (!parsedId.success) throw new Error("Invalid partner ID");
+
+  const [interaction] = await db
+    .insert(partnerInteractions)
+    .values({
+      partnerId: parsedId.data,
+      userId: user.id,
+      type: "note",
+      content,
+    })
+    .returning();
+
+  revalidatePath(`/partners/${parsedId.data}`);
+  return interaction;
 }

@@ -23,6 +23,8 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeft,
+  Handshake,
+  Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -44,10 +46,20 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    label: "Partners",
+    icon: Handshake,
+    items: [
+      { href: "/partners/pipeline", label: "Pipeline", icon: Columns3 },
+      { href: "/partners", label: "Directory", icon: Handshake },
+      { href: "/partners/invoices", label: "Invoices", icon: FileText },
+    ],
+  },
+  {
     label: "Projects",
     icon: FolderKanban,
     items: [
       { href: "/projects", label: "Projects", icon: FolderKanban },
+      { href: "/time", label: "Time", icon: Clock },
       { href: "/maintenance", label: "Monitoring", icon: Wrench },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/availability", label: "Availability", icon: Users },
@@ -210,7 +222,12 @@ export function Sidebar() {
               {!collapsed && isOpen && (
                 <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-[#e8e8e8] pl-3">
                   {section.items.map((item) => {
-                    const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                    const hasSubItems = section.items.some(
+                      (other) => other !== item && other.href.startsWith(item.href + "/")
+                    );
+                    const isActive = hasSubItems
+                      ? pathname === item.href
+                      : pathname === item.href || pathname.startsWith(item.href + "/");
                     return (
                       <Link
                         key={item.href}
