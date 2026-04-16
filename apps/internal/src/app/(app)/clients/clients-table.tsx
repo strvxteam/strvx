@@ -1262,7 +1262,12 @@ export function ClientsTable({
                         return (
                           <div key={link.id} className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-2.5 py-1.5">
                             <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
-                              {link.meetingType === "proposal" ? "Proposal" : "Revision"} · strvx.com/book/{link.token.slice(0, 8)}…
+                              {link.meetingType === "proposal"
+                                ? "Proposal"
+                                : link.meetingType === "in_person"
+                                ? "In-Person"
+                                : "Revision"}{" "}
+                              · strvx.com/book/{link.token.slice(0, 8)}…
                             </span>
                             <button
                               onClick={() => {
@@ -1278,7 +1283,7 @@ export function ClientsTable({
                         );
                       })}
                       <div className="flex gap-1.5 pt-1">
-                        {(["proposal", "revision"] as const).map((type) => (
+                        {(["proposal", "revision", "in_person"] as const).map((type) => (
                           <button
                             key={type}
                             onClick={() => {
@@ -1299,7 +1304,13 @@ export function ClientsTable({
                                     [selectedId]: [newLink, ...(prev[selectedId] || [])],
                                   }));
                                   await navigator.clipboard.writeText(`https://strvx.com/book/${token}`);
-                                  toast.success(`${type === "proposal" ? "Proposal" : "Revision"} link created & copied!`);
+                                  const typeLabel =
+                                    type === "proposal"
+                                      ? "Proposal"
+                                      : type === "in_person"
+                                      ? "In-Person"
+                                      : "Revision";
+                                  toast.success(`${typeLabel} link created & copied!`);
                                 } catch {
                                   toast.error("Failed to create link");
                                 }
@@ -1308,7 +1319,7 @@ export function ClientsTable({
                             className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-[#1a73e8] hover:text-[#1a73e8]"
                           >
                             <Sparkles size={10} />
-                            New {type === "proposal" ? "Proposal" : "Revision"}
+                            New {type === "proposal" ? "Proposal" : type === "in_person" ? "In-Person" : "Revision"}
                           </button>
                         ))}
                       </div>

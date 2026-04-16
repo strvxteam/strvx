@@ -484,7 +484,7 @@ function FollowUpSection({
   initialLinks: FollowUpLink[];
 }) {
   const [links, setLinks] = useState(initialLinks);
-  const [meetingType, setMeetingType] = useState<"proposal" | "revision">("proposal");
+  const [meetingType, setMeetingType] = useState<"proposal" | "revision" | "in_person">("proposal");
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -526,7 +526,7 @@ function FollowUpSection({
             <div key={link.id} className="rounded-md border border-border bg-muted/30 p-2">
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-[10px] font-medium capitalize text-muted-foreground">
-                  {link.meetingType}
+                  {link.meetingType === "in_person" ? "In-Person" : link.meetingType}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
                   {new Date(link.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -552,7 +552,7 @@ function FollowUpSection({
       {/* Generate new */}
       <div className="flex items-center gap-1.5">
         <div className="flex gap-1">
-          {(["proposal", "revision"] as const).map((t) => (
+          {(["proposal", "revision", "in_person"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setMeetingType(t)}
@@ -562,7 +562,7 @@ function FollowUpSection({
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
-              {t}
+              {t === "in_person" ? "In-Person" : t}
             </button>
           ))}
         </div>

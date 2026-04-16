@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
             endTime: booking.endTime.toISOString(),
             teamMemberNames: members.map((m) => m.name),
             meetLink: booking.meetLink ?? "",
+            serviceType: booking.serviceType ?? "discovery",
           },
           "24h"
         );
@@ -87,6 +88,7 @@ export async function GET(request: NextRequest) {
             endTime: booking.endTime.toISOString(),
             teamMemberNames: members.map((m) => m.name),
             meetLink: booking.meetLink ?? "",
+            serviceType: booking.serviceType ?? "discovery",
           },
           "1h"
         );

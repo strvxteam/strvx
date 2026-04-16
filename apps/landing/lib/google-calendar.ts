@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { getMeetingLabel } from "./meeting-types";
 
 const TIMEZONE = "America/Los_Angeles";
 const BUSINESS_HOURS_START = 9;  // 9 AM Pacific
@@ -191,15 +192,17 @@ export function calculateSlotsFromBusy(
   dateStart: Date,
   dateEnd: Date,
   slotDurationMinutes: number = SLOT_DURATION_MINUTES,
-  businessHoursEnd: number = BUSINESS_HOURS_END
+  businessHoursEnd: number = BUSINESS_HOURS_END,
+  stepMinutes?: number
 ): { start: Date; end: Date }[] {
   const slots: { start: Date; end: Date }[] = [];
-  const stepMs = slotDurationMinutes * 60 * 1000;
+  const slotMs = slotDurationMinutes * 60 * 1000;
+  const stepMs = (stepMinutes ?? slotDurationMinutes) * 60 * 1000;
 
   let cursor = new Date(Math.ceil(dateStart.getTime() / stepMs) * stepMs);
 
   while (cursor < dateEnd) {
-    const slotEnd = new Date(cursor.getTime() + stepMs);
+    const slotEnd = new Date(cursor.getTime() + slotMs);
     if (slotEnd > dateEnd) break;
 
     const decimalHour = toPacificDecimalHour(cursor);
@@ -249,23 +252,35 @@ export async function createCalendarEvent(
 
   const requestId = `strvx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
+  const isInPerson = booking.serviceType === "in_person";
+  const eventLabel = booking.serviceType === "discovery"
+    ? "Discovery Call"
+    : getMeetingLabel(booking.serviceType);
+  const descriptionType = booking.serviceType === "discovery"
+    ? "discovery call"
+    : eventLabel.toLowerCase();
+
   let event;
   try {
     event = await calendar.events.insert({
       calendarId: teamCalendarId,
-      conferenceDataVersion: 1,
+      ...(isInPerson ? {} : { conferenceDataVersion: 1 }),
       sendUpdates: "none",
       requestBody: {
-        summary: `${booking.serviceType === "proposal" ? "Proposal Call" : booking.serviceType === "revision" ? "Revision Call" : "Discovery Call"} — ${booking.clientName}`,
-        description: `strvx ${booking.serviceType === "proposal" ? "proposal" : booking.serviceType === "revision" ? "revision" : "discovery"} call with ${booking.clientName} (${booking.clientEmail}).`,
+        summary: `${eventLabel} — ${booking.clientName}`,
+        description: `strvx ${descriptionType} with ${booking.clientName} (${booking.clientEmail}).`,
         start: { dateTime: booking.startTime.toISOString(), timeZone: TIMEZONE },
         end: { dateTime: booking.endTime.toISOString(), timeZone: TIMEZONE },
-        conferenceData: {
-          createRequest: {
-            requestId,
-            conferenceSolutionKey: { type: "hangoutsMeet" },
-          },
-        },
+        ...(isInPerson
+          ? {}
+          : {
+              conferenceData: {
+                createRequest: {
+                  requestId,
+                  conferenceSolutionKey: { type: "hangoutsMeet" },
+                },
+              },
+            }),
         reminders: {
           useDefault: false,
           overrides: [

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { getMeetingDuration, getMeetingLabel } from "@/lib/meeting-types";
 
 type Slot = { start: string; end: string };
 type DaySlots = Record<string, Slot[]>;
@@ -44,7 +45,10 @@ function getNext7Days(): Date[] {
 }
 
 export default function FollowUpBookingWidget({ token, meetingType, prefill }: Props) {
-  const typeLabel = meetingType === "proposal" ? "Proposal Call" : "Revision Call";
+  const typeLabel = getMeetingLabel(meetingType);
+  const durationMinutes = getMeetingDuration(meetingType);
+  const durationDisplay =
+    durationMinutes >= 60 ? `${durationMinutes / 60} hr` : `${durationMinutes} min`;
   const days = getNext7Days();
 
   const [selectedDay, setSelectedDay] = useState<Date>(days[0]);
@@ -111,6 +115,7 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
   };
 
   if (confirmed) {
+    const isInPerson = meetingType === "in_person";
     return (
       <div className="rounded-xl border border-white/[0.08] bg-[#0e0e0e] p-8 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
@@ -118,12 +123,16 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
         </div>
         <h2 className="mb-2 text-xl font-bold">You&apos;re booked.</h2>
         <p className="mb-6 text-[#666]">{formatDate(confirmed.startTime)} at {formatTime(confirmed.startTime)}</p>
-        <a
-          href={confirmed.meetLink}
-          className="inline-block rounded-lg bg-white px-6 py-3 text-sm font-semibold text-[#0a0a0a] hover:bg-white/90 transition-colors"
-        >
-          Join Google Meet
-        </a>
+        {!isInPerson && confirmed.meetLink ? (
+          <a
+            href={confirmed.meetLink}
+            className="inline-block rounded-lg bg-white px-6 py-3 text-sm font-semibold text-[#0a0a0a] hover:bg-white/90 transition-colors"
+          >
+            Join Google Meet
+          </a>
+        ) : (
+          <p className="text-[13px] text-[#888]">We&apos;ll reach out with location details shortly.</p>
+        )}
         <p className="mt-4 text-[13px] text-[#555]">
           A confirmation with a calendar invite has been sent to {email}.
         </p>
@@ -204,7 +213,7 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
           <p className="mb-4 text-[11px] tracking-[0.15em] uppercase text-[#555]">Your details</p>
 
           <div className="mb-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-4 py-3 text-[13px] text-[#888]">
-            <span className="font-medium text-white">{typeLabel} · 30 min</span>
+            <span className="font-medium text-white">{typeLabel} · {durationDisplay}</span>
             {" · "}
             {formatDate(selectedSlot.start)} at {formatTime(selectedSlot.start)}
             <button

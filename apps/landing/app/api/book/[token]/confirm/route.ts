@@ -14,6 +14,7 @@ import {
 import { eq, and, desc } from "drizzle-orm";
 import { getSharedCalendarBusyTimes, createCalendarEvent } from "@/lib/google-calendar";
 import { sendFollowUpConfirmation, sendFollowUpTeamNotification } from "@/lib/email";
+import { getMeetingDuration } from "@/lib/meeting-types";
 
 const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -58,6 +59,16 @@ export async function POST(
     const slotStart = new Date(startTime);
     const slotEnd = new Date(endTime);
     const bufferMs = 15 * 60 * 1000;
+    const durationMinutes = getMeetingDuration(link.meetingType);
+
+    // Ensure the client-submitted slot matches the expected duration for this meeting type
+    const actualDurationMinutes = Math.round((slotEnd.getTime() - slotStart.getTime()) / 60000);
+    if (actualDurationMinutes !== durationMinutes) {
+      return NextResponse.json(
+        { error: "Invalid slot duration for this meeting type" },
+        { status: 400 }
+      );
+    }
 
     const checkStart = new Date(slotStart.getTime() - bufferMs);
     const checkEnd = new Date(slotEnd.getTime() + bufferMs);
@@ -107,7 +118,7 @@ export async function POST(
         serviceType: link.meetingType,
         startTime: slotStart,
         endTime: slotEnd,
-        durationMinutes: 30,
+        durationMinutes,
         meetLink: meetLink ?? null,
         notes: notes ?? null,
         googleEventIds: eventId ? { team: eventId } : null,

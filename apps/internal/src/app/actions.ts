@@ -1706,7 +1706,7 @@ export async function toggleUserStatus(userId: string) {
 
 export async function createFollowUpLink(
   engagementId: string,
-  meetingType: "proposal" | "revision"
+  meetingType: "proposal" | "revision" | "in_person"
 ): Promise<string> {
   const user = await getCurrentUser();
   const token = crypto.randomUUID().replace(/-/g, "");

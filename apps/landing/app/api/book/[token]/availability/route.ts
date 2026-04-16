@@ -5,9 +5,11 @@ import { db } from "@strvx/db";
 import { followUpLinks } from "@strvx/db/schema";
 import { eq } from "drizzle-orm";
 import { getSharedCalendarBusyTimes, calculateSlotsFromBusy } from "@/lib/google-calendar";
+import { getMeetingDuration } from "@/lib/meeting-types";
 
 const BUFFER_15_MIN = 15 * 60 * 1000;
 const BUSINESS_HOURS_END_5PM = 17;
+const STEP_MINUTES = 30;
 
 export async function GET(
   request: NextRequest,
@@ -25,7 +27,7 @@ export async function GET(
 
     // Validate token exists
     const [link] = await db
-      .select({ id: followUpLinks.id })
+      .select({ id: followUpLinks.id, meetingType: followUpLinks.meetingType })
       .from(followUpLinks)
       .where(eq(followUpLinks.token, token))
       .limit(1);
@@ -42,8 +44,16 @@ export async function GET(
     }
 
     // 15-min buffer, end at 5 PM — single shared calendar as source of truth
+    const durationMinutes = getMeetingDuration(link.meetingType);
     const busySlots = await getSharedCalendarBusyTimes(dateStart, dateEnd, BUFFER_15_MIN);
-    const slots = calculateSlotsFromBusy(busySlots, dateStart, dateEnd, 30, BUSINESS_HOURS_END_5PM);
+    const slots = calculateSlotsFromBusy(
+      busySlots,
+      dateStart,
+      dateEnd,
+      durationMinutes,
+      BUSINESS_HOURS_END_5PM,
+      STEP_MINUTES
+    );
 
     const grouped: Record<string, { start: string; end: string }[]> = {};
     for (const slot of slots) {

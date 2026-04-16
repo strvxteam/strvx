@@ -660,7 +660,7 @@ export const bookings = pgTable("bookings", {
   reminderSent1h: boolean("reminder_sent_1h").notNull().default(false),
   engagementId: uuid("engagement_id").references(() => engagements.id, { onDelete: "set null" }),
   followUpToken: text("follow_up_token"), // soft ref to follow_up_links.token
-  meetingType: text("meeting_type"), // "discovery" | "proposal" | "revision"
+  meetingType: text("meeting_type"), // "discovery" | "proposal" | "revision" | "in_person"
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -671,7 +671,7 @@ export const followUpLinks = pgTable("follow_up_links", {
   engagementId: uuid("engagement_id")
     .notNull()
     .references(() => engagements.id, { onDelete: "cascade" }),
-  meetingType: text("meeting_type").notNull().default("proposal"), // "proposal" | "revision"
+  meetingType: text("meeting_type").notNull().default("proposal"), // "proposal" | "revision" | "in_person"
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

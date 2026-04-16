@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { getMeetingDuration, getMeetingLabel } from "./meeting-types";
 
 const resend = new Resend(process.env.RESEND_API_KEY ?? "placeholder");
 const FROM_EMAIL = "bookings@strvx.com";
@@ -56,7 +57,7 @@ function generateICS(params: {
     `DTEND:${toICSDate(params.endTime)}`,
     `SUMMARY:${params.summary}`,
     `DESCRIPTION:${params.description.replace(/\n/g, "\\n")}`,
-    `LOCATION:${params.meetLink}`,
+    ...(params.meetLink ? [`LOCATION:${params.meetLink}`] : []),
     `ORGANIZER;CN=strvx:mailto:${params.organizerEmail}`,
     `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=NEEDS-ACTION;RSVP=TRUE;CN=${params.attendeeEmail}:mailto:${params.attendeeEmail}`,
     "END:VEVENT",
@@ -235,7 +236,7 @@ type FollowUpConfirmationData = {
   bookingId: string;
   clientName: string;
   clientEmail: string;
-  meetingType: string; // "proposal" | "revision"
+  meetingType: string; // "proposal" | "revision" | "in_person"
   startTime: string;
   endTime: string;
   meetLink: string;
@@ -244,12 +245,19 @@ type FollowUpConfirmationData = {
 export async function sendFollowUpConfirmation(data: FollowUpConfirmationData) {
   const dateDisplay = formatDateTime(data.startTime);
   const endTimeDisplay = formatTime(data.endTime);
-  const typeLabel = data.meetingType === "proposal" ? "Proposal Call" : "Revision Call";
+  const typeLabel = getMeetingLabel(data.meetingType);
+  const durationMinutes = getMeetingDuration(data.meetingType);
+  const durationDisplay = durationMinutes >= 60
+    ? `${durationMinutes / 60} hr`
+    : `${durationMinutes} min`;
+  const isInPerson = data.meetingType === "in_person";
 
   const icsContent = generateICS({
     uid: `followup-${data.bookingId}@strvx.com`,
     summary: `${typeLabel} with strvx`,
-    description: `Your 30-minute ${typeLabel.toLowerCase()} with strvx.\n\nJoin: ${data.meetLink}`,
+    description: isInPerson
+      ? `Your ${durationDisplay} ${typeLabel.toLowerCase()} with strvx. We'll reach out with location details shortly.`
+      : `Your ${durationDisplay} ${typeLabel.toLowerCase()} with strvx.\n\nJoin: ${data.meetLink}`,
     startTime: new Date(data.startTime),
     endTime: new Date(data.endTime),
     organizerEmail: FROM_EMAIL,
@@ -275,17 +283,15 @@ export async function sendFollowUpConfirmation(data: FollowUpConfirmationData) {
             <tr><td style="padding:24px 28px;">
               <p style="margin:0 0 16px;font-size:11px;font-weight:600;color:#999;letter-spacing:0.1em;text-transform:uppercase;">Details</p>
               <table cellpadding="0" cellspacing="0">
-                <tr><td style="padding:4px 0;font-size:13px;color:#666;width:100px;">What</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${typeLabel} · 30 min</td></tr>
+                <tr><td style="padding:4px 0;font-size:13px;color:#666;width:100px;">What</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${typeLabel} · ${durationDisplay}</td></tr>
                 <tr><td style="padding:4px 0;font-size:13px;color:#666;">When</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${dateDisplay} – ${endTimeDisplay}</td></tr>
                 <tr><td style="padding:4px 0;font-size:13px;color:#666;">With</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">strvx team</td></tr>
               </table>
             </td></tr>
           </table>
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;">
-            <tr><td align="center">
-              <a href="${data.meetLink}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.04em;padding:13px 28px;border-radius:6px;">Join Google Meet</a>
-            </td></tr>
-          </table>
+          ${isInPerson
+            ? `<p style="margin:0 0 24px;font-size:14px;color:#0a0a0a;line-height:1.6;">We'll reach out shortly with location details.</p>`
+            : `<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:32px;"><tr><td align="center"><a href="${data.meetLink}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.04em;padding:13px 28px;border-radius:6px;">Join Google Meet</a></td></tr></table>`}
           <p style="margin:0;font-size:13px;color:#999;line-height:1.6;">You'll receive a reminder before your call. If you need to reschedule, reply to this email.</p>
         </td></tr>
         <tr><td style="padding:20px 40px;border-top:1px solid #e5e5e5;">
@@ -328,7 +334,7 @@ type FollowUpTeamNotificationData = {
 export async function sendFollowUpTeamNotification(data: FollowUpTeamNotificationData) {
   const dateDisplay = formatDateTime(data.startTime);
   const endTimeDisplay = formatTime(data.endTime);
-  const typeLabel = data.meetingType === "proposal" ? "Proposal Call" : "Revision Call";
+  const typeLabel = getMeetingLabel(data.meetingType);
 
   const html = `
 <!DOCTYPE html>
@@ -351,7 +357,9 @@ export async function sendFollowUpTeamNotification(data: FollowUpTeamNotificatio
             <tr><td style="padding:4px 0;font-size:13px;color:#666;">When</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${dateDisplay} – ${endTimeDisplay}</td></tr>
           </table>
           ${data.notes ? `<div style="margin-bottom:24px;padding:16px;background:#f5f5f5;border-radius:6px;"><p style="margin:0 0 6px;font-size:11px;font-weight:600;color:#999;letter-spacing:0.08em;text-transform:uppercase;">Notes</p><p style="margin:0;font-size:13px;color:#0a0a0a;line-height:1.6;white-space:pre-wrap;">${data.notes}</p></div>` : ""}
-          <a href="${data.meetLink}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 24px;border-radius:6px;">Join Google Meet</a>
+          ${data.meetingType === "in_person"
+            ? `<p style="margin:0;font-size:13px;color:#0a0a0a;">In-person meeting — no Meet link.</p>`
+            : `<a href="${data.meetLink}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 24px;border-radius:6px;">Join Google Meet</a>`}
         </td></tr>
       </table>
     </td></tr>
@@ -376,6 +384,7 @@ type ReminderData = {
   endTime: string;
   teamMemberNames: string[];
   meetLink: string;
+  serviceType: string;
 };
 
 export async function sendReminderEmail(data: ReminderData, type: "24h" | "1h") {
@@ -383,10 +392,18 @@ export async function sendReminderEmail(data: ReminderData, type: "24h" | "1h") 
   const endTimeDisplay = formatTime(data.endTime);
   const teamDisplay = data.teamMemberNames.join(", ");
   const timeContext = type === "24h" ? "tomorrow" : "in 1 hour";
+  const typeLabel = data.serviceType === "discovery"
+    ? "Discovery Call"
+    : getMeetingLabel(data.serviceType);
+  const durationMinutes = getMeetingDuration(data.serviceType);
+  const durationDisplay = durationMinutes >= 60
+    ? `${durationMinutes / 60} hr`
+    : `${durationMinutes} min`;
+  const isInPerson = data.serviceType === "in_person";
   const subject =
     type === "24h"
-      ? `Reminder: Your discovery call with strvx is tomorrow`
-      : `Your strvx call starts in 1 hour`;
+      ? `Reminder: Your ${typeLabel.toLowerCase()} with strvx is tomorrow`
+      : `Your strvx ${typeLabel.toLowerCase()} starts in 1 hour`;
 
   const html = `
 <!DOCTYPE html>
@@ -400,20 +417,22 @@ export async function sendReminderEmail(data: ReminderData, type: "24h" | "1h") 
           <p style="margin:0;color:#ffffff;font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;">strvx</p>
         </td></tr>
         <tr><td style="padding:40px;">
-          <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0a0a0a;">Your call is ${timeContext}.</h1>
+          <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0a0a0a;">Your ${isInPerson ? "meeting" : "call"} is ${timeContext}.</h1>
           <p style="margin:0 0 32px;font-size:15px;color:#666;">Here are your details, ${data.clientName}.</p>
 
           <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;border-radius:6px;margin-bottom:28px;">
             <tr><td style="padding:24px 28px;">
               <table cellpadding="0" cellspacing="0">
-                <tr><td style="padding:4px 0;font-size:13px;color:#666;width:100px;">What</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">Discovery Call · 30 min</td></tr>
+                <tr><td style="padding:4px 0;font-size:13px;color:#666;width:100px;">What</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${typeLabel} · ${durationDisplay}</td></tr>
                 <tr><td style="padding:4px 0;font-size:13px;color:#666;">When</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${dateDisplay} – ${endTimeDisplay}</td></tr>
                 <tr><td style="padding:4px 0;font-size:13px;color:#666;">With</td><td style="padding:4px 0;font-size:13px;color:#0a0a0a;font-weight:500;">${teamDisplay} from strvx</td></tr>
               </table>
             </td></tr>
           </table>
 
-          <a href="${data.meetLink}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:13px 28px;border-radius:6px;">Join Google Meet</a>
+          ${isInPerson || !data.meetLink
+            ? `<p style="margin:0;font-size:13px;color:#0a0a0a;">We'll reach out with location details if we haven't already.</p>`
+            : `<a href="${data.meetLink}" style="display:inline-block;background:#0a0a0a;color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:13px 28px;border-radius:6px;">Join Google Meet</a>`}
 
           <p style="margin:24px 0 0;font-size:13px;color:#999;">Questions? Reply to this email.</p>
         </td></tr>

@@ -3,6 +3,7 @@ import { db } from "@strvx/db";
 import { followUpLinks, engagements, companies, contacts, bookings } from "@strvx/db/schema";
 import { eq, and, desc, gte } from "drizzle-orm";
 import FollowUpBookingWidget from "./booking-widget";
+import { getMeetingLabel } from "@/lib/meeting-types";
 
 export const dynamic = "force-dynamic";
 
@@ -66,7 +67,7 @@ export default async function FollowUpBookPage({
     .where(eq(engagements.id, link.engagementId))
     .limit(1);
 
-  const typeLabel = link.meetingType === "proposal" ? "Proposal Call" : "Revision Call";
+  const typeLabel = getMeetingLabel(link.meetingType);
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5] flex flex-col">

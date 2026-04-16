@@ -41,6 +41,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (serviceType !== "discovery") {
+      return NextResponse.json(
+        { error: "This endpoint only accepts discovery bookings. Use follow-up links for other meeting types." },
+        { status: 400 }
+      );
+    }
+
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clientEmail)) {
       return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
     }
