@@ -137,6 +137,11 @@ export interface FinancesPageProps {
   cardAlerts?: CardAlertSlim[];
   mercuryRevenue?: number;
   mercuryExpenses?: number;
+  mercuryOutstanding?: number;
+  mercuryMRR?: number;
+  mercuryMonthlyRevenue?: { month: string; revenue: number }[];
+  mercuryClientRevenue?: [string, number][];
+  mercuryVendorExpenses?: [string, number][];
 }
 
 export default function FinancesPage({
@@ -156,6 +161,11 @@ export default function FinancesPage({
   cardAlerts = [],
   mercuryRevenue = 0,
   mercuryExpenses = 0,
+  mercuryOutstanding = 0,
+  mercuryMRR = 0,
+  mercuryMonthlyRevenue = [],
+  mercuryClientRevenue = [],
+  mercuryVendorExpenses = [],
 }: FinancesPageProps = {}) {
   const invoiceData = invoicesProp ?? [];
   const monthlyRevenueData = monthlyRevenueProp ?? [];
@@ -165,48 +175,33 @@ export default function FinancesPage({
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
-  // Revenue calculations
+  // Mercury is the single source of truth for Finances.
+  // Keep `paidInvoices`/`invoiceRevenue` around for any downstream views that
+  // still reference them, but the dashboard numbers all come from Mercury.
   const paidInvoices = invoiceData.filter((inv) => inv.status === "paid");
   const invoiceRevenue = paidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
-  const currentMonth = monthlyRevenueData[monthlyRevenueData.length - 1] ?? { month: "", revenue: 0 };
-  const prevMonth = monthlyRevenueData[monthlyRevenueData.length - 2];
+  const currentMonth = mercuryMonthlyRevenue[mercuryMonthlyRevenue.length - 1] ?? { month: "", revenue: 0 };
+  const prevMonth = mercuryMonthlyRevenue[mercuryMonthlyRevenue.length - 2];
   const revenueGrowth = prevMonth
     ? ((currentMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100
     : 0;
-  const ytdRevenue = monthlyRevenueData.reduce((sum, m) => sum + m.revenue, 0);
-  const mrr = mrrProp ?? 0;
-  const maxMonthlyRevenue = monthlyRevenueData.length > 0
-    ? Math.max(...monthlyRevenueData.map((m) => m.revenue))
+  const ytdRevenue = mercuryMonthlyRevenue.reduce((sum, m) => sum + m.revenue, 0);
+  const mrr = mercuryMRR;
+  const maxMonthlyRevenue = mercuryMonthlyRevenue.length > 0
+    ? Math.max(...mercuryMonthlyRevenue.map((m) => m.revenue))
     : 1;
 
-  // Expense calculations
+  // Mercury-only P&L
   const localExpensesTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  // When Mercury is connected, the top P&L reflects real bank activity (revenue = deposits,
-  // expenses = withdrawals). Invoicing + manual expenses are separate views (see Revenue
-  // and Expenses tabs). This matches the user's mental model — the card should reflect
-  // what's actually moving through the account.
-  const totalRevenue = mercuryConnected ? mercuryRevenue : invoiceRevenue;
-  const totalExpenses = mercuryConnected ? mercuryExpenses : localExpensesTotal;
+  const totalRevenue = mercuryRevenue;
+  const totalExpenses = mercuryExpenses;
   const profit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
-  // Expense by category
-  const categoryTotals = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const exp of expenses) {
-      map[exp.category] = (map[exp.category] ?? 0) + exp.amount;
-    }
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-  }, [expenses]);
-
-  // Revenue by client
-  const clientRevenue = (() => {
-    const map: Record<string, number> = {};
-    for (const inv of paidInvoices) {
-      map[inv.client] = (map[inv.client] ?? 0) + inv.amount;
-    }
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
-  })();
+  // Top vendors (Mercury withdrawals by counterparty) — replaces the old
+  // expense-by-category breakdown which was keyed off the manual expenses table.
+  const categoryTotals = mercuryVendorExpenses;
+  const clientRevenue = mercuryClientRevenue;
 
   // Pipeline forecast — fall back to stage-based probability when not set on the engagement.
   const STAGE_DEFAULT_PROBABILITY: Record<string, number> = {
@@ -237,17 +232,9 @@ export default function FinancesPage({
 
   const totalWeighted = pipelineDeals.reduce((sum, d) => sum + d.weighted, 0);
 
-  // Outstanding invoices
-  const outstanding = invoiceData.filter(
-    (inv) => inv.status === "sent" || inv.status === "overdue"
-  );
-  const totalOutstanding = outstanding.reduce(
-    (sum, inv) => sum + inv.amount,
-    0
-  );
-  const overdueAmount = invoiceData
-    .filter((inv) => inv.status === "overdue")
-    .reduce((sum, inv) => sum + inv.amount, 0);
+  // Outstanding = pending/in-flight Mercury transactions
+  const totalOutstanding = mercuryOutstanding;
+  const overdueAmount = 0;
 
   // CRUD for expenses
   const handleSaveExpense = (expense: Expense) => {
@@ -410,18 +397,20 @@ export default function FinancesPage({
       {/* Overview tab */}
       {(
         <div className="grid grid-cols-2 gap-6">
-          {/* Revenue by month */}
+          {/* Revenue by month — Mercury deposits grouped by month */}
           <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
             <h2 className="mb-3 text-sm font-semibold text-[#333]">
               Revenue by Month
             </h2>
-            {monthlyRevenueData.length === 0 ? (
+            {mercuryMonthlyRevenue.length === 0 ? (
               <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 180 }}>
-                No paid invoices yet. Once invoices are marked paid, monthly revenue will appear here.
+                {mercuryConnected
+                  ? "No Mercury deposits yet."
+                  : "Mercury not connected. Configure MERCURY_API_TOKEN to see revenue data."}
               </div>
             ) : (
             <div className="flex items-end gap-3" style={{ height: 180 }}>
-              {monthlyRevenueData.map((m, i) => {
+              {mercuryMonthlyRevenue.map((m, i) => {
                 const heightPct = (m.revenue / maxMonthlyRevenue) * 100;
                 return (
                   <div
@@ -435,7 +424,7 @@ export default function FinancesPage({
                       className="w-full rounded-t bg-[#1a73e8] transition-all"
                       style={{
                         height: `${heightPct}%`,
-                        opacity: 0.6 + (i / monthlyRevenueData.length) * 0.4,
+                        opacity: 0.6 + (i / mercuryMonthlyRevenue.length) * 0.4,
                       }}
                     />
                     <span className="text-[10px] text-[#888]">
@@ -448,19 +437,21 @@ export default function FinancesPage({
             )}
           </div>
 
-          {/* Expense breakdown */}
+          {/* Top Vendors — Mercury withdrawals grouped by counterparty */}
           <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
             <h2 className="mb-3 text-sm font-semibold text-[#333]">
-              Expenses by Category
+              Top Vendors
             </h2>
             {categoryTotals.length === 0 ? (
               <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 180 }}>
-                No expenses yet. Click &quot;Add Expense&quot; to log one.
+                {mercuryConnected
+                  ? "No Mercury withdrawals yet."
+                  : "Mercury not connected. Configure MERCURY_API_TOKEN to see vendor spend."}
               </div>
             ) : (
             <div className="flex flex-col gap-2.5">
               {categoryTotals.map(([cat, amount]) => {
-                const pct = localExpensesTotal > 0 ? (amount / localExpensesTotal) * 100 : 0;
+                const pct = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
                 return (
                   <div key={cat}>
                     <div className="mb-1 flex items-center justify-between text-[12px]">
@@ -489,13 +480,15 @@ export default function FinancesPage({
             </h2>
             {clientRevenue.length === 0 ? (
               <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 120 }}>
-                No paid invoices yet.
+                {mercuryConnected
+                  ? "No Mercury deposits yet."
+                  : "Mercury not connected."}
               </div>
             ) : (
             <div className="flex flex-col gap-2">
               {clientRevenue.map(([client, revenue]) => {
                 const pct =
-                  invoiceRevenue > 0 ? (revenue / invoiceRevenue) * 100 : 0;
+                  totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
                 return (
                   <div key={client} className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">

@@ -23,9 +23,14 @@ export default async function FinancesServerPage() {
   let mercuryCards: any[] = [];
   const mercuryConnected = isMercuryConfigured();
 
-  // Also pull full transaction set for P&L totals (not just the 50-row display list)
+  // Mercury is now the single source of truth for Finances P&L.
   let mercuryRevenue = 0;
   let mercuryExpenses = 0;
+  let mercuryOutstanding = 0; // sum of pending Mercury transactions (money in motion)
+  let mercuryMRR = 0;         // deposits in the last 30 days (rolling)
+  const mercuryMonthlyRevenueMap = new Map<string, number>(); // yyyy-mm -> amount
+  const mercuryClientRevenueMap = new Map<string, number>();  // counterparty -> amount
+  const mercuryVendorExpenseMap = new Map<string, number>();  // counterparty -> amount
   if (mercuryConnected) {
     try {
       const [accounts, transactions, cards] = await Promise.all([
@@ -50,16 +55,66 @@ export default async function FinancesServerPage() {
         status: t.status,
         kind: t.kind,
       }));
-      // Sum settled transactions: positive = money in (revenue), negative = money out (expense)
+
+      const now = Date.now();
+      const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
       for (const t of transactions) {
+        // Pending/sent but not yet settled → outstanding bucket
+        if (t.status === "pending" || t.status === "sent") {
+          mercuryOutstanding += Math.abs(t.amount);
+          continue;
+        }
         if (t.status === "failed" || t.status === "cancelled") continue;
-        if (t.amount > 0) mercuryRevenue += t.amount;
-        else mercuryExpenses += Math.abs(t.amount);
+        // Settled transactions
+        if (t.amount > 0) {
+          mercuryRevenue += t.amount;
+          // MRR approximation: revenue settled within the last 30 days
+          const ts = new Date(t.createdAt).getTime();
+          if (!Number.isNaN(ts) && ts >= thirtyDaysAgo) {
+            mercuryMRR += t.amount;
+          }
+          // Monthly revenue bucket
+          const d = new Date(t.createdAt);
+          if (!Number.isNaN(d.getTime())) {
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            mercuryMonthlyRevenueMap.set(key, (mercuryMonthlyRevenueMap.get(key) ?? 0) + t.amount);
+          }
+          // By counterparty (client)
+          const client = t.counterpartyName || "Unknown";
+          mercuryClientRevenueMap.set(client, (mercuryClientRevenueMap.get(client) ?? 0) + t.amount);
+        } else {
+          const abs = Math.abs(t.amount);
+          mercuryExpenses += abs;
+          // By counterparty (vendor)
+          const vendor = t.counterpartyName || "Unknown";
+          mercuryVendorExpenseMap.set(vendor, (mercuryVendorExpenseMap.get(vendor) ?? 0) + abs);
+        }
       }
     } catch (err) {
       console.error("[Finances] Mercury fetch failed:", err);
     }
   }
+
+  // Serialize maps → sorted arrays for the client
+  const mercuryMonthlyRevenue = Array.from(mercuryMonthlyRevenueMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-12)
+    .map(([key, revenue]) => {
+      const [y, m] = key.split("-").map(Number);
+      const label = new Date(y, m - 1, 1).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
+      return { month: label, revenue };
+    });
+
+  const mercuryClientRevenue = Array.from(mercuryClientRevenueMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+
+  const mercuryVendorExpenses = Array.from(mercuryVendorExpenseMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
 
   // Fetch local card enrichment data
   const [localCards, allBudgets, allReceipts, allAlerts] = await Promise.all([
@@ -172,6 +227,11 @@ export default async function FinancesServerPage() {
       cardAlerts={alerts}
       mercuryRevenue={mercuryRevenue}
       mercuryExpenses={mercuryExpenses}
+      mercuryOutstanding={mercuryOutstanding}
+      mercuryMRR={mercuryMRR}
+      mercuryMonthlyRevenue={mercuryMonthlyRevenue}
+      mercuryClientRevenue={mercuryClientRevenue}
+      mercuryVendorExpenses={mercuryVendorExpenses}
     />
   );
 }
