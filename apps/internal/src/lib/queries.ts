@@ -965,6 +965,60 @@ export async function getSiteCheckHistory(siteId: string) {
   return result as unknown as { status: string; response_ms: number | null; checked_at: string }[];
 }
 
+export async function getSiteDailyUptime(siteId: string, days = 90) {
+  const result = await db.execute(sql`
+    SELECT
+      to_char(date_trunc('day', checked_at), 'YYYY-MM-DD') AS day,
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE status = 'up')::int AS up_count,
+      COUNT(*) FILTER (WHERE status = 'down')::int AS down_count
+    FROM uptime_checks
+    WHERE site_id = ${siteId}
+      AND checked_at > NOW() - (${days} || ' days')::interval
+    GROUP BY date_trunc('day', checked_at)
+    ORDER BY date_trunc('day', checked_at) ASC
+  `);
+  return result as unknown as { day: string; total: number; up_count: number; down_count: number }[];
+}
+
+// Batch versions — one query for all sites to avoid exhausting connection pool.
+export async function getAllSitesCheckHistory(hours = 24) {
+  const result = await db.execute(sql`
+    SELECT site_id, status, response_ms, checked_at
+    FROM uptime_checks
+    WHERE checked_at > NOW() - (${hours} || ' hours')::interval
+    ORDER BY checked_at ASC
+  `);
+  return result as unknown as {
+    site_id: string;
+    status: string;
+    response_ms: number | null;
+    checked_at: string;
+  }[];
+}
+
+export async function getAllSitesDailyUptime(days = 90) {
+  const result = await db.execute(sql`
+    SELECT
+      site_id,
+      to_char(date_trunc('day', checked_at), 'YYYY-MM-DD') AS day,
+      COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE status = 'up')::int AS up_count,
+      COUNT(*) FILTER (WHERE status = 'down')::int AS down_count
+    FROM uptime_checks
+    WHERE checked_at > NOW() - (${days} || ' days')::interval
+    GROUP BY site_id, date_trunc('day', checked_at)
+    ORDER BY site_id, date_trunc('day', checked_at) ASC
+  `);
+  return result as unknown as {
+    site_id: string;
+    day: string;
+    total: number;
+    up_count: number;
+    down_count: number;
+  }[];
+}
+
 // ── Maintenance Queries ───────────────────────────────
 
 export async function getMaintenanceClients() {

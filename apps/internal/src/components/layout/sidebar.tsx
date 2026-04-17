@@ -24,7 +24,6 @@ import {
   PanelLeftClose,
   PanelLeft,
   Handshake,
-  Clock,
   Brain,
   Boxes,
   ScrollText,
@@ -65,7 +64,6 @@ const navSections: NavSection[] = [
     icon: FolderKanban,
     items: [
       { href: "/projects", label: "Projects", icon: FolderKanban },
-      { href: "/time", label: "Time", icon: Clock },
       { href: "/maintenance", label: "Monitoring", icon: Wrench },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/availability", label: "Availability", icon: Users },

@@ -464,9 +464,9 @@ export function PartnerInvoicesTable({
     "rounded-[6px] border border-[#e0e0e0] bg-white px-2.5 py-1.5 text-[13px] text-[#333] focus:border-[#1a73e8] focus:outline-none";
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* Summary bar */}
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="mb-6 grid shrink-0 grid-cols-3 gap-4">
         <SummaryCard
           label="Outstanding Payable"
           amount={summary?.totalPayable ?? 0}
@@ -488,7 +488,7 @@ export function PartnerInvoicesTable({
       </div>
 
       {/* Filters + New button */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
         <select
           value={directionFilter}
           onChange={(e) => setDirectionFilter(e.target.value as Direction)}
@@ -544,8 +544,9 @@ export function PartnerInvoicesTable({
       </div>
 
       {/* Table */}
-      <div className="flex-1 rounded-[6px] border border-[#e0e0e0] bg-white">
-        <table className="w-full">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[6px] border border-[#e0e0e0] bg-white">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+        <table className="h-full w-full">
           <thead>
             <tr className="border-b border-[#e0e0e0]">
               <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
@@ -576,10 +577,10 @@ export function PartnerInvoicesTable({
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr>
+              <tr style={{ height: "100%" }}>
                 <td
                   colSpan={8}
-                  className="px-4 py-8 text-center text-[13px] text-[#aaa]"
+                  className="px-4 py-8 text-center align-middle text-[13px] text-[#aaa]"
                 >
                   No invoices found.
                 </td>
@@ -670,6 +671,7 @@ export function PartnerInvoicesTable({
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* New Invoice Modal */}

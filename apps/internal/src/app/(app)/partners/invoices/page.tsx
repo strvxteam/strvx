@@ -19,8 +19,8 @@ export default async function PartnerInvoicesPage() {
   ]);
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="mb-6">
+    <div className="flex h-full flex-col">
+      <div className="mb-6 shrink-0">
         <h1 className="text-xl font-semibold">Partner Invoices</h1>
       </div>
       <PartnerInvoicesTable

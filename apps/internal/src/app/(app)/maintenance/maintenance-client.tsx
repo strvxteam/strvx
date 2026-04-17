@@ -3,8 +3,6 @@
 import { useState, useTransition, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  CheckCircle2,
-  XCircle,
   Clock,
   Plus,
   Trash2,
@@ -39,50 +37,83 @@ interface SiteData {
   history: HistoryPoint[];
 }
 
-function StatusDot({ status }: { status: "up" | "down" | null }) {
-  if (!status) return <div className="h-3 w-3 rounded-full bg-[#e0e0e0]" />;
-  return (
-    <div className={`h-3 w-3 rounded-full ${status === "up" ? "bg-[#27ae60]" : "bg-[#c0392b]"}`}>
-      <div className={`h-3 w-3 animate-ping rounded-full opacity-30 ${status === "up" ? "bg-[#27ae60]" : "bg-[#c0392b]"}`} />
-    </div>
-  );
+function StatusPill({ site }: { site: SiteData }) {
+  const has24hDown = site.history.some((h) => h.status === "down");
+
+  if (site.status === "down") {
+    return <span className="text-[13px] font-medium text-[#dc2626]">Down</span>;
+  }
+  if (site.status === "up" && has24hDown) {
+    return <span className="text-[13px] font-medium text-[#d97706]">Degraded</span>;
+  }
+  if (site.status === "up") {
+    return <span className="text-[13px] font-medium text-[#16a34a]">Operational</span>;
+  }
+  return <span className="text-[13px] font-medium text-[#9ca3af]">No data</span>;
 }
 
-function UptimeBar({ history }: { history: HistoryPoint[] }) {
-  if (history.length === 0) return <div className="h-6 rounded bg-[#f0f0f0]" />;
+function UptimeBar({ history, hours = 24 }: { history: HistoryPoint[]; hours?: number }) {
+  const now = Date.now();
+  const hourMs = 60 * 60 * 1000;
 
-  // Show last 50 checks as a bar
-  const checks = history.slice(-50);
-  return (
-    <div className="flex h-6 gap-px overflow-hidden rounded">
-      {checks.map((h, i) => (
-        <div
-          key={i}
-          className={`flex-1 ${h.status === "up" ? "bg-[#27ae60]" : "bg-[#c0392b]"}`}
-          title={`${new Date(h.checkedAt).toLocaleTimeString()} — ${h.status} ${h.responseMs ? `(${h.responseMs}ms)` : ""}`}
-        />
-      ))}
-    </div>
-  );
-}
+  const buckets = Array.from({ length: hours }, (_, i) => {
+    const end = now - (hours - 1 - i) * hourMs;
+    const start = end - hourMs;
+    const checks = history.filter((h) => {
+      const t = new Date(h.checkedAt).getTime();
+      return t >= start && t < end;
+    });
+    const total = checks.length;
+    const up = checks.filter((c) => c.status === "up").length;
+    return { hourEnd: new Date(end), total, up, down: total - up };
+  });
 
-function ResponseChart({ history }: { history: HistoryPoint[] }) {
-  const upChecks = history.filter((h) => h.status === "up" && h.responseMs);
-  if (upChecks.length < 2) return null;
-
-  const maxMs = Math.max(...upChecks.map((h) => h.responseMs!));
-  const points = upChecks.map((h, i) => {
-    const x = (i / (upChecks.length - 1)) * 100;
-    const y = 100 - (h.responseMs! / maxMs) * 80;
-    return `${x},${y}`;
-  }).join(" ");
+  let totalChecks = 0;
+  let totalUp = 0;
+  for (const b of buckets) {
+    totalChecks += b.total;
+    totalUp += b.up;
+  }
+  const uptimePct = totalChecks > 0 ? (totalUp / totalChecks) * 100 : null;
 
   return (
-    <div className="mt-2">
-      <p className="mb-1 text-[10px] text-[#888]">Response time (24h)</p>
-      <svg viewBox="0 0 100 100" className="h-10 w-full" preserveAspectRatio="none">
-        <polyline points={points} fill="none" stroke="#1a73e8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-      </svg>
+    <div>
+      <div className="flex h-10 items-stretch gap-[2px]">
+        {buckets.map((b, i) => {
+          // Default: assume up (green). Only real down checks shift the color.
+          let color = "bg-[#16a34a]";
+          let label = "no checks recorded — assumed up";
+          if (b.total > 0) {
+            const pct = (b.up / b.total) * 100;
+            if (pct === 100) color = "bg-[#16a34a]";
+            else if (pct >= 95) color = "bg-[#eab308]";
+            else color = "bg-[#dc2626]";
+            label = `${b.up}/${b.total} up (${pct.toFixed(2)}%)`;
+          }
+          const hourLabel = b.hourEnd.toLocaleString("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            hour12: true,
+          });
+          return (
+            <div
+              key={i}
+              className={`min-w-[3px] flex-1 rounded-[1px] ${color}`}
+              title={`${hourLabel} — ${label}`}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-3 flex items-center gap-3 text-[12px] text-[#9ca3af]">
+        <span className="shrink-0">{hours}h ago</span>
+        <div className="h-px flex-1 bg-[#e5e7eb]" />
+        <span className="shrink-0">
+          {uptimePct !== null ? `${uptimePct.toFixed(2)} % uptime` : "100.00 % uptime"}
+        </span>
+        <div className="h-px flex-1 bg-[#e5e7eb]" />
+        <span className="shrink-0">Now</span>
+      </div>
     </div>
   );
 }
@@ -123,6 +154,14 @@ export default function MaintenanceClient({ sites }: { sites: SiteData[] }) {
   const upCount = sites.filter((s) => s.status === "up").length;
   const downCount = sites.filter((s) => s.status === "down").length;
   const unchecked = sites.filter((s) => !s.status).length;
+
+  // 24h error aggregates across all sites
+  const totalChecks24h = sites.reduce((s, site) => s + site.history.length, 0);
+  const totalErrors24h = sites.reduce(
+    (s, site) => s + site.history.filter((h) => h.status === "down").length,
+    0,
+  );
+  const errorRate24h = totalChecks24h > 0 ? (totalErrors24h / totalChecks24h) * 100 : 0;
 
   async function runChecks() {
     setChecking(true);
@@ -197,7 +236,7 @@ export default function MaintenanceClient({ sites }: { sites: SiteData[] }) {
       </div>
 
       {/* Summary */}
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className={`rounded-lg border border-[#e0e0e0] border-l-[3px] bg-white p-4 ${downCount > 0 ? "border-l-[#c0392b]" : "border-l-[#27ae60]"}`}>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Status</p>
           <p className={`mt-1 text-xl font-semibold ${downCount > 0 ? "text-[#c0392b]" : "text-[#27ae60]"}`}>
@@ -211,6 +250,25 @@ export default function MaintenanceClient({ sites }: { sites: SiteData[] }) {
           </p>
           <p className="mt-0.5 text-[11px] text-[#888]">
             {upCount} up{unchecked > 0 ? ` · ${unchecked} not checked` : ""}
+          </p>
+        </div>
+        <div
+          className={`rounded-lg border border-[#e0e0e0] border-l-[3px] bg-white p-4 ${
+            totalErrors24h > 0 ? "border-l-[#dc2626]" : "border-l-[#16a34a]"
+          }`}
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Errors (24h)</p>
+          <p
+            className={`mt-1 text-xl font-semibold ${
+              totalErrors24h > 0 ? "text-[#dc2626]" : "text-[#222]"
+            }`}
+          >
+            {totalErrors24h}
+          </p>
+          <p className="mt-0.5 text-[11px] text-[#888]">
+            {totalChecks24h > 0
+              ? `${errorRate24h.toFixed(2)}% error rate · ${totalChecks24h} checks`
+              : "no checks yet"}
           </p>
         </div>
         <div className="rounded-lg border border-[#e0e0e0] border-l-[3px] border-l-[#e0e0e0] bg-white p-4">
@@ -285,69 +343,77 @@ export default function MaintenanceClient({ sites }: { sites: SiteData[] }) {
                   {type === "internal" ? "strvx Internal" : "Client Apps"}
                 </p>
                 <div className="flex flex-col gap-2">
-                  {typeSites.map((site) => (
-                    <div key={site.id} className="rounded-lg border border-[#e0e0e0] bg-white p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <StatusDot status={site.status} />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[14px] font-semibold text-[#222]">{site.name}</span>
-                              {site.type === "internal" ? (
-                                <Server size={12} className="text-[#888]" />
-                              ) : (
-                                <Globe size={12} className="text-[#888]" />
-                              )}
-                            </div>
-                            <a href={site.url} target="_blank" rel="noopener noreferrer"
-                              className="text-[12px] text-[#1a73e8] hover:underline">{site.url}</a>
+                  {typeSites.map((site) => {
+                    const siteErrors24h = site.history.filter((h) => h.status === "down").length;
+                    const siteChecks24h = site.history.length;
+                    const siteErrorRate24h =
+                      siteChecks24h > 0 ? (siteErrors24h / siteChecks24h) * 100 : 0;
+                    return (
+                    <div key={site.id} className="group rounded-lg border border-[#e5e7eb] bg-white p-5">
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[15px] font-semibold text-[#111]">{site.name}</span>
+                            {site.type === "internal" ? (
+                              <Server size={12} className="text-[#9ca3af]" />
+                            ) : (
+                              <Globe size={12} className="text-[#9ca3af]" />
+                            )}
                           </div>
+                          <a
+                            href={site.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[12px] text-[#6b7280] hover:text-[#111] hover:underline"
+                          >
+                            {site.url}
+                          </a>
                         </div>
-                        <div className="flex items-center gap-3">
-                          {site.responseMs && (
-                            <span className="text-[13px] font-medium text-[#555]">{site.responseMs}ms</span>
-                          )}
-                          {site.uptime24h !== null && (
-                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                              site.uptime24h >= 99 ? "bg-[#e6f9e6] text-[#27ae60]" :
-                              site.uptime24h >= 95 ? "bg-[#fff3e0] text-[#e65100]" :
-                              "bg-[#fde8e8] text-[#c0392b]"
-                            }`}>
-                              {site.uptime24h}% uptime
-                            </span>
-                          )}
+                        <div className="flex shrink-0 items-center gap-3">
+                          <StatusPill site={site} />
                           <button
                             onClick={() => handleRemove(site.id)}
-                            className="rounded p-1 text-[#ccc] hover:bg-[#fde8e8] hover:text-[#c0392b]"
+                            className="rounded p-1 text-[#d1d5db] opacity-0 transition-opacity hover:bg-[#fee2e2] hover:text-[#dc2626] group-hover:opacity-100"
+                            aria-label="Remove site"
                           >
                             <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
 
-                      {/* Uptime bar */}
-                      <div className="mt-3">
-                        <UptimeBar history={site.history} />
-                      </div>
-
-                      {/* Response time chart */}
-                      <ResponseChart history={site.history} />
+                      {/* 24-hour uptime bar */}
+                      <UptimeBar history={site.history} />
 
                       {/* Meta */}
-                      <div className="mt-2 flex items-center gap-4 text-[11px] text-[#888]">
+                      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#9ca3af]">
                         {site.lastChecked && (
                           <span className="flex items-center gap-1">
                             <Clock size={11} />
-                            {new Date(site.lastChecked).toLocaleString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })}
+                            Last checked{" "}
+                            {new Date(site.lastChecked).toLocaleString("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })}
                           </span>
                         )}
                         {site.statusCode && <span>HTTP {site.statusCode}</span>}
+                        {site.responseMs && <span>{site.responseMs}ms</span>}
+                        {siteErrors24h > 0 ? (
+                          <span className="text-[#dc2626]">
+                            {siteErrors24h} error{siteErrors24h === 1 ? "" : "s"} ·{" "}
+                            {siteErrorRate24h.toFixed(2)}% error rate (24h)
+                          </span>
+                        ) : siteChecks24h > 0 ? (
+                          <span>0% error rate (24h)</span>
+                        ) : null}
                         {site.errorMessage && (
-                          <span className="text-[#c0392b]">{site.errorMessage.slice(0, 60)}</span>
+                          <span className="text-[#dc2626]">{site.errorMessage.slice(0, 60)}</span>
                         )}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );

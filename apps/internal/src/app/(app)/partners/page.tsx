@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export default async function PartnersPage() {
   const partners = await getAllPartners();
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="mb-6 flex items-center justify-between">
+    <div className="flex h-full flex-col">
+      <div className="mb-6 flex shrink-0 items-center justify-between">
         <h1 className="text-xl font-semibold">Partner Directory</h1>
       </div>
       <PartnersTable initialPartners={partners} />

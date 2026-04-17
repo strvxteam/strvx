@@ -381,9 +381,9 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
   });
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* Header + Filter bar */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
         {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#bbb]" />
@@ -436,9 +436,9 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
       </div>
 
       {/* Table */}
-      <div className="flex-1 rounded-[6px] border border-[#e0e0e0] bg-white">
+      <div className="flex min-h-0 flex-1 flex-col rounded-[6px] border border-[#e0e0e0] bg-white">
         {/* Table header */}
-        <div className="grid grid-cols-[2fr_1fr_1fr_80px_100px] border-b border-[#e0e0e0] px-4 py-2.5">
+        <div className="grid shrink-0 grid-cols-[2fr_1fr_1fr_80px_100px] border-b border-[#e0e0e0] px-4 py-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Name</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stage</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Tags</span>
@@ -447,8 +447,9 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
         </div>
 
         {/* Rows */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
         {filtered.length === 0 ? (
-          <div className="px-4 py-10 text-center text-[13px] text-[#aaa]">
+          <div className="flex h-full items-center justify-center px-4 py-10 text-center text-[13px] text-[#aaa]">
             {search || stageFilter !== "all" || tagFilter !== "all"
               ? "No partners match your filters."
               : "No partners yet. Add one to get started."}
@@ -496,11 +497,12 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
             </div>
           ))
         )}
+        </div>
       </div>
 
       {/* Result count */}
       {filtered.length > 0 && (
-        <p className="mt-2 text-[11px] text-[#aaa]">
+        <p className="mt-2 shrink-0 text-[11px] text-[#aaa]">
           {filtered.length} partner{filtered.length !== 1 ? "s" : ""}
           {filtered.length !== partners.length && ` of ${partners.length}`}
         </p>

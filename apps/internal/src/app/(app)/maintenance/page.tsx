@@ -1,25 +1,27 @@
 import type { Metadata } from "next";
-import { getAllSitesLatestStatus, getSiteCheckHistory } from "@/lib/queries";
+import {
+  getAllSitesLatestStatus,
+  getAllSitesCheckHistory,
+} from "@/lib/queries";
 import MaintenanceClient from "./maintenance-client";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Monitoring" };
 
 export default async function MaintenancePage() {
-  const sites = await getAllSitesLatestStatus();
+  const [sites, historyRows] = await Promise.all([
+    getAllSitesLatestStatus(),
+    getAllSitesCheckHistory(24),
+  ]);
 
-  // Get check history for each site (for sparkline)
   const historyMap: Record<string, { status: string; responseMs: number | null; checkedAt: string }[]> = {};
-  await Promise.all(
-    sites.map(async (site) => {
-      const history = await getSiteCheckHistory(site.site_id);
-      historyMap[site.site_id] = history.map((h) => ({
-        status: h.status,
-        responseMs: h.response_ms,
-        checkedAt: h.checked_at,
-      }));
-    })
-  );
+  for (const h of historyRows) {
+    (historyMap[h.site_id] ??= []).push({
+      status: h.status,
+      responseMs: h.response_ms,
+      checkedAt: h.checked_at,
+    });
+  }
 
   const serialized = sites.map((s) => ({
     id: s.site_id,
