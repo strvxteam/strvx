@@ -137,16 +137,28 @@ export function Sidebar() {
 
   // Auto-open section when navigating
   useEffect(() => {
-    for (const section of navSections) {
-      if (section.items.some((item) => pathname === item.href || pathname.startsWith(item.href + "/"))) {
-        setOpenSections((prev) => {
-          if (prev.has(section.label)) return prev;
-          const next = new Set(prev);
-          next.add(section.label);
-          return next;
-        });
-      }
-    }
+    const matchingSections = navSections
+      .filter((section) =>
+        section.items.some(
+          (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
+        ),
+      )
+      .map((s) => s.label);
+    if (matchingSections.length === 0) return;
+    const id = requestAnimationFrame(() => {
+      setOpenSections((prev) => {
+        let changed = false;
+        const next = new Set(prev);
+        for (const label of matchingSections) {
+          if (!next.has(label)) {
+            next.add(label);
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    });
+    return () => cancelAnimationFrame(id);
   }, [pathname]);
 
   useEffect(() => {

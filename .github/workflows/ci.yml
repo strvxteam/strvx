@@ -43,11 +43,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Lint is non-blocking today — main has 6 preexisting lint errors
-      # (apps/landing). Once those are cleaned up, drop continue-on-error.
       - name: Lint
         run: pnpm lint
-        continue-on-error: true
 
       - name: Typecheck
         run: pnpm typecheck

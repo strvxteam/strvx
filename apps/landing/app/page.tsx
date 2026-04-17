@@ -176,7 +176,10 @@ function AnimatedStat({ value, label }: { value: string; label: string }) {
   useEffect(() => {
     if (!isInView) return;
     const numericMatch = value.match(/^(\d+)/);
-    if (!numericMatch) { setDisplay(value); return; }
+    if (!numericMatch) {
+      const id = requestAnimationFrame(() => setDisplay(value));
+      return () => cancelAnimationFrame(id);
+    }
     const target = parseInt(numericMatch[1]);
     const suffix = value.replace(/^\d+/, "");
     const duration = 1200;
@@ -784,7 +787,8 @@ export default function Home() {
 
   useEffect(() => {
     if (sessionStorage.getItem('strvx-splash-seen')) {
-      setSplashDone(true);
+      const id = requestAnimationFrame(() => setSplashDone(true));
+      return () => cancelAnimationFrame(id);
     }
   }, []);
 

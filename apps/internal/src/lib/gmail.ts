@@ -37,7 +37,7 @@ export async function syncGmailForUser(userId: string): Promise<{ synced: number
     ? Math.floor(new Date(syncState.lastSyncedAt).getTime() / 1000)
     : Math.floor(sevenDaysAgo.getTime() / 1000);
 
-  let messages: EmailMessage[] = [];
+  const messages: EmailMessage[] = [];
   try {
     const listRes = await gmail.users.messages.list({
       userId: "me",

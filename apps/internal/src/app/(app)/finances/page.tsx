@@ -1,7 +1,7 @@
 import FinancesPage from "./finances-client";
 import type { Invoice, Expense } from "@/lib/mock-finance";
 import { getInvoices, getExpenses, getMRR, getMonthlyRevenue, getPipelineEngagements, getProjectProfitability, getCreditCards, getAllCardBudgets, getAllCardReceipts, getAllCardAlerts } from "@/lib/queries";
-import { getMercuryAccounts, getAllMercuryTransactions, isMercuryConfigured, getAllMercuryCards } from "@/lib/mercury";
+import { getMercuryAccounts, getAllMercuryTransactions, isMercuryConfigured, getAllMercuryCards, type MercuryCard } from "@/lib/mercury";
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,7 @@ export default async function FinancesServerPage() {
   // Fetch Mercury bank data if configured
   let bankAccounts: { id: string; name: string; kind: string; currentBalance: number; availableBalance: number }[] = [];
   let bankTransactions: { id: string; amount: number; counterpartyName: string; note: string | null; createdAt: string; status: string; kind: string }[] = [];
-  let mercuryCards: any[] = [];
+  let mercuryCards: MercuryCard[] = [];
   const mercuryConnected = isMercuryConfigured();
 
   // Mercury is now the single source of truth for Finances P&L.
@@ -155,7 +155,7 @@ export default async function FinancesServerPage() {
     enabled: a.enabled,
   }));
 
-  const mercuryCardsList = (mercuryConnected ? mercuryCards : []).map((c: any) => ({
+  const mercuryCardsList = (mercuryConnected ? mercuryCards : []).map((c) => ({
     cardId: c.cardId,
     nameOnCard: c.nameOnCard,
     lastFourDigits: c.lastFourDigits,

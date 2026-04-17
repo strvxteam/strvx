@@ -1,29 +1,36 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 import { MotionConfig } from "framer-motion";
 
 const MobileContext = createContext(false);
 const ReducedMotionContext = createContext(false);
 
+function subscribeResize(cb: () => void) {
+  window.addEventListener("resize", cb);
+  return () => window.removeEventListener("resize", cb);
+}
+
+function subscribeMediaQuery(query: string) {
+  return (cb: () => void) => {
+    const mq = window.matchMedia(query);
+    mq.addEventListener("change", cb);
+    return () => mq.removeEventListener("change", cb);
+  };
+}
+
 export function MotionProvider({ children }: { children: React.ReactNode }) {
-  const [isMobile, setIsMobile] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const isMobile = useSyncExternalStore(
+    subscribeResize,
+    () => window.innerWidth < 768,
+    () => true,
+  );
 
-  useEffect(() => {
-    const check = () => setIsMobile(window.innerWidth < 768);
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReducedMotion(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const reducedMotion = useSyncExternalStore(
+    subscribeMediaQuery("(prefers-reduced-motion: reduce)"),
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false,
+  );
 
   return (
     <MotionConfig reducedMotion={reducedMotion ? "always" : "never"}>

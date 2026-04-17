@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
 
 const regions = [
@@ -52,7 +52,9 @@ export default function Header() {
   const [pillRect, setPillRect] = useState<{ left: number; width: number } | null>(null);
   const [hasAnimated, setHasAnimated] = useState(false);
 
-  const measure = useCallback(() => {
+  // React Compiler handles memoization; manual useCallback + exhaustive-deps
+  // disable was fighting the compiler.
+  function measure() {
     const activeIdx = regions.findIndex(r => isActiveRegion(r.href));
     const el = regionRefs.current[activeIdx];
     const container = containerRef.current;
@@ -64,7 +66,7 @@ export default function Header() {
         width: elRect.width,
       });
     }
-  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   useEffect(() => {
     measure();

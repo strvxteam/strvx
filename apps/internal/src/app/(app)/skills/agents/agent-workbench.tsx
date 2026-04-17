@@ -514,7 +514,7 @@ export function AgentWorkbench({
                     );
                   })}
                   {importableRules.length === 0 && (
-                    <p style={{ fontSize: 12, color: "#aaa", padding: "8px 0", fontStyle: "italic" }}>No importable rules available. Create rules with "importable" scope.</p>
+                    <p style={{ fontSize: 12, color: "#aaa", padding: "8px 0", fontStyle: "italic" }}>No importable rules available. Create rules with &quot;importable&quot; scope.</p>
                   )}
                 </div>
               </div>

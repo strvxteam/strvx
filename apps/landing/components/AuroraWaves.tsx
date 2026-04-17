@@ -79,7 +79,7 @@ export function AuroraWaves() {
       ctx!.fill();
     }
 
-    let startTime = performance.now();
+    const startTime = performance.now();
 
     function animate(now: number) {
       const t = (now - startTime) / 1000;

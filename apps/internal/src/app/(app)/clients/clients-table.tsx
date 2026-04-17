@@ -792,7 +792,7 @@ export function ClientsTable({
     }
   };
 
-  const SortIcon = ({ col }: { col: SortKey }) => {
+  const renderSortIcon = (col: SortKey) => {
     if (sortKey !== col) return <ArrowUpDown size={12} className="text-[#ccc]" />;
     return sortDir === "asc" ? <ArrowUp size={12} className="text-[#111]" /> : <ArrowDown size={12} className="text-[#111]" />;
   };
@@ -908,13 +908,13 @@ export function ClientsTable({
           <Table>
             <TableHeader className="sticky top-0 z-10 bg-white">
               <TableRow>
-                <TableHead className="text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("company")} className="flex items-center gap-1"><span>Company</span><SortIcon col="company" /></button></TableHead>
-                <TableHead className="text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("engagement")} className="flex items-center gap-1"><span>Engagement</span><SortIcon col="engagement" /></button></TableHead>
-                <TableHead className="text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("contact")} className="flex items-center gap-1"><span>Contact</span><SortIcon col="contact" /></button></TableHead>
-                <TableHead className="text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("stage")} className="flex items-center gap-1"><span>Stage</span><SortIcon col="stage" /></button></TableHead>
-                <TableHead className="text-right text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("value")} className="flex items-center justify-end gap-1"><span>Value</span><SortIcon col="value" /></button></TableHead>
-                <TableHead className="text-center text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("days")} className="flex items-center justify-center gap-1"><span>Days</span><SortIcon col="days" /></button></TableHead>
-                <TableHead className="text-[11px]"><button type="button" onClick={() => toggleSort("source")} className="flex items-center gap-1"><span>Source</span><SortIcon col="source" /></button></TableHead>
+                <TableHead className="text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("company")} className="flex items-center gap-1"><span>Company</span>{renderSortIcon("company")}</button></TableHead>
+                <TableHead className="text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("engagement")} className="flex items-center gap-1"><span>Engagement</span>{renderSortIcon("engagement")}</button></TableHead>
+                <TableHead className="text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("contact")} className="flex items-center gap-1"><span>Contact</span>{renderSortIcon("contact")}</button></TableHead>
+                <TableHead className="text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("stage")} className="flex items-center gap-1"><span>Stage</span>{renderSortIcon("stage")}</button></TableHead>
+                <TableHead className="text-right text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("value")} className="flex items-center justify-end gap-1"><span>Value</span>{renderSortIcon("value")}</button></TableHead>
+                <TableHead className="text-center text-[11px] border-r border-[#f0f0f0]"><button type="button" onClick={() => toggleSort("days")} className="flex items-center justify-center gap-1"><span>Days</span>{renderSortIcon("days")}</button></TableHead>
+                <TableHead className="text-[11px]"><button type="button" onClick={() => toggleSort("source")} className="flex items-center gap-1"><span>Source</span>{renderSortIcon("source")}</button></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

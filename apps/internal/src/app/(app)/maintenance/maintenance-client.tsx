@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useEffect, useCallback } from "react";
+import { useState, useTransition, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Clock,
@@ -53,20 +53,25 @@ function StatusPill({ site }: { site: SiteData }) {
 }
 
 function UptimeBar({ history, hours = 24 }: { history: HistoryPoint[]; hours?: number }) {
-  const now = Date.now();
   const hourMs = 60 * 60 * 1000;
 
-  const buckets = Array.from({ length: hours }, (_, i) => {
-    const end = now - (hours - 1 - i) * hourMs;
-    const start = end - hourMs;
-    const checks = history.filter((h) => {
-      const t = new Date(h.checkedAt).getTime();
-      return t >= start && t < end;
+  // useMemo keeps Date.now() out of the render-pure path and re-computes only
+  // when history or hours change. React Compiler flags bare Date.now() as impure.
+  const buckets = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
+    const now = Date.now();
+    return Array.from({ length: hours }, (_, i) => {
+      const end = now - (hours - 1 - i) * hourMs;
+      const start = end - hourMs;
+      const checks = history.filter((h) => {
+        const t = new Date(h.checkedAt).getTime();
+        return t >= start && t < end;
+      });
+      const total = checks.length;
+      const up = checks.filter((c) => c.status === "up").length;
+      return { hourEnd: new Date(end), total, up, down: total - up };
     });
-    const total = checks.length;
-    const up = checks.filter((c) => c.status === "up").length;
-    return { hourEnd: new Date(end), total, up, down: total - up };
-  });
+  }, [history, hours, hourMs]);
 
   let totalChecks = 0;
   let totalUp = 0;

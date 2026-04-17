@@ -51,7 +51,7 @@ export async function runReconciliation(): Promise<{
     return { matched, unmatched, errors };
   }
 
-  let mercuryTxns: { id: string; amount: number; counterpartyName: string; createdAt: string }[] = [];
+  const mercuryTxns: { id: string; amount: number; counterpartyName: string; createdAt: string }[] = [];
   try {
     const accounts = await getMercuryAccounts();
     for (const acct of accounts) {
