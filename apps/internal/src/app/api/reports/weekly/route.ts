@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     // New prospects
     // Hours logged
     db.execute(sql`
-      SELECT COALESCE(SUM(hours::numeric), 0) as total
+      SELECT COALESCE(SUM(duration_minutes::numeric) / 60, 0) as total
       FROM time_entries WHERE date >= ${weekAgo.toISOString().split("T")[0]}
     `),
     // Active engagements

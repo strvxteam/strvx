@@ -429,10 +429,13 @@ export const timeEntries = pgTable("time_entries", {
     .references(() => users.id),
   projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
   engagementId: uuid("engagement_id").references(() => engagements.id, { onDelete: "set null" }),
-  date: date("date").notNull(),
-  hours: numeric("hours").notNull(),
+  taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
   description: text("description").notNull(),
+  durationMinutes: integer("duration_minutes").notNull(),
+  date: date("date").notNull(),
   billable: boolean("billable").notNull().default(true),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  stoppedAt: timestamp("stopped_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -890,6 +893,7 @@ export const skills = pgTable("skills", {
   codeSnippets: jsonb("code_snippets"),
   priority: integer("priority").notNull().default(0),
   isActive: boolean("is_active").notNull().default(true),
+  exportToAgent: boolean("export_to_agent").notNull().default(false),
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

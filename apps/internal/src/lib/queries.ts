@@ -1075,7 +1075,7 @@ export async function getTimeEntriesByProject(projectId: string) {
     .select({
       id: timeEntries.id,
       date: timeEntries.date,
-      hours: timeEntries.hours,
+      hours: sql<string>`(${timeEntries.durationMinutes}::numeric / 60)`,
       description: timeEntries.description,
       billable: timeEntries.billable,
       userName: users.name,
@@ -1091,8 +1091,8 @@ export async function getTimeEntriesByProject(projectId: string) {
 export async function getTimeEntrySummaryByProject(projectId: string) {
   const result = await db
     .select({
-      totalHours: sql<string>`COALESCE(SUM(${timeEntries.hours}::numeric), 0)`,
-      billableHours: sql<string>`COALESCE(SUM(CASE WHEN ${timeEntries.billable} THEN ${timeEntries.hours}::numeric ELSE 0 END), 0)`,
+      totalHours: sql<string>`COALESCE(SUM(${timeEntries.durationMinutes}::numeric) / 60, 0)`,
+      billableHours: sql<string>`COALESCE(SUM(CASE WHEN ${timeEntries.billable} THEN ${timeEntries.durationMinutes}::numeric ELSE 0 END) / 60, 0)`,
       entryCount: count(),
     })
     .from(timeEntries)
@@ -1124,7 +1124,7 @@ export async function getTeamWorkload() {
       GROUP BY ta.user_id
     ) task_counts ON task_counts.user_id = u.id
     LEFT JOIN (
-      SELECT te.user_id, SUM(te.hours::numeric) as hours
+      SELECT te.user_id, SUM(te.duration_minutes::numeric) / 60 as hours
       FROM time_entries te
       WHERE te.date >= date_trunc('week', CURRENT_DATE)
       GROUP BY te.user_id
@@ -1202,8 +1202,8 @@ export async function getProjectProfitability() {
       p.id as project_id,
       p.name as project_name,
       p.client,
-      COALESCE(SUM(te.hours::numeric), 0) as total_hours,
-      COALESCE(SUM(CASE WHEN te.billable THEN te.hours::numeric ELSE 0 END), 0) as billable_hours,
+      COALESCE(SUM(te.duration_minutes::numeric) / 60, 0) as total_hours,
+      COALESCE(SUM(CASE WHEN te.billable THEN te.duration_minutes::numeric ELSE 0 END) / 60, 0) as billable_hours,
       COALESCE(inv_totals.revenue, 0) as revenue
     FROM projects p
     LEFT JOIN time_entries te ON te.project_id = p.id
@@ -1216,7 +1216,7 @@ export async function getProjectProfitability() {
       GROUP BY e.id, p2.id
     ) inv_totals ON inv_totals.project_id = p.id
     GROUP BY p.id, p.name, p.client, inv_totals.revenue
-    HAVING COALESCE(SUM(te.hours::numeric), 0) > 0 OR COALESCE(inv_totals.revenue, 0) > 0
+    HAVING COALESCE(SUM(te.duration_minutes::numeric), 0) > 0 OR COALESCE(inv_totals.revenue, 0) > 0
     ORDER BY COALESCE(inv_totals.revenue, 0) DESC
   `);
   return result as unknown as {

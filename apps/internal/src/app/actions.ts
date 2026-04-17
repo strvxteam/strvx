@@ -1198,7 +1198,7 @@ export async function createTimeEntry(data: {
       userId: user.id,
       projectId: parsedProjectId.data,
       date: data.date,
-      hours: String(data.hours),
+      durationMinutes: Math.round(data.hours * 60),
       description: data.description.trim(),
       billable: data.billable ?? true,
     })
