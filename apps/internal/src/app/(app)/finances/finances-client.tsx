@@ -208,23 +208,32 @@ export default function FinancesPage({
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   })();
 
-  // Pipeline forecast
+  // Pipeline forecast — fall back to stage-based probability when not set on the engagement.
+  const STAGE_DEFAULT_PROBABILITY: Record<string, number> = {
+    discovery: 10,
+    building_mvp: 20,
+    proposal: 30,
+    build: 70,
+    deliver: 85,
+    maintain: 100,
+  };
   const pipelineDeals = (pipelineEngagementsProp ?? [])
     .filter(
-      (eng) =>
-        eng.dealValue &&
-        eng.probability &&
-        !["closed_won", "closed_lost"].includes(eng.stage)
+      (eng) => eng.dealValue && !["closed_won", "closed_lost"].includes(eng.stage)
     )
-    .map((eng) => ({
-      name: eng.name,
-      client: eng.companyName,
-      value: Number(eng.dealValue),
-      probability: Number(eng.probability),
-      weighted: Math.round(
-        Number(eng.dealValue) * (Number(eng.probability) / 100)
-      ),
-    }));
+    .map((eng) => {
+      const probability = eng.probability != null
+        ? Number(eng.probability)
+        : (STAGE_DEFAULT_PROBABILITY[eng.stage] ?? 20);
+      const value = Number(eng.dealValue);
+      return {
+        name: eng.name,
+        client: eng.companyName,
+        value,
+        probability,
+        weighted: Math.round(value * (probability / 100)),
+      };
+    });
 
   const totalWeighted = pipelineDeals.reduce((sum, d) => sum + d.weighted, 0);
 
@@ -313,8 +322,8 @@ export default function FinancesPage({
   };
 
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
+    <div className="flex h-full flex-col">
+      <div className="mb-6 flex shrink-0 items-center justify-between">
         <h1 className="text-xl font-semibold">Finances</h1>
         <div className="flex items-center gap-3">
           <button
@@ -406,6 +415,11 @@ export default function FinancesPage({
             <h2 className="mb-3 text-sm font-semibold text-[#333]">
               Revenue by Month
             </h2>
+            {monthlyRevenueData.length === 0 ? (
+              <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 180 }}>
+                No paid invoices yet. Once invoices are marked paid, monthly revenue will appear here.
+              </div>
+            ) : (
             <div className="flex items-end gap-3" style={{ height: 180 }}>
               {monthlyRevenueData.map((m, i) => {
                 const heightPct = (m.revenue / maxMonthlyRevenue) * 100;
@@ -431,6 +445,7 @@ export default function FinancesPage({
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Expense breakdown */}
@@ -438,6 +453,11 @@ export default function FinancesPage({
             <h2 className="mb-3 text-sm font-semibold text-[#333]">
               Expenses by Category
             </h2>
+            {categoryTotals.length === 0 ? (
+              <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 180 }}>
+                No expenses yet. Click &quot;Add Expense&quot; to log one.
+              </div>
+            ) : (
             <div className="flex flex-col gap-2.5">
               {categoryTotals.map(([cat, amount]) => {
                 const pct = localExpensesTotal > 0 ? (amount / localExpensesTotal) * 100 : 0;
@@ -459,6 +479,7 @@ export default function FinancesPage({
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Revenue by client */}
@@ -466,6 +487,11 @@ export default function FinancesPage({
             <h2 className="mb-3 text-sm font-semibold text-[#333]">
               Revenue by Client
             </h2>
+            {clientRevenue.length === 0 ? (
+              <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 120 }}>
+                No paid invoices yet.
+              </div>
+            ) : (
             <div className="flex flex-col gap-2">
               {clientRevenue.map(([client, revenue]) => {
                 const pct =
@@ -495,6 +521,7 @@ export default function FinancesPage({
                 );
               })}
             </div>
+            )}
           </div>
 
           {/* Pipeline forecast */}
@@ -502,6 +529,11 @@ export default function FinancesPage({
             <h2 className="mb-3 text-sm font-semibold text-[#333]">
               Pipeline Forecast
             </h2>
+            {pipelineDeals.length === 0 ? (
+              <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 120 }}>
+                Add deal value to engagements in the pipeline to see forecasted revenue.
+              </div>
+            ) : (
             <div className="flex flex-col gap-2">
               {pipelineDeals.map((deal) => (
                 <div
@@ -533,6 +565,7 @@ export default function FinancesPage({
                 </span>
               </div>
             </div>
+            )}
           </div>
 
           {/* Recent Bank Transactions */}
