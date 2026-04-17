@@ -23,11 +23,14 @@ export default async function FinancesServerPage() {
   let mercuryCards: any[] = [];
   const mercuryConnected = isMercuryConfigured();
 
+  // Also pull full transaction set for P&L totals (not just the 50-row display list)
+  let mercuryRevenue = 0;
+  let mercuryExpenses = 0;
   if (mercuryConnected) {
     try {
       const [accounts, transactions, cards] = await Promise.all([
         getMercuryAccounts(),
-        getAllMercuryTransactions({ limit: 50 }),
+        getAllMercuryTransactions({ limit: 500 }),
         getAllMercuryCards(),
       ]);
       mercuryCards = cards;
@@ -47,6 +50,12 @@ export default async function FinancesServerPage() {
         status: t.status,
         kind: t.kind,
       }));
+      // Sum settled transactions: positive = money in (revenue), negative = money out (expense)
+      for (const t of transactions) {
+        if (t.status === "failed" || t.status === "cancelled") continue;
+        if (t.amount > 0) mercuryRevenue += t.amount;
+        else mercuryExpenses += Math.abs(t.amount);
+      }
     } catch (err) {
       console.error("[Finances] Mercury fetch failed:", err);
     }
@@ -161,6 +170,8 @@ export default async function FinancesServerPage() {
       cardBudgets={budgets}
       cardReceipts={receipts}
       cardAlerts={alerts}
+      mercuryRevenue={mercuryRevenue}
+      mercuryExpenses={mercuryExpenses}
     />
   );
 }

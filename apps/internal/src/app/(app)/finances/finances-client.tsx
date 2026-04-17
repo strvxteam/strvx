@@ -137,6 +137,8 @@ export interface FinancesPageProps {
   cardBudgets?: CardBudgetSlim[];
   cardReceipts?: CardReceiptSlim[];
   cardAlerts?: CardAlertSlim[];
+  mercuryRevenue?: number;
+  mercuryExpenses?: number;
 }
 
 export default function FinancesPage({
@@ -154,6 +156,8 @@ export default function FinancesPage({
   cardBudgets = [],
   cardReceipts = [],
   cardAlerts = [],
+  mercuryRevenue = 0,
+  mercuryExpenses = 0,
 }: FinancesPageProps = {}) {
   const invoiceData = invoicesProp ?? [];
   const monthlyRevenueData = monthlyRevenueProp ?? [];
@@ -166,7 +170,7 @@ export default function FinancesPage({
 
   // Revenue calculations
   const paidInvoices = invoiceData.filter((inv) => inv.status === "paid");
-  const totalRevenue = paidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+  const invoiceRevenue = paidInvoices.reduce((sum, inv) => sum + inv.amount, 0);
   const currentMonth = monthlyRevenueData[monthlyRevenueData.length - 1] ?? { month: "", revenue: 0 };
   const prevMonth = monthlyRevenueData[monthlyRevenueData.length - 2];
   const revenueGrowth = prevMonth
@@ -179,7 +183,13 @@ export default function FinancesPage({
     : 1;
 
   // Expense calculations
-  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const localExpensesTotal = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  // When Mercury is connected, the top P&L reflects real bank activity (revenue = deposits,
+  // expenses = withdrawals). Invoicing + manual expenses are separate views (see Revenue
+  // and Expenses tabs). This matches the user's mental model — the card should reflect
+  // what's actually moving through the account.
+  const totalRevenue = mercuryConnected ? mercuryRevenue : invoiceRevenue;
+  const totalExpenses = mercuryConnected ? mercuryExpenses : localExpensesTotal;
   const profit = totalRevenue - totalExpenses;
   const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
@@ -448,7 +458,7 @@ export default function FinancesPage({
             </h2>
             <div className="flex flex-col gap-2.5">
               {categoryTotals.map(([cat, amount]) => {
-                const pct = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
+                const pct = localExpensesTotal > 0 ? (amount / localExpensesTotal) * 100 : 0;
                 return (
                   <div key={cat}>
                     <div className="mb-1 flex items-center justify-between text-[12px]">
@@ -477,7 +487,7 @@ export default function FinancesPage({
             <div className="flex flex-col gap-2">
               {clientRevenue.map(([client, revenue]) => {
                 const pct =
-                  totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
+                  invoiceRevenue > 0 ? (revenue / invoiceRevenue) * 100 : 0;
                 return (
                   <div key={client} className="flex items-center gap-3">
                     <div className="min-w-0 flex-1">
@@ -723,8 +733,8 @@ export default function FinancesPage({
                         ${revenue.toLocaleString()}
                       </td>
                       <td className="py-2 text-right text-[12px] text-[#888]">
-                        {totalRevenue > 0
-                          ? Math.round((revenue / totalRevenue) * 100)
+                        {invoiceRevenue > 0
+                          ? Math.round((revenue / invoiceRevenue) * 100)
                           : 0}
                         %
                       </td>
@@ -791,7 +801,7 @@ export default function FinancesPage({
               <div className="flex flex-col gap-3">
                 {categoryTotals.map(([cat, amount]) => {
                   const pct =
-                    totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
+                    localExpensesTotal > 0 ? (amount / localExpensesTotal) * 100 : 0;
                   return (
                     <div key={cat}>
                       <div className="mb-1 flex items-center justify-between text-[12px]">
@@ -827,7 +837,7 @@ export default function FinancesPage({
               </h2>
               <div className="flex flex-col items-center justify-center gap-2 py-8">
                 <p className="text-3xl font-bold text-[#222]">
-                  ${totalExpenses.toLocaleString()}
+                  ${localExpensesTotal.toLocaleString()}
                 </p>
                 <p className="text-[13px] text-[#888]">
                   across {expenses.length} expenses this period
@@ -838,7 +848,7 @@ export default function FinancesPage({
                     <p className="text-[15px] font-medium text-[#222]">
                       $
                       {expenses.length > 0
-                        ? Math.round(totalExpenses / expenses.length)
+                        ? Math.round(localExpensesTotal / expenses.length)
                         : 0}
                     </p>
                   </div>
