@@ -3144,15 +3144,18 @@ export async function deployAgentAction(agentId: string) {
   const output = md.trim();
   const deployPath = agent.deployPath ?? ".claude/rules/strvx-uiux-agent.md";
 
-  // Write the file to disk
-  const fs = await import("fs/promises");
-  const path = await import("path");
-  const fullPath = path.join(process.cwd(), deployPath);
-  const dir = path.dirname(fullPath);
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(fullPath, output, "utf-8");
+  // Filesystem is read-only on Vercel (/var/task). Only write locally.
+  let written = false;
+  if (!process.env.VERCEL) {
+    const fs = await import("fs/promises");
+    const path = await import("path");
+    const fullPath = path.join(process.cwd(), deployPath);
+    const dir = path.dirname(fullPath);
+    await fs.mkdir(dir, { recursive: true });
+    await fs.writeFile(fullPath, output, "utf-8");
+    written = true;
+  }
 
-  // Save deployment record
   await db
     .update(agents)
     .set({
@@ -3162,7 +3165,7 @@ export async function deployAgentAction(agentId: string) {
     .where(eq(agents.id, agentId));
 
   revalidatePath("/skills/agents");
-  return { output, path: deployPath, rulesCount: activeRules.length, written: true };
+  return { output, path: deployPath, rulesCount: activeRules.length, written };
 }
 
 // ── Patterns ──────────────────────────────────────────
