@@ -31,9 +31,7 @@ import {
   deleteExpense as deleteExpenseAction,
 } from "@/app/actions";
 import { toast } from "sonner";
-import { CreditCardsTab } from "./components/credit-cards/credit-cards-tab";
 
-type TabView = "overview" | "credit-cards";
 
 const CATEGORIES: ExpenseCategory[] = [
   "Software",
@@ -163,7 +161,6 @@ export default function FinancesPage({
   const monthlyRevenueData = monthlyRevenueProp ?? [];
   const initialExpenses = expensesProp ?? [];
 
-  const [tab, setTab] = useState<TabView>("overview");
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -320,21 +317,6 @@ export default function FinancesPage({
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Finances</h1>
         <div className="flex items-center gap-3">
-          <div className="flex rounded-lg border border-[#e0e0e0] bg-white">
-            {(["overview", "credit-cards"] as const).map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-3 py-1.5 text-[13px] font-medium capitalize transition-colors first:rounded-l-lg last:rounded-r-lg ${
-                  tab === t
-                    ? "bg-[#f0f0f0] text-[#111]"
-                    : "text-[#555] hover:bg-[#fafafa]"
-                }`}
-              >
-                {t === "credit-cards" ? "Credit Cards" : t}
-              </button>
-            ))}
-          </div>
           <button
             onClick={() => {
               setEditingExpense(null);
@@ -417,7 +399,7 @@ export default function FinancesPage({
       )}
 
       {/* Overview tab */}
-      {tab === "overview" && (
+      {(
         <div className="grid grid-cols-2 gap-6">
           {/* Revenue by month */}
           <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
@@ -623,17 +605,6 @@ export default function FinancesPage({
             </div>
           )}
         </div>
-      )}
-      {tab === "credit-cards" && (
-        <CreditCardsTab
-          mercuryCards={mercuryCards}
-          cardEnrichment={cardEnrichment}
-          cardBudgets={cardBudgets}
-          cardReceipts={cardReceipts}
-          cardAlerts={cardAlerts}
-          bankTransactions={bankTransactions}
-          mercuryConnected={mercuryConnected}
-        />
       )}
 
       {/* Expense Modal */}
