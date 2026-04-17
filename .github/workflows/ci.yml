@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Optional turbo remote cache. Set TURBO_TOKEN secret + TURBO_TEAM var in
+  # the repo settings to enable shared caching across runs.
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+jobs:
+  ci:
+    name: lint + typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.8.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Lint is non-blocking today — main has 6 preexisting lint errors
+      # (apps/landing). Once those are cleaned up, drop continue-on-error.
+      - name: Lint
+        run: pnpm lint
+        continue-on-error: true
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
