@@ -10,6 +10,7 @@ import {
   jsonb,
   pgEnum,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // ── Enums ──────────────────────────────────────────────
@@ -748,5 +749,285 @@ export const cardAlerts = pgTable("card_alerts", {
   alertType: text("alert_type").notNull(),
   thresholdValue: numeric("threshold_value").notNull(),
   enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Skills & Agents Enums ─────────────────────────────
+
+export const skillLibraryInstallMethodEnum = pgEnum("skill_library_install_method", [
+  "copy-paste",
+  "npm",
+  "shadcn-cli",
+]);
+
+export const skillLibraryCategoryEnum = pgEnum("skill_library_category", [
+  "base",
+  "animation",
+  "editor",
+  "data",
+  "ai",
+  "full",
+  "utility",
+]);
+
+export const skillComponentCategoryEnum = pgEnum("skill_component_category", [
+  "form",
+  "layout",
+  "data-display",
+  "overlay",
+  "navigation",
+  "feedback",
+  "animation",
+  "text-effect",
+  "chart",
+  "editor",
+  "ai",
+  "utility",
+  "background",
+  "button",
+  "card",
+  "table",
+  "input",
+]);
+
+export const skillComponentStatusEnum = pgEnum("skill_component_status", [
+  "available",
+  "installed",
+  "approved",
+  "deprecated",
+]);
+
+export const skillTypeEnum = pgEnum("skill_type", [
+  "preset",
+  "custom",
+]);
+
+export const skillCategoryEnum = pgEnum("skill_category", [
+  "layout",
+  "design-tokens",
+  "component-preference",
+  "behavioral",
+  "pattern",
+]);
+
+export const agentTypeEnum = pgEnum("agent_type", [
+  "builder",
+  "linter",
+  "reviewer",
+  "automation",
+]);
+
+export const agentStatusEnum = pgEnum("agent_status", [
+  "active",
+  "paused",
+  "draft",
+]);
+
+export const agentRunStatusEnum = pgEnum("agent_run_status", [
+  "running",
+  "success",
+  "failed",
+]);
+
+// ── Skill Libraries ───────────────────────────────────
+
+export const skillLibraries = pgTable("skill_libraries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  url: text("url"),
+  githubUrl: text("github_url"),
+  description: text("description"),
+  installMethod: skillLibraryInstallMethodEnum("install_method").notNull().default("npm"),
+  license: text("license"),
+  category: skillLibraryCategoryEnum("category").notNull().default("base"),
+  isActive: boolean("is_active").notNull().default(true),
+  logoUrl: text("logo_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Skill Components ──────────────────────────────────
+
+export const skillComponents = pgTable(
+  "skill_components",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    libraryId: uuid("library_id")
+      .notNull()
+      .references(() => skillLibraries.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description"),
+    category: skillComponentCategoryEnum("category").notNull().default("utility"),
+    installCommand: text("install_command"),
+    importPath: text("import_path"),
+    dependencies: text("dependencies").array(),
+    propsSummary: jsonb("props_summary"),
+    keyProps: text("key_props"),
+    whenToUse: text("when_to_use"),
+    status: skillComponentStatusEnum("status").notNull().default("available"),
+    tags: text("tags").array(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("skill_components_library_idx").on(table.libraryId),
+    index("skill_components_category_idx").on(table.category),
+    uniqueIndex("skill_components_library_slug_idx").on(table.libraryId, table.slug),
+  ]
+);
+
+// ── Skills (rules + patterns) ─────────────────────────
+
+export const skills = pgTable("skills", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  type: skillTypeEnum("type").notNull().default("custom"),
+  category: skillCategoryEnum("category").notNull().default("pattern"),
+  scope: text("scope").notNull().default("importable"),
+  rules: jsonb("rules"),
+  codeSnippets: jsonb("code_snippets"),
+  priority: integer("priority").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Skill-Component Links ─────────────────────────────
+
+export const skillComponentLinks = pgTable(
+  "skill_component_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    componentId: uuid("component_id")
+      .notNull()
+      .references(() => skillComponents.id, { onDelete: "cascade" }),
+    context: text("context"),
+    isDefault: boolean("is_default").notNull().default(false),
+  },
+  (table) => [
+    index("skill_component_links_skill_idx").on(table.skillId),
+    index("skill_component_links_component_idx").on(table.componentId),
+    uniqueIndex("skill_component_links_unique_idx").on(table.skillId, table.componentId),
+  ]
+);
+
+// ── Agents ────────────────────────────────────────────
+
+export const agents = pgTable("agents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  description: text("description"),
+  type: agentTypeEnum("type").notNull().default("builder"),
+  status: agentStatusEnum("status").notNull().default("draft"),
+  config: jsonb("config"),
+  skillIds: uuid("skill_ids").array(),
+  trigger: text("trigger"),
+  identity: text("identity"),
+  includeCorrections: boolean("include_corrections").notNull().default(true),
+  includeComponents: boolean("include_components").notNull().default(true),
+  deployPath: text("deploy_path"),
+  deployedAt: timestamp("deployed_at", { withTimezone: true }),
+  deployedOutput: text("deployed_output"),
+  ownerId: uuid("owner_id").references(() => users.id),
+  lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Agent-Rule Links (composition) ────────────────────
+
+export const agentRuleLinks = pgTable(
+  "agent_rule_links",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    included: boolean("included").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("agent_rule_links_agent_idx").on(table.agentId),
+    uniqueIndex("agent_rule_links_unique_idx").on(table.agentId, table.skillId),
+  ]
+);
+
+// ── Agent Runs ────────────────────────────────────────
+
+export const agentRuns = pgTable(
+  "agent_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id, { onDelete: "cascade" }),
+    triggeredBy: uuid("triggered_by").references(() => users.id),
+    input: text("input"),
+    output: text("output"),
+    status: agentRunStatusEnum("status").notNull().default("running"),
+    durationMs: integer("duration_ms"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("agent_runs_agent_idx").on(table.agentId),
+  ]
+);
+
+// ── Corrections (learnings from past mistakes) ────────
+
+export const correctionSeverityEnum = pgEnum("correction_severity", [
+  "critical",
+  "important",
+  "minor",
+]);
+
+export const correctionCategoryEnum = pgEnum("correction_category", [
+  "layout",
+  "component-choice",
+  "spacing",
+  "scrolling",
+  "responsive",
+  "accessibility",
+  "performance",
+  "styling",
+  "pattern",
+  "other",
+]);
+
+export const corrections = pgTable("corrections", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  wrongApproach: text("wrong_approach"),
+  correctApproach: text("correct_approach"),
+  codeExample: text("code_example"),
+  severity: correctionSeverityEnum("severity").notNull().default("important"),
+  category: correctionCategoryEnum("category").notNull().default("other"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdBy: uuid("created_by").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Patterns (extracted codebase layout patterns) ─────
+
+export const patterns = pgTable("patterns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  archetype: text("archetype").notNull(),
+  sourceProject: text("source_project").notNull(),
+  sourceFile: text("source_file"),
+  layoutTree: text("layout_tree").notNull(),
+  codeExample: text("code_example"),
+  annotations: jsonb("annotations"),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
