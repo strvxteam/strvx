@@ -26,6 +26,15 @@ import {
   partnerInvoices,
   partnerStageHistory,
   partnerStageEnum,
+  skillLibraries,
+  skillComponents,
+  skills,
+  skillComponentLinks,
+  agents,
+  agentRuns,
+  agentRuleLinks,
+  corrections,
+  patterns,
 } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -63,6 +72,18 @@ import {
   createCardBudgetSchema,
   updateCardBudgetSchema,
   upsertCardAlertSchema,
+  createSkillLibrarySchema,
+  updateSkillLibrarySchema,
+  createSkillComponentSchema,
+  updateSkillComponentSchema,
+  createSkillSchema,
+  updateSkillSchema,
+  createSkillComponentLinkSchema,
+  createAgentSchema,
+  updateAgentSchema,
+  createCorrectionSchema,
+  updateCorrectionSchema,
+  createPatternSchema,
 } from "@/lib/validations";
 import {
   createPartnerSchema,
@@ -2411,4 +2432,779 @@ export async function quickAddPartnerNote(partnerId: string, content: string) {
 
   revalidatePath(`/partners/${parsedId.data}`);
   return interaction;
+}
+
+// ── Skill Libraries ───────────────────────────────────
+
+export async function createSkillLibraryAction(formData: unknown) {
+  await getCurrentUser();
+  const data = createSkillLibrarySchema.parse(formData);
+  const [lib] = await db
+    .insert(skillLibraries)
+    .values({
+      name: data.name,
+      slug: data.slug,
+      url: data.url || null,
+      githubUrl: data.githubUrl || null,
+      description: data.description || null,
+      installMethod: data.installMethod,
+      license: data.license || null,
+      category: data.category,
+      logoUrl: data.logoUrl || null,
+    })
+    .returning();
+  revalidatePath("/skills");
+  return lib;
+}
+
+export async function updateSkillLibraryAction(id: string, formData: unknown) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const data = updateSkillLibrarySchema.parse(formData);
+  await db
+    .update(skillLibraries)
+    .set({
+      ...data,
+      ...(data.url !== undefined && { url: data.url || null }),
+      ...(data.githubUrl !== undefined && { githubUrl: data.githubUrl || null }),
+      ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl || null }),
+    })
+    .where(eq(skillLibraries.id, id));
+  revalidatePath("/skills");
+}
+
+export async function toggleSkillLibraryAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const [lib] = await db
+    .select({ isActive: skillLibraries.isActive })
+    .from(skillLibraries)
+    .where(eq(skillLibraries.id, id));
+  if (!lib) throw new Error("Library not found");
+  await db
+    .update(skillLibraries)
+    .set({ isActive: !lib.isActive })
+    .where(eq(skillLibraries.id, id));
+  revalidatePath("/skills");
+  return !lib.isActive;
+}
+
+export async function deleteSkillLibraryAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  await db.delete(skillLibraries).where(eq(skillLibraries.id, id));
+  revalidatePath("/skills");
+}
+
+// ── Skill Components ──────────────────────────────────
+
+export async function createSkillComponentAction(formData: unknown) {
+  await getCurrentUser();
+  const data = createSkillComponentSchema.parse(formData);
+  const [comp] = await db
+    .insert(skillComponents)
+    .values({
+      libraryId: data.libraryId,
+      name: data.name,
+      slug: data.slug,
+      description: data.description || null,
+      category: data.category,
+      installCommand: data.installCommand || null,
+      importPath: data.importPath || null,
+      dependencies: data.dependencies || null,
+      propsSummary: data.propsSummary || null,
+      status: data.status || "available",
+      tags: data.tags || null,
+    })
+    .returning();
+  revalidatePath("/skills/components");
+  return comp;
+}
+
+export async function updateSkillComponentAction(id: string, formData: unknown) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const data = updateSkillComponentSchema.parse(formData);
+  await db
+    .update(skillComponents)
+    .set(data)
+    .where(eq(skillComponents.id, id));
+  revalidatePath("/skills/components");
+}
+
+export async function deleteSkillComponentAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  await db.delete(skillComponents).where(eq(skillComponents.id, id));
+  revalidatePath("/skills/components");
+}
+
+// ── Skills (Rules) ────────────────────────────────────
+
+export async function createSkillAction(formData: unknown) {
+  const user = await getCurrentUser();
+  const data = createSkillSchema.parse(formData);
+  const [skill] = await db
+    .insert(skills)
+    .values({
+      name: data.name,
+      slug: data.slug,
+      description: data.description || null,
+      type: data.type,
+      category: data.category,
+      scope: data.scope ?? "importable",
+      rules: data.rules || null,
+      codeSnippets: data.codeSnippets || null,
+      priority: data.priority ?? 0,
+      createdBy: user.id,
+    })
+    .returning();
+  revalidatePath("/skills/rules");
+  await autoRedeployActiveAgents();
+  return skill;
+}
+
+export async function updateSkillAction(id: string, formData: unknown) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const data = updateSkillSchema.parse(formData);
+  await db
+    .update(skills)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(skills.id, id));
+  revalidatePath("/skills/rules");
+  await autoRedeployActiveAgents();
+}
+
+export async function toggleSkillAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const [skill] = await db
+    .select({ isActive: skills.isActive })
+    .from(skills)
+    .where(eq(skills.id, id));
+  if (!skill) throw new Error("Skill not found");
+  await db
+    .update(skills)
+    .set({ isActive: !skill.isActive, updatedAt: new Date() })
+    .where(eq(skills.id, id));
+  revalidatePath("/skills/rules");
+  await autoRedeployActiveAgents();
+  return !skill.isActive;
+}
+
+export async function deleteSkillAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  await db.delete(skills).where(eq(skills.id, id));
+  revalidatePath("/skills/rules");
+  await autoRedeployActiveAgents();
+}
+
+// ── Skill-Component Links ─────────────────────────────
+
+export async function createSkillComponentLinkAction(formData: unknown) {
+  await getCurrentUser();
+  const data = createSkillComponentLinkSchema.parse(formData);
+  const [link] = await db
+    .insert(skillComponentLinks)
+    .values({
+      skillId: data.skillId,
+      componentId: data.componentId,
+      context: data.context || null,
+      isDefault: data.isDefault ?? false,
+    })
+    .returning();
+  revalidatePath("/skills/rules");
+  return link;
+}
+
+export async function deleteSkillComponentLinkAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  await db.delete(skillComponentLinks).where(eq(skillComponentLinks.id, id));
+  revalidatePath("/skills/rules");
+}
+
+// ── Agents ────────────────────────────────────────────
+
+export async function createAgentAction(formData: unknown) {
+  const data = createAgentSchema.parse(formData);
+  const user = await getCurrentUser();
+  const [agent] = await db
+    .insert(agents)
+    .values({
+      name: data.name,
+      slug: data.slug,
+      description: data.description || null,
+      type: data.type,
+      status: data.status || "draft",
+      config: data.config || null,
+      skillIds: data.skillIds || null,
+      trigger: data.trigger || null,
+      ownerId: user.id,
+    })
+    .returning();
+  revalidatePath("/skills/agents");
+  return agent;
+}
+
+export async function updateAgentAction(id: string, formData: unknown) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const data = updateAgentSchema.parse(formData);
+  await db
+    .update(agents)
+    .set(data)
+    .where(eq(agents.id, id));
+  revalidatePath("/skills/agents");
+}
+
+export async function toggleAgentStatusAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const [agent] = await db
+    .select({ status: agents.status })
+    .from(agents)
+    .where(eq(agents.id, id));
+  if (!agent) throw new Error("Agent not found");
+  const newStatus = agent.status === "active" ? "paused" : "active";
+  await db
+    .update(agents)
+    .set({ status: newStatus })
+    .where(eq(agents.id, id));
+  revalidatePath("/skills/agents");
+  return newStatus;
+}
+
+export async function deleteAgentAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  await db.delete(agents).where(eq(agents.id, id));
+  revalidatePath("/skills/agents");
+}
+
+export async function createAgentRunAction(agentId: string, input: string) {
+  const user = await getCurrentUser();
+  uuidSchema.parse(agentId);
+  const [run] = await db
+    .insert(agentRuns)
+    .values({
+      agentId,
+      triggeredBy: user.id,
+      input,
+      status: "running",
+    })
+    .returning();
+  await db
+    .update(agents)
+    .set({ lastRunAt: new Date() })
+    .where(eq(agents.id, agentId));
+  revalidatePath("/skills/agents");
+  return run;
+}
+
+export async function completeAgentRunAction(
+  runId: string,
+  result: { output: string; status: "success" | "failed"; durationMs: number }
+) {
+  await getCurrentUser();
+  uuidSchema.parse(runId);
+  await db
+    .update(agentRuns)
+    .set({
+      output: result.output,
+      status: result.status,
+      durationMs: result.durationMs,
+    })
+    .where(eq(agentRuns.id, runId));
+  revalidatePath("/skills/agents");
+}
+
+// ── Export Skills to Claude Config ────────────────────
+
+export async function exportSkillsToAgentConfig() {
+  await getCurrentUser();
+
+  const activeSkills = await db
+    .select()
+    .from(skills)
+    .where(eq(skills.isActive, true))
+    .orderBy(skills.priority, skills.name);
+
+  const categoryLabels: Record<string, string> = {
+    layout: "Layout",
+    "design-tokens": "Design Tokens",
+    "component-preference": "Components",
+    behavioral: "Behavioral",
+    pattern: "Patterns",
+  };
+
+  const grouped = new Map<string, typeof activeSkills>();
+  for (const skill of activeSkills) {
+    const cat = skill.category;
+    const existing = grouped.get(cat) ?? [];
+    existing.push(skill);
+    grouped.set(cat, existing);
+  }
+
+  let md = "# STRVX Design System — Agent Rules\n\n";
+  md += "> Auto-generated from active skills. Do not edit manually.\n\n";
+
+  for (const [category, categorySkills] of grouped) {
+    md += `## ${categoryLabels[category] ?? category}\n\n`;
+    for (const skill of categorySkills) {
+      if (skill.rules && Array.isArray(skill.rules)) {
+        for (const r of skill.rules as { rule: string; detail?: string }[]) {
+          md += `- ${r.rule}`;
+          if (r.detail) md += ` — ${r.detail}`;
+          md += "\n";
+        }
+      }
+      if (skill.codeSnippets && Array.isArray(skill.codeSnippets)) {
+        for (const s of skill.codeSnippets as { label: string; code: string; language?: string }[]) {
+          md += `\n### ${s.label}\n\n\`\`\`${s.language ?? "tsx"}\n${s.code}\n\`\`\`\n\n`;
+        }
+      }
+    }
+    md += "\n";
+  }
+
+  // Add corrections section
+  const activeCorrections = await db
+    .select()
+    .from(corrections)
+    .where(eq(corrections.isActive, true))
+    .orderBy(corrections.severity);
+
+  if (activeCorrections.length > 0) {
+    md += "\n## Corrections (DO NOT repeat these mistakes)\n\n";
+    const severityOrder = ["critical", "important", "minor"];
+    for (const sev of severityOrder) {
+      const filtered = activeCorrections.filter((c) => c.severity === sev);
+      if (filtered.length === 0) continue;
+      md += `### ${sev.toUpperCase()}\n\n`;
+      for (const c of filtered) {
+        md += `**${c.title}** (${c.category})\n`;
+        md += `${c.description}\n`;
+        if (c.wrongApproach) md += `- WRONG: ${c.wrongApproach}\n`;
+        if (c.correctApproach) md += `- CORRECT: ${c.correctApproach}\n`;
+        if (c.codeExample) md += `\`\`\`tsx\n${c.codeExample}\n\`\`\`\n`;
+        md += "\n";
+      }
+    }
+  }
+
+  // Add component reference section
+  const allComponents = await db
+    .select({
+      name: skillComponents.name,
+      category: skillComponents.category,
+      libraryName: skillLibraries.name,
+      whenToUse: skillComponents.whenToUse,
+      keyProps: skillComponents.keyProps,
+      importPath: skillComponents.importPath,
+      installCommand: skillComponents.installCommand,
+    })
+    .from(skillComponents)
+    .innerJoin(skillLibraries, eq(skillComponents.libraryId, skillLibraries.id))
+    .where(eq(skillLibraries.isActive, true))
+    .orderBy(skillComponents.category, skillComponents.name);
+
+  if (allComponents.length > 0) {
+    md += "\n## Component Reference\n\n";
+    let currentCat = "";
+    for (const comp of allComponents) {
+      if (comp.category !== currentCat) {
+        currentCat = comp.category;
+        md += `### ${currentCat}\n\n`;
+      }
+      md += `- **${comp.name}** (${comp.libraryName})`;
+      if (comp.whenToUse) md += ` — ${comp.whenToUse}`;
+      md += "\n";
+      if (comp.importPath) md += `  Import: \`${comp.importPath}\`\n`;
+      if (comp.keyProps) md += `  Props: ${comp.keyProps}\n`;
+    }
+  }
+
+  return md.trim();
+}
+
+// ── Corrections ───────────────────────────────────────
+
+export async function createCorrectionAction(formData: unknown) {
+  const user = await getCurrentUser();
+  const data = createCorrectionSchema.parse(formData);
+  const [correction] = await db
+    .insert(corrections)
+    .values({
+      title: data.title,
+      description: data.description,
+      wrongApproach: data.wrongApproach || null,
+      correctApproach: data.correctApproach || null,
+      codeExample: data.codeExample || null,
+      severity: data.severity,
+      category: data.category,
+      createdBy: user.id,
+    })
+    .returning();
+  revalidatePath("/skills/corrections");
+  await autoRedeployActiveAgents();
+  return correction;
+}
+
+export async function updateCorrectionAction(id: string, formData: unknown) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const data = updateCorrectionSchema.parse(formData);
+  await db
+    .update(corrections)
+    .set(data)
+    .where(eq(corrections.id, id));
+  revalidatePath("/skills/corrections");
+  await autoRedeployActiveAgents();
+}
+
+export async function toggleCorrectionAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const [corr] = await db
+    .select({ isActive: corrections.isActive })
+    .from(corrections)
+    .where(eq(corrections.id, id));
+  if (!corr) throw new Error("Correction not found");
+  await db
+    .update(corrections)
+    .set({ isActive: !corr.isActive })
+    .where(eq(corrections.id, id));
+  revalidatePath("/skills/corrections");
+  await autoRedeployActiveAgents();
+  return !corr.isActive;
+}
+
+export async function deleteCorrectionAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  await db.delete(corrections).where(eq(corrections.id, id));
+  revalidatePath("/skills/corrections");
+  await autoRedeployActiveAgents();
+}
+
+// ── Auto-Redeploy (feedback loop) ─────────────────────
+
+async function autoRedeployActiveAgents() {
+  const activeAgents = await db
+    .select({ id: agents.id })
+    .from(agents)
+    .where(eq(agents.status, "active"));
+  for (const a of activeAgents) {
+    try {
+      await deployAgentAction(a.id);
+    } catch {
+      // Silent — don't block the original action
+    }
+  }
+}
+
+// ── Agent Rule Composition ────────────────────────────
+
+export async function toggleAgentRuleAction(agentId: string, skillId: string) {
+  await getCurrentUser();
+  uuidSchema.parse(agentId);
+  uuidSchema.parse(skillId);
+
+  const [existing] = await db
+    .select()
+    .from(agentRuleLinks)
+    .where(and(eq(agentRuleLinks.agentId, agentId), eq(agentRuleLinks.skillId, skillId)));
+
+  if (existing) {
+    await db
+      .update(agentRuleLinks)
+      .set({ included: !existing.included })
+      .where(eq(agentRuleLinks.id, existing.id));
+    revalidatePath("/skills/agents");
+    return !existing.included;
+  } else {
+    await db
+      .insert(agentRuleLinks)
+      .values({ agentId, skillId, included: true });
+    revalidatePath("/skills/agents");
+    return true;
+  }
+}
+
+export async function addRuleToAgentAction(agentId: string, skillId: string) {
+  await getCurrentUser();
+  uuidSchema.parse(agentId);
+  uuidSchema.parse(skillId);
+  await db
+    .insert(agentRuleLinks)
+    .values({ agentId, skillId, included: true })
+    .onConflictDoNothing();
+  revalidatePath("/skills/agents");
+}
+
+export async function removeRuleFromAgentAction(agentId: string, skillId: string) {
+  await getCurrentUser();
+  uuidSchema.parse(agentId);
+  uuidSchema.parse(skillId);
+  await db
+    .delete(agentRuleLinks)
+    .where(and(eq(agentRuleLinks.agentId, agentId), eq(agentRuleLinks.skillId, skillId)));
+  revalidatePath("/skills/agents");
+}
+
+export async function updateAgentIdentityAction(agentId: string, identity: string) {
+  await getCurrentUser();
+  uuidSchema.parse(agentId);
+  const validated = z.string().max(5000, "Identity too long").parse(identity);
+  await db
+    .update(agents)
+    .set({ identity: validated })
+    .where(eq(agents.id, agentId));
+  revalidatePath("/skills/agents");
+}
+
+export async function updateAgentSettingsAction(
+  agentId: string,
+  settings: { includeCorrections?: boolean; includeComponents?: boolean; deployPath?: string }
+) {
+  await getCurrentUser();
+  uuidSchema.parse(agentId);
+  await db
+    .update(agents)
+    .set(settings)
+    .where(eq(agents.id, agentId));
+  revalidatePath("/skills/agents");
+}
+
+// ── Deploy Agent ──────────────────────────────────────
+
+export async function deployAgentAction(agentId: string) {
+  await getCurrentUser();
+  uuidSchema.parse(agentId);
+
+  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
+  if (!agent) throw new Error("Agent not found");
+
+  // Get linked rules (included only)
+  const linkedRules = await db
+    .select({ skillId: agentRuleLinks.skillId })
+    .from(agentRuleLinks)
+    .where(and(eq(agentRuleLinks.agentId, agentId), eq(agentRuleLinks.included, true)));
+
+  const linkedSkillIds = new Set(linkedRules.map((r) => r.skillId));
+
+  // Get all global rules + linked importable rules
+  const allSkills = await db
+    .select()
+    .from(skills)
+    .where(eq(skills.isActive, true))
+    .orderBy(skills.priority, skills.name);
+
+  const activeRules = allSkills.filter(
+    (s) => s.scope === "global" || linkedSkillIds.has(s.id)
+  );
+
+  // Build the markdown
+  const categoryLabels: Record<string, string> = {
+    layout: "Layout",
+    "design-tokens": "Design Tokens",
+    "component-preference": "Components",
+    behavioral: "Behavioral",
+    pattern: "Patterns",
+  };
+
+  let md = `# ${agent.name}\n\n`;
+  if (agent.identity) {
+    md += `${agent.identity}\n\n`;
+  }
+  md += `> Deployed from SIT on ${new Date().toISOString().split("T")[0]}. Do not edit manually.\n\n`;
+
+  // Rules by category
+  const grouped = new Map<string, typeof activeRules>();
+  for (const skill of activeRules) {
+    const cat = skill.category;
+    const existing = grouped.get(cat) ?? [];
+    existing.push(skill);
+    grouped.set(cat, existing);
+  }
+
+  for (const [category, categorySkills] of grouped) {
+    md += `## ${categoryLabels[category] ?? category}\n\n`;
+    for (const skill of categorySkills) {
+      const scope = skill.scope === "global" ? "[GLOBAL]" : "[IMPORTED]";
+      if (skill.description) md += `### ${skill.name} ${scope}\n${skill.description}\n\n`;
+      if (skill.rules && Array.isArray(skill.rules)) {
+        for (const r of skill.rules as { rule: string; detail?: string }[]) {
+          md += `- ${r.rule}`;
+          if (r.detail) md += ` — ${r.detail}`;
+          md += "\n";
+        }
+        md += "\n";
+      }
+      if (skill.codeSnippets && Array.isArray(skill.codeSnippets)) {
+        for (const s of skill.codeSnippets as { label: string; code: string; language?: string }[]) {
+          md += `#### ${s.label}\n\`\`\`${s.language ?? "tsx"}\n${s.code}\n\`\`\`\n\n`;
+        }
+      }
+    }
+  }
+
+  // Corrections
+  if (agent.includeCorrections) {
+    const activeCorrections = await db
+      .select()
+      .from(corrections)
+      .where(eq(corrections.isActive, true))
+      .orderBy(corrections.severity);
+
+    if (activeCorrections.length > 0) {
+      md += "## Corrections — DO NOT Repeat These Mistakes\n\n";
+      const sevOrder = ["critical", "important", "minor"];
+      for (const sev of sevOrder) {
+        const filtered = activeCorrections.filter((c) => c.severity === sev);
+        if (filtered.length === 0) continue;
+        md += `### ${sev.toUpperCase()}\n\n`;
+        for (const c of filtered) {
+          md += `**${c.title}** (${c.category})\n`;
+          md += `${c.description}\n`;
+          if (c.wrongApproach) md += `- WRONG: ${c.wrongApproach}\n`;
+          if (c.correctApproach) md += `- CORRECT: ${c.correctApproach}\n`;
+          if (c.codeExample) md += `\`\`\`tsx\n${c.codeExample}\n\`\`\`\n`;
+          md += "\n";
+        }
+      }
+    }
+  }
+
+  // Layout patterns
+  const activePatterns = await db
+    .select()
+    .from(patterns)
+    .where(eq(patterns.isActive, true))
+    .orderBy(patterns.archetype, patterns.name);
+
+  if (activePatterns.length > 0) {
+    md += "## Page Archetypes — Layout Trees From Real Code\n\n";
+    md += "Before writing any code, match the user's request to one of these archetypes and follow its layout tree.\n\n";
+    const archetypeLabels: Record<string, string> = {
+      list: "List Page", detail: "Detail Page", dashboard: "Dashboard Page",
+      form: "Form Page", editor: "Editor Page", split: "Split Page",
+    };
+    let currentArchetype = "";
+    for (const p of activePatterns) {
+      if (p.archetype !== currentArchetype) {
+        currentArchetype = p.archetype;
+        md += `### ${archetypeLabels[p.archetype] ?? p.archetype}\n\n`;
+      }
+      md += `**${p.name}** (from ${p.sourceProject}`;
+      if (p.sourceFile) md += ` — ${p.sourceFile}`;
+      md += ")\n";
+      md += "```\n" + p.layoutTree + "\n```\n";
+      if (p.codeExample) {
+        md += "```tsx\n" + p.codeExample + "\n```\n";
+      }
+      md += "\n";
+    }
+  }
+
+  // Component reference
+  if (agent.includeComponents) {
+    const comps = await db
+      .select({
+        name: skillComponents.name,
+        category: skillComponents.category,
+        libraryName: skillLibraries.name,
+        whenToUse: skillComponents.whenToUse,
+        importPath: skillComponents.importPath,
+      })
+      .from(skillComponents)
+      .innerJoin(skillLibraries, eq(skillComponents.libraryId, skillLibraries.id))
+      .where(eq(skillLibraries.isActive, true))
+      .orderBy(skillComponents.category, skillComponents.name);
+
+    if (comps.length > 0) {
+      md += "## Component Reference\n\n";
+      let currentCat = "";
+      for (const comp of comps) {
+        if (comp.category !== currentCat) {
+          currentCat = comp.category;
+          md += `### ${currentCat}\n\n`;
+        }
+        md += `- **${comp.name}** (${comp.libraryName})`;
+        if (comp.whenToUse) md += ` — ${comp.whenToUse}`;
+        md += "\n";
+        if (comp.importPath) md += `  Import: \`${comp.importPath}\`\n`;
+      }
+    }
+  }
+
+  const output = md.trim();
+  const deployPath = agent.deployPath ?? ".claude/rules/strvx-uiux-agent.md";
+
+  // Write the file to disk
+  const fs = await import("fs/promises");
+  const path = await import("path");
+  const fullPath = path.join(process.cwd(), deployPath);
+  const dir = path.dirname(fullPath);
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(fullPath, output, "utf-8");
+
+  // Save deployment record
+  await db
+    .update(agents)
+    .set({
+      deployedAt: new Date(),
+      deployedOutput: output,
+    })
+    .where(eq(agents.id, agentId));
+
+  revalidatePath("/skills/agents");
+  return { output, path: deployPath, rulesCount: activeRules.length, written: true };
+}
+
+// ── Patterns ──────────────────────────────────────────
+
+export async function createPatternAction(formData: unknown) {
+  await getCurrentUser();
+  const data = createPatternSchema.parse(formData);
+  const [pattern] = await db
+    .insert(patterns)
+    .values({
+      name: data.name,
+      archetype: data.archetype,
+      sourceProject: data.sourceProject,
+      sourceFile: data.sourceFile ?? null,
+      layoutTree: data.layoutTree,
+      codeExample: data.codeExample ?? null,
+      annotations: data.annotations ?? null,
+    })
+    .returning();
+  revalidatePath("/skills/patterns");
+  return pattern;
+}
+
+export async function togglePatternAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  const [p] = await db
+    .select({ isActive: patterns.isActive })
+    .from(patterns)
+    .where(eq(patterns.id, id));
+  if (!p) throw new Error("Pattern not found");
+  await db
+    .update(patterns)
+    .set({ isActive: !p.isActive })
+    .where(eq(patterns.id, id));
+  revalidatePath("/skills/patterns");
+  return !p.isActive;
+}
+
+export async function deletePatternAction(id: string) {
+  await getCurrentUser();
+  uuidSchema.parse(id);
+  await db.delete(patterns).where(eq(patterns.id, id));
+  revalidatePath("/skills/patterns");
 }

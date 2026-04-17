@@ -25,6 +25,15 @@ import {
   cardBudgets,
   cardReceipts,
   cardAlerts,
+  skillLibraries,
+  skillComponents,
+  skills,
+  skillComponentLinks,
+  agents,
+  agentRuns,
+  agentRuleLinks,
+  corrections,
+  patterns,
 } from "./db/schema";
 import { eq, desc, and, lte, isNull, isNotNull, sql, count } from "drizzle-orm";
 
@@ -1349,4 +1358,265 @@ export async function getCardAlerts(creditCardId: string) {
 
 export async function getAllCardAlerts() {
   return db.select().from(cardAlerts);
+}
+
+// ── Skills & Agents Queries ───────────────────────────
+
+export async function getSkillLibraries() {
+  return db
+    .select()
+    .from(skillLibraries)
+    .orderBy(skillLibraries.name);
+}
+
+export async function getSkillLibrary(id: string) {
+  const [library] = await db
+    .select()
+    .from(skillLibraries)
+    .where(eq(skillLibraries.id, id))
+    .limit(1);
+  return library ?? null;
+}
+
+export async function getSkillLibrariesWithComponentCount() {
+  const libs = await db.select().from(skillLibraries).orderBy(skillLibraries.name);
+  const counts = await db
+    .select({
+      libraryId: skillComponents.libraryId,
+      count: count(),
+    })
+    .from(skillComponents)
+    .groupBy(skillComponents.libraryId);
+
+  const countMap = new Map(counts.map((c) => [c.libraryId, Number(c.count)]));
+  return libs.map((lib) => ({
+    ...lib,
+    componentCount: countMap.get(lib.id) ?? 0,
+  }));
+}
+
+export async function getSkillComponents(filters?: {
+  libraryId?: string;
+  category?: string;
+  status?: string;
+  search?: string;
+}) {
+  const rows = await db
+    .select({
+      id: skillComponents.id,
+      libraryId: skillComponents.libraryId,
+      name: skillComponents.name,
+      slug: skillComponents.slug,
+      description: skillComponents.description,
+      category: skillComponents.category,
+      installCommand: skillComponents.installCommand,
+      importPath: skillComponents.importPath,
+      dependencies: skillComponents.dependencies,
+      propsSummary: skillComponents.propsSummary,
+      status: skillComponents.status,
+      tags: skillComponents.tags,
+      createdAt: skillComponents.createdAt,
+      libraryName: skillLibraries.name,
+      librarySlug: skillLibraries.slug,
+    })
+    .from(skillComponents)
+    .innerJoin(skillLibraries, eq(skillComponents.libraryId, skillLibraries.id))
+    .where(
+      and(
+        filters?.libraryId ? eq(skillComponents.libraryId, filters.libraryId) : undefined,
+        filters?.category ? eq(skillComponents.category, filters.category as typeof skillComponents.category.enumValues[number]) : undefined,
+        filters?.status ? eq(skillComponents.status, filters.status as typeof skillComponents.status.enumValues[number]) : undefined,
+        filters?.search ? sql`(${skillComponents.name} ILIKE ${"%" + filters.search + "%"} OR ${skillComponents.description} ILIKE ${"%" + filters.search + "%"})` : undefined,
+      )
+    )
+    .orderBy(skillComponents.name);
+  return rows;
+}
+
+export async function getSkillComponent(id: string) {
+  const [component] = await db
+    .select({
+      id: skillComponents.id,
+      libraryId: skillComponents.libraryId,
+      name: skillComponents.name,
+      slug: skillComponents.slug,
+      description: skillComponents.description,
+      category: skillComponents.category,
+      installCommand: skillComponents.installCommand,
+      importPath: skillComponents.importPath,
+      dependencies: skillComponents.dependencies,
+      propsSummary: skillComponents.propsSummary,
+      status: skillComponents.status,
+      tags: skillComponents.tags,
+      createdAt: skillComponents.createdAt,
+      libraryName: skillLibraries.name,
+    })
+    .from(skillComponents)
+    .innerJoin(skillLibraries, eq(skillComponents.libraryId, skillLibraries.id))
+    .where(eq(skillComponents.id, id))
+    .limit(1);
+  return component ?? null;
+}
+
+export async function getSkills() {
+  return db
+    .select()
+    .from(skills)
+    .orderBy(skills.priority, skills.name);
+}
+
+export async function getSkill(id: string) {
+  const [skill] = await db
+    .select()
+    .from(skills)
+    .where(eq(skills.id, id))
+    .limit(1);
+  return skill ?? null;
+}
+
+export async function getActiveSkills() {
+  return db
+    .select()
+    .from(skills)
+    .where(eq(skills.isActive, true))
+    .orderBy(skills.priority, skills.name);
+}
+
+export async function getSkillComponentLinks(skillId: string) {
+  return db
+    .select({
+      id: skillComponentLinks.id,
+      skillId: skillComponentLinks.skillId,
+      componentId: skillComponentLinks.componentId,
+      context: skillComponentLinks.context,
+      isDefault: skillComponentLinks.isDefault,
+      componentName: skillComponents.name,
+      componentCategory: skillComponents.category,
+      libraryName: skillLibraries.name,
+    })
+    .from(skillComponentLinks)
+    .innerJoin(skillComponents, eq(skillComponentLinks.componentId, skillComponents.id))
+    .innerJoin(skillLibraries, eq(skillComponents.libraryId, skillLibraries.id))
+    .where(eq(skillComponentLinks.skillId, skillId));
+}
+
+export async function getAgents() {
+  return db
+    .select()
+    .from(agents)
+    .orderBy(agents.name);
+}
+
+export async function getAgent(id: string) {
+  const [agent] = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.id, id))
+    .limit(1);
+  return agent ?? null;
+}
+
+export async function getAgentWithRules(agentId: string) {
+  const [agent] = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.id, agentId))
+    .limit(1);
+  if (!agent) return null;
+
+  const linkedRules = await db
+    .select({
+      linkId: agentRuleLinks.id,
+      included: agentRuleLinks.included,
+      skillId: skills.id,
+      skillName: skills.name,
+      skillSlug: skills.slug,
+      skillDescription: skills.description,
+      skillType: skills.type,
+      skillCategory: skills.category,
+      skillScope: skills.scope,
+      skillRules: skills.rules,
+      skillPriority: skills.priority,
+      skillIsActive: skills.isActive,
+    })
+    .from(agentRuleLinks)
+    .innerJoin(skills, eq(agentRuleLinks.skillId, skills.id))
+    .where(eq(agentRuleLinks.agentId, agentId))
+    .orderBy(skills.priority, skills.name);
+
+  const globalRules = await db
+    .select()
+    .from(skills)
+    .where(and(eq(skills.scope, "global"), eq(skills.isActive, true)))
+    .orderBy(skills.priority);
+
+  const importableRules = await db
+    .select()
+    .from(skills)
+    .where(and(eq(skills.scope, "importable"), eq(skills.isActive, true)))
+    .orderBy(skills.priority);
+
+  return { agent, linkedRules, globalRules, importableRules };
+}
+
+export async function getAgentRuns(agentId: string, limit = 20) {
+  return db
+    .select({
+      id: agentRuns.id,
+      agentId: agentRuns.agentId,
+      triggeredBy: agentRuns.triggeredBy,
+      input: agentRuns.input,
+      output: agentRuns.output,
+      status: agentRuns.status,
+      durationMs: agentRuns.durationMs,
+      createdAt: agentRuns.createdAt,
+      userName: users.name,
+    })
+    .from(agentRuns)
+    .leftJoin(users, eq(agentRuns.triggeredBy, users.id))
+    .where(eq(agentRuns.agentId, agentId))
+    .orderBy(desc(agentRuns.createdAt))
+    .limit(limit);
+}
+
+// ── Corrections Queries ───────────────────────────────
+
+export async function getCorrections() {
+  return db
+    .select()
+    .from(corrections)
+    .orderBy(corrections.severity, corrections.createdAt);
+}
+
+export async function getActiveCorrections() {
+  return db
+    .select()
+    .from(corrections)
+    .where(eq(corrections.isActive, true))
+    .orderBy(corrections.severity, corrections.createdAt);
+}
+
+// ── Patterns Queries ──────────────────────────────────
+
+export async function getPatterns() {
+  return db
+    .select()
+    .from(patterns)
+    .orderBy(patterns.archetype, patterns.name);
+}
+
+export async function getActivePatterns() {
+  return db
+    .select()
+    .from(patterns)
+    .where(eq(patterns.isActive, true))
+    .orderBy(patterns.archetype, patterns.name);
+}
+
+export async function getPatternsByArchetype(archetype: string) {
+  return db
+    .select()
+    .from(patterns)
+    .where(eq(patterns.archetype, archetype))
+    .orderBy(patterns.name);
 }

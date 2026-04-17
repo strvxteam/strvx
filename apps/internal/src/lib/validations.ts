@@ -260,3 +260,159 @@ export const upsertCardAlertSchema = z.object({
   thresholdValue: z.number().min(0),
   enabled: z.boolean().optional(),
 });
+
+// ── Skills & Agents Validations ───────────────────────
+
+export const createSkillLibrarySchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  slug: z.string().min(1, "Slug is required").max(100),
+  url: z.string().url("Invalid URL").optional().or(z.literal("")),
+  githubUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+  description: z.string().max(2000).optional(),
+  installMethod: z.enum(["copy-paste", "npm", "shadcn-cli"]),
+  license: z.string().max(100).optional(),
+  category: z.enum(["base", "animation", "editor", "data", "ai", "full", "utility"]),
+  logoUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
+});
+
+export const updateSkillLibrarySchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  url: z.string().url().optional().or(z.literal("")),
+  githubUrl: z.string().url().optional().or(z.literal("")),
+  description: z.string().max(2000).optional(),
+  installMethod: z.enum(["copy-paste", "npm", "shadcn-cli"]).optional(),
+  license: z.string().max(100).optional(),
+  category: z.enum(["base", "animation", "editor", "data", "ai", "full", "utility"]).optional(),
+  isActive: z.boolean().optional(),
+  logoUrl: z.string().url().optional().or(z.literal("")),
+});
+
+export const createSkillComponentSchema = z.object({
+  libraryId: z.string().uuid("Invalid library ID"),
+  name: z.string().min(1, "Name is required").max(200),
+  slug: z.string().min(1, "Slug is required").max(100),
+  description: z.string().max(2000).optional(),
+  category: z.enum(["form", "layout", "data-display", "overlay", "navigation", "feedback", "animation", "text-effect", "chart", "editor", "ai", "utility", "background", "button", "card", "table", "input"]),
+  installCommand: z.string().max(500).optional(),
+  importPath: z.string().max(500).optional(),
+  dependencies: z.array(z.string()).optional(),
+  propsSummary: z.record(z.string(), z.unknown()).optional(),
+  keyProps: z.string().max(2000).optional(),
+  whenToUse: z.string().max(2000).optional(),
+  status: z.enum(["available", "installed", "approved", "deprecated"]).optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+export const updateSkillComponentSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).optional(),
+  category: z.enum(["form", "layout", "data-display", "overlay", "navigation", "feedback", "animation", "text-effect", "chart", "editor", "ai", "utility", "background", "button", "card", "table", "input"]).optional(),
+  installCommand: z.string().max(500).optional(),
+  importPath: z.string().max(500).optional(),
+  dependencies: z.array(z.string()).optional(),
+  propsSummary: z.record(z.string(), z.unknown()).optional(),
+  keyProps: z.string().max(2000).optional(),
+  whenToUse: z.string().max(2000).optional(),
+  status: z.enum(["available", "installed", "approved", "deprecated"]).optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+export const createSkillSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  slug: z.string().min(1, "Slug is required").max(100),
+  description: z.string().max(5000).optional(),
+  type: z.enum(["preset", "custom"]),
+  category: z.enum(["layout", "design-tokens", "component-preference", "behavioral", "pattern"]),
+  scope: z.enum(["global", "importable"]).optional(),
+  rules: z.array(z.object({
+    rule: z.string().min(1),
+    detail: z.string().optional(),
+  })).optional(),
+  codeSnippets: z.array(z.object({
+    label: z.string().min(1),
+    code: z.string().min(1),
+    language: z.string().optional(),
+  })).optional(),
+  priority: z.number().int().min(0).max(100).optional(),
+});
+
+export const updateSkillSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(5000).optional(),
+  category: z.enum(["layout", "design-tokens", "component-preference", "behavioral", "pattern"]).optional(),
+  scope: z.enum(["global", "importable"]).optional(),
+  rules: z.array(z.object({
+    rule: z.string().min(1),
+    detail: z.string().optional(),
+  })).optional(),
+  codeSnippets: z.array(z.object({
+    label: z.string().min(1),
+    code: z.string().min(1),
+    language: z.string().optional(),
+  })).optional(),
+  priority: z.number().int().min(0).max(100).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export const createSkillComponentLinkSchema = z.object({
+  skillId: z.string().uuid("Invalid skill ID"),
+  componentId: z.string().uuid("Invalid component ID"),
+  context: z.string().max(500).optional(),
+  isDefault: z.boolean().optional(),
+});
+
+export const createAgentSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  slug: z.string().min(1, "Slug is required").max(100),
+  description: z.string().max(5000).optional(),
+  type: z.enum(["builder", "linter", "reviewer", "automation"]),
+  status: z.enum(["active", "paused", "draft"]).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
+  skillIds: z.array(z.string().uuid()).optional(),
+  trigger: z.string().max(500).optional(),
+});
+
+export const updateAgentSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(5000).optional(),
+  type: z.enum(["builder", "linter", "reviewer", "automation"]).optional(),
+  status: z.enum(["active", "paused", "draft"]).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
+  skillIds: z.array(z.string().uuid()).optional(),
+  trigger: z.string().max(500).optional(),
+});
+
+// ── Corrections Validations ───────────────────────────
+
+export const createCorrectionSchema = z.object({
+  title: z.string().min(1, "Title is required").max(200),
+  description: z.string().min(1, "Description is required").max(5000),
+  wrongApproach: z.string().max(5000).optional(),
+  correctApproach: z.string().max(5000).optional(),
+  codeExample: z.string().max(10000).optional(),
+  severity: z.enum(["critical", "important", "minor"]),
+  category: z.enum(["layout", "component-choice", "spacing", "scrolling", "responsive", "accessibility", "performance", "styling", "pattern", "other"]),
+});
+
+export const updateCorrectionSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().min(1).max(5000).optional(),
+  wrongApproach: z.string().max(5000).optional(),
+  correctApproach: z.string().max(5000).optional(),
+  codeExample: z.string().max(10000).optional(),
+  severity: z.enum(["critical", "important", "minor"]).optional(),
+  category: z.enum(["layout", "component-choice", "spacing", "scrolling", "responsive", "accessibility", "performance", "styling", "pattern", "other"]).optional(),
+  isActive: z.boolean().optional(),
+});
+
+// ── Patterns Validations ──────────────────────────────
+
+export const createPatternSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200),
+  archetype: z.enum(["list", "detail", "dashboard", "form", "editor", "split"]),
+  sourceProject: z.string().min(1, "Source project is required").max(200),
+  sourceFile: z.string().max(500).optional(),
+  layoutTree: z.string().min(1, "Layout tree is required").max(20000),
+  codeExample: z.string().max(20000).optional(),
+  annotations: z.record(z.string(), z.unknown()).optional(),
+});
