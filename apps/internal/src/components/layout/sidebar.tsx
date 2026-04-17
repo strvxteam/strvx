@@ -25,6 +25,12 @@ import {
   PanelLeft,
   Handshake,
   Clock,
+  Brain,
+  Boxes,
+  ScrollText,
+  Bot,
+  ShieldAlert,
+  LayoutTemplate,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -86,6 +92,18 @@ const navSections: NavSection[] = [
     items: [
       { href: "/assets", label: "Assets", icon: FolderOpen },
       { href: "/docs", label: "Docs", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Skills & Agents",
+    icon: Boxes,
+    items: [
+      { href: "/skills", label: "Library", icon: Boxes },
+      { href: "/skills/components", label: "Components", icon: Brain },
+      { href: "/skills/rules", label: "Rules", icon: ScrollText },
+      { href: "/skills/patterns", label: "Patterns", icon: LayoutTemplate },
+      { href: "/skills/corrections", label: "Corrections", icon: ShieldAlert },
+      { href: "/skills/agents", label: "Agents", icon: Bot },
     ],
   },
 ];
