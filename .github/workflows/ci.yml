@@ -15,6 +15,9 @@ env:
   # the repo settings to enable shared caching across runs.
   TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  # Raise Node's heap ceiling — tsc over the TipTap + Next + internal
+  # graph OOMs at the default 4 GB on ubuntu-latest runners.
+  NODE_OPTIONS: "--max-old-space-size=6144"
 
 jobs:
   ci:
