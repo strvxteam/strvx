@@ -394,244 +394,145 @@ export default function FinancesPage({
         </div>
       )}
 
-      {/* Overview tab */}
-      {(
-        <div className="grid grid-cols-2 gap-6">
-          {/* Revenue by month — Mercury deposits grouped by month */}
-          <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
-            <h2 className="mb-3 text-sm font-semibold text-[#333]">
-              Revenue by Month
-            </h2>
-            {mercuryMonthlyRevenue.length === 0 ? (
-              <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 180 }}>
-                {mercuryConnected
-                  ? "No Mercury deposits yet."
-                  : "Mercury not connected. Configure MERCURY_API_TOKEN to see revenue data."}
+      {/* Activity + Expenses — two lists side by side, fill remaining viewport */}
+      <div className="grid min-h-0 flex-1 grid-cols-2 gap-6">
+        {/* Activity — Mercury transaction feed */}
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-[#e0e0e0] bg-white">
+          <div className="flex shrink-0 items-center justify-between border-b border-[#f0f0f0] px-4 py-3">
+            <h2 className="text-sm font-semibold text-[#333]">Activity</h2>
+            <span className="text-[11px] text-[#888]">
+              {bankTransactions.length > 0 ? `${bankTransactions.length} transactions` : "bank feed"}
+            </span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {!mercuryConnected ? (
+              <div className="flex h-full items-center justify-center px-6 py-10 text-center text-[12px] text-[#aaa]">
+                Mercury not connected. Configure MERCURY_API_TOKEN to see activity.
+              </div>
+            ) : bankTransactions.length === 0 ? (
+              <div className="flex h-full items-center justify-center px-6 py-10 text-center text-[12px] text-[#aaa]">
+                No bank activity yet.
               </div>
             ) : (
-            <div className="flex items-end gap-3" style={{ height: 180 }}>
-              {mercuryMonthlyRevenue.map((m, i) => {
-                const heightPct = (m.revenue / maxMonthlyRevenue) * 100;
-                return (
-                  <div
-                    key={m.month}
-                    className="flex flex-1 flex-col items-center gap-1"
-                  >
-                    <span className="text-[11px] font-medium text-[#222]">
-                      ${(m.revenue / 1000).toFixed(1)}k
-                    </span>
-                    <div
-                      className="w-full rounded-t bg-[#1a73e8] transition-all"
-                      style={{
-                        height: `${heightPct}%`,
-                        opacity: 0.6 + (i / mercuryMonthlyRevenue.length) * 0.4,
-                      }}
-                    />
-                    <span className="text-[10px] text-[#888]">
-                      {m.month.split(" ")[0].slice(0, 3)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-          </div>
-
-          {/* Top Vendors — Mercury withdrawals grouped by counterparty */}
-          <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
-            <h2 className="mb-3 text-sm font-semibold text-[#333]">
-              Top Vendors
-            </h2>
-            {categoryTotals.length === 0 ? (
-              <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 180 }}>
-                {mercuryConnected
-                  ? "No Mercury withdrawals yet."
-                  : "Mercury not connected. Configure MERCURY_API_TOKEN to see vendor spend."}
-              </div>
-            ) : (
-            <div className="flex flex-col gap-2.5">
-              {categoryTotals.map(([cat, amount]) => {
-                const pct = totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0;
-                return (
-                  <div key={cat}>
-                    <div className="mb-1 flex items-center justify-between text-[12px]">
-                      <span className="text-[#555]">{cat}</span>
-                      <span className="font-medium text-[#222]">
-                        ${amount.toLocaleString()} ({pct.toFixed(0)}%)
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-[#f0f0f0]">
-                      <div
-                        className="h-full rounded-full bg-[#1a73e8] transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-          </div>
-
-          {/* Revenue by client */}
-          <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
-            <h2 className="mb-3 text-sm font-semibold text-[#333]">
-              Revenue by Client
-            </h2>
-            {clientRevenue.length === 0 ? (
-              <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 120 }}>
-                {mercuryConnected
-                  ? "No Mercury deposits yet."
-                  : "Mercury not connected."}
-              </div>
-            ) : (
-            <div className="flex flex-col gap-2">
-              {clientRevenue.map(([client, revenue]) => {
-                const pct =
-                  totalRevenue > 0 ? (revenue / totalRevenue) * 100 : 0;
-                return (
-                  <div key={client} className="flex items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between text-[12px]">
-                        <span className="truncate font-medium text-[#222]">
-                          {client}
-                        </span>
-                        <span className="shrink-0 text-[#555]">
-                          ${revenue.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#f0f0f0]">
-                        <div
-                          className="h-full rounded-full bg-[#27ae60]"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                    <span className="w-10 text-right text-[11px] text-[#888]">
-                      {pct.toFixed(0)}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            )}
-          </div>
-
-          {/* Pipeline forecast */}
-          <div className="rounded-lg border border-[#e0e0e0] bg-white p-4">
-            <h2 className="mb-3 text-sm font-semibold text-[#333]">
-              Pipeline Forecast
-            </h2>
-            {pipelineDeals.length === 0 ? (
-              <div className="flex items-center justify-center text-center text-[12px] text-[#aaa]" style={{ height: 120 }}>
-                Add deal value to engagements in the pipeline to see forecasted revenue.
-              </div>
-            ) : (
-            <div className="flex flex-col gap-2">
-              {pipelineDeals.map((deal) => (
-                <div
-                  key={deal.name}
-                  className="flex items-center justify-between rounded-md border border-[#f0f0f0] px-3 py-2"
-                >
-                  <div>
-                    <p className="text-[12px] font-medium text-[#222]">
-                      {deal.name}
-                    </p>
-                    <p className="text-[11px] text-[#888]">{deal.client}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[12px] font-medium text-[#222]">
-                      ${deal.weighted.toLocaleString()}
-                    </p>
-                    <p className="text-[10px] text-[#888]">
-                      {deal.probability}% of ${deal.value.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              <div className="mt-1 flex items-center justify-between rounded-md bg-[#f5f5f5] px-3 py-2">
-                <span className="text-[12px] font-semibold text-[#333]">
-                  Total Weighted
-                </span>
-                <span className="text-[14px] font-bold text-[#1a73e8]">
-                  ${totalWeighted.toLocaleString()}
-                </span>
-              </div>
-            </div>
-            )}
-          </div>
-
-          {/* Recent Bank Transactions */}
-          {mercuryConnected && bankTransactions.length > 0 && (
-            <div className="col-span-2 rounded-lg border border-[#e0e0e0] bg-white p-4">
-              <h2 className="mb-3 text-sm font-semibold text-[#333]">Recent Bank Transactions</h2>
               <div className="flex flex-col divide-y divide-[#f0f0f0]">
-                {bankTransactions.slice(0, 15).map((txn) => (
-                  <div key={txn.id} className="flex items-center gap-3 py-2">
-                    <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${txn.amount >= 0 ? "bg-[#e6f9e6]" : "bg-[#fde8e8]"}`}>
-                      {txn.amount >= 0 ? <ArrowDown size={12} className="text-[#27ae60]" /> : <ArrowUp size={12} className="text-[#c0392b]" />}
+                {bankTransactions.map((txn) => (
+                  <div key={txn.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <div
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                        txn.amount >= 0 ? "bg-[#e6f9e6]" : "bg-[#fde8e8]"
+                      }`}
+                    >
+                      {txn.amount >= 0 ? (
+                        <ArrowDown size={12} className="text-[#27ae60]" />
+                      ) : (
+                        <ArrowUp size={12} className="text-[#c0392b]" />
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium text-[#222]">{txn.counterpartyName || "Unknown"}</p>
-                      {txn.note && <p className="truncate text-[11px] text-[#888]">{txn.note}</p>}
+                      <p className="truncate text-[13px] font-medium text-[#222]">
+                        {txn.counterpartyName || "Unknown"}
+                      </p>
+                      {txn.note && (
+                        <p className="truncate text-[11px] text-[#888]">{txn.note}</p>
+                      )}
                     </div>
                     <div className="text-right">
-                      <p className={`text-[13px] font-medium ${txn.amount >= 0 ? "text-[#27ae60]" : "text-[#222]"}`}>
-                        {txn.amount >= 0 ? "+" : ""}${Math.abs(txn.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <p
+                        className={`text-[13px] font-medium ${
+                          txn.amount >= 0 ? "text-[#27ae60]" : "text-[#222]"
+                        }`}
+                      >
+                        {txn.amount >= 0 ? "+" : ""}${Math.abs(txn.amount).toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
                       </p>
                       <p className="text-[10px] text-[#aaa]">
-                        {new Date(txn.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                        {new Date(txn.createdAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                        })}
                       </p>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        </div>
 
-          {/* Profitability by Project */}
-          {profitability.length > 0 && (
-            <div className="col-span-2 rounded-lg border border-[#e0e0e0] bg-white p-4">
-              <h2 className="mb-3 text-sm font-semibold text-[#333]">Profitability by Project</h2>
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-[#e0e0e0]">
-                    <th className="pb-2 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">Project</th>
-                    <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">Revenue</th>
-                    <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">Hours</th>
-                    <th className="pb-2 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">$/hr</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {profitability.map((p) => {
-                    const effectiveRate = p.billableHours > 0 ? p.revenue / p.billableHours : 0;
+        {/* Expenses — manual expense ledger */}
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-[#e0e0e0] bg-white">
+          <div className="flex shrink-0 items-center justify-between border-b border-[#f0f0f0] px-4 py-3">
+            <h2 className="text-sm font-semibold text-[#333]">Expenses</h2>
+            <span className="text-[11px] text-[#888]">
+              {expenses.length > 0
+                ? `${expenses.length} · $${localExpensesTotal.toLocaleString()}`
+                : "no entries"}
+            </span>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {expenses.length === 0 ? (
+              <div className="flex h-full items-center justify-center px-6 py-10 text-center text-[12px] text-[#aaa]">
+                No expenses logged. Click &quot;+ Add Expense&quot; to start.
+              </div>
+            ) : (
+              <div className="flex flex-col divide-y divide-[#f0f0f0]">
+                {[...expenses]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .map((exp) => {
+                    const colorClasses =
+                      EXPENSE_CATEGORY_COLORS[exp.category] ?? "bg-[#f5f5f5] text-[#555]";
                     return (
-                      <tr key={p.projectName} className="border-b border-[#f0f0f0] hover:bg-[#fafafa]">
-                        <td className="py-2">
-                          <p className="text-[13px] font-medium text-[#222]">{p.projectName}</p>
-                          {p.client && <p className="text-[11px] text-[#888]">{p.client}</p>}
-                        </td>
-                        <td className="py-2 text-right text-[13px] font-medium text-[#27ae60]">
-                          ${p.revenue.toLocaleString()}
-                        </td>
-                        <td className="py-2 text-right text-[13px] text-[#555]">
-                          {p.billableHours.toFixed(1)}h
-                          {p.totalHours !== p.billableHours && (
-                            <span className="text-[11px] text-[#aaa]"> / {p.totalHours.toFixed(1)}h</span>
-                          )}
-                        </td>
-                        <td className={`py-2 text-right text-[13px] font-medium ${effectiveRate >= 150 ? "text-[#27ae60]" : effectiveRate >= 75 ? "text-[#e67e22]" : "text-[#c0392b]"}`}>
-                          {effectiveRate > 0 ? `$${Math.round(effectiveRate)}` : "—"}
-                        </td>
-                      </tr>
+                      <div
+                        key={exp.id}
+                        className="group flex items-center gap-3 px-4 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-[13px] font-medium text-[#222]">
+                            {exp.description || "(no description)"}
+                          </p>
+                          <div className="mt-0.5 flex items-center gap-2 text-[11px] text-[#888]">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${colorClasses}`}
+                            >
+                              {exp.category}
+                            </span>
+                            <span>{exp.date}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[13px] font-medium text-[#c0392b]">
+                            −${exp.amount.toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            onClick={() => {
+                              setEditingExpense(exp);
+                              setShowExpenseModal(true);
+                            }}
+                            className="rounded p-1 text-[#888] hover:bg-[#f0f0f0] hover:text-[#111]"
+                            aria-label="Edit expense"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteExpense(exp.id)}
+                            className="rounded p-1 text-[#ccc] hover:bg-[#fde8e8] hover:text-[#c0392b]"
+                            aria-label="Delete expense"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
 
       {/* Expense Modal */}
       {showExpenseModal && (
