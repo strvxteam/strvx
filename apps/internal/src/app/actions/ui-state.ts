@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { resolveEntityLabel } from "@/lib/entity-label";
 import { userPins, userRecents } from "@strvx/db/schema";
 import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -157,4 +158,12 @@ export async function getPins(): Promise<UserPin[]> {
     iconKey: r.iconKey,
     position: r.position,
   }));
+}
+
+export async function resolveEntityLabelAction(
+  kind: "engagement" | "project" | "contact",
+  id: string,
+): Promise<string | null> {
+  await getCurrentUser(); // auth gate
+  return resolveEntityLabel(kind, id);
 }
