@@ -1416,6 +1416,16 @@ export async function deleteDocument(docId: string) {
   revalidatePath("/docs");
 }
 
+export async function deleteInvoiceAction(invoiceId: string) {
+  await getCurrentUser();
+  const parsed = uuidSchema.safeParse(invoiceId);
+  if (!parsed.success) throw new Error("Invalid invoice ID");
+
+  await db.delete(invoices).where(eq(invoices.id, parsed.data));
+  revalidatePath("/invoices");
+  revalidatePath("/finances");
+}
+
 // ── Monitoring ───────────────────────────────────────
 
 export async function addMonitoredSite(data: { name: string; url: string; type: "internal" | "client" }) {

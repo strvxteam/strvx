@@ -1,13 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   INVOICE_STATUS_COLORS,
   RECONCILIATION_LABELS,
   type InvoiceStatus,
   type ReconciliationStatus,
 } from "@/lib/mock-finance";
+import { deleteInvoiceAction } from "@/app/actions";
 
 interface InvoiceRow {
   id: string;
@@ -31,8 +35,6 @@ interface InvoicesClientProps {
   reconciledAmount: number;
 }
 
-const STATUS_TABS = ["all", "draft", "sent", "overdue", "paid"] as const;
-
 export function InvoicesClient({
   invoices,
   clients,
@@ -41,13 +43,13 @@ export function InvoicesClient({
   paidThisMonth,
   reconciledAmount,
 }: InvoicesClientProps) {
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => {
     return invoices.filter((inv) => {
-      if (statusFilter !== "all" && inv.status !== statusFilter) return false;
       if (clientFilter !== "all" && inv.client !== clientFilter) return false;
       if (search) {
         const q = search.toLowerCase();
@@ -59,7 +61,20 @@ export function InvoicesClient({
       }
       return true;
     });
-  }, [invoices, statusFilter, clientFilter, search]);
+  }, [invoices, clientFilter, search]);
+
+  const handleDelete = (id: string, number: string) => {
+    if (!confirm(`Delete invoice ${number}? This cannot be undone.`)) return;
+    startTransition(async () => {
+      try {
+        await deleteInvoiceAction(id);
+        toast.success(`Invoice ${number} deleted`);
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Delete failed");
+      }
+    });
+  };
 
   return (
     <div>
@@ -72,23 +87,6 @@ export function InvoicesClient({
         >
           + New Invoice
         </Link>
-      </div>
-
-      {/* Status tabs */}
-      <div className="mb-4 flex items-center gap-1 rounded-lg border border-[#e0e0e0] bg-white p-1 w-fit">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setStatusFilter(tab)}
-            className={`rounded-md px-3 py-1 text-[12px] font-medium capitalize transition-colors ${
-              statusFilter === tab
-                ? "bg-[#111] text-white"
-                : "text-[#555] hover:bg-[#f5f5f5]"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
       </div>
 
       {/* Search + Client filter */}
@@ -152,55 +150,68 @@ export function InvoicesClient({
 
       {/* Table */}
       <div
-        style={{ minHeight: "calc(100vh - 380px)" }}
-        className="flex flex-col rounded-lg border border-[#e0e0e0] bg-white"
+        style={{ minHeight: "calc(100vh - 300px)" }}
+        className="flex flex-col overflow-hidden rounded-lg border border-[#e0e0e0] bg-white"
       >
-        <table className="w-full min-w-[640px]">
-          <thead>
-            <tr className="border-b border-[#e0e0e0]">
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
-                Invoice #
-              </th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
-                Client
-              </th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
-                Amount
-              </th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
-                Status
-              </th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
-                Due Date
-              </th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
-                Bank
-              </th>
-              <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
-                Payment
-              </th>
-            </tr>
-          </thead>
-        </table>
         <div className="flex-1 overflow-y-auto">
-          {filtered.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-[13px] text-[#bbb] py-12">
-              {invoices.length === 0
-                ? 'No invoices yet \u2014 click "+ New Invoice" to create one'
-                : "No invoices match your filters"}
-            </div>
-          ) : (
-            <table className="w-full min-w-[640px]">
-              <tbody>
-                {filtered.map((inv) => {
+          <table className="w-full table-fixed">
+            <colgroup>
+              <col style={{ width: "16%" }} />
+              <col style={{ width: "26%" }} />
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "11%" }} />
+              <col style={{ width: "13%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "4%" }} />
+            </colgroup>
+            <thead className="sticky top-0 z-10 bg-white">
+              <tr className="border-b-2 border-[#e0e0e0]">
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                  Invoice #
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                  Client
+                </th>
+                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                  Amount
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                  Due Date
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                  Bank
+                </th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                  Payment
+                </th>
+                <th className="px-2 py-3" aria-label="Actions" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-4 py-16 text-center text-[13px] text-[#bbb]"
+                  >
+                    {invoices.length === 0
+                      ? 'No invoices yet — click "+ New Invoice" to create one'
+                      : "No invoices match your filters"}
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((inv) => {
                   const recLabel = inv.reconciliationStatus
                     ? RECONCILIATION_LABELS[inv.reconciliationStatus]
                     : null;
-
                   return (
                     <tr
                       key={inv.id}
-                      className="border-b border-[#f0f0f0] transition-colors hover:bg-[#fafafa]"
+                      className="group border-b border-[#e8e8e8] transition-colors hover:bg-[#fafafa]"
                     >
                       <td className="px-4 py-3">
                         <Link
@@ -210,10 +221,10 @@ export function InvoicesClient({
                           {inv.number}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-[13px] text-[#555]">
+                      <td className="px-4 py-3 text-[13px] text-[#555] truncate">
                         {inv.client}
                       </td>
-                      <td className="px-4 py-3 text-[13px] font-medium text-[#222]">
+                      <td className="px-4 py-3 text-right text-[13px] font-medium text-[#222]">
                         ${inv.amount.toLocaleString()}
                       </td>
                       <td className="px-4 py-3">
@@ -232,7 +243,7 @@ export function InvoicesClient({
                             {recLabel.text}
                           </span>
                         ) : (
-                          <span className="text-[#bbb]">&mdash;</span>
+                          <span className="text-[#bbb]">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-[13px]">
@@ -243,18 +254,30 @@ export function InvoicesClient({
                             rel="noopener noreferrer"
                             className="font-medium text-[#1a73e8] hover:underline"
                           >
-                            Pay &rarr;
+                            Pay →
                           </a>
                         ) : (
-                          <span className="text-[#bbb]">&mdash;</span>
+                          <span className="text-[#bbb]">—</span>
                         )}
+                      </td>
+                      <td className="px-2 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(inv.id, inv.number)}
+                          disabled={isPending}
+                          className="rounded p-1.5 text-[#bbb] opacity-0 transition-colors hover:bg-[#fde8e8] hover:text-[#c0392b] group-hover:opacity-100 disabled:opacity-40"
+                          title="Delete invoice"
+                          aria-label={`Delete invoice ${inv.number}`}
+                        >
+                          <Trash2 size={14} strokeWidth={1.5} />
+                        </button>
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
-            </table>
-          )}
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
