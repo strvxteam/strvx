@@ -260,10 +260,10 @@ export function InvoiceBuilderClient({
       </div>
 
       {/* Two fixed-size columns */}
-      <div className="flex gap-6">
+      <div className="flex items-stretch gap-6">
         {/* Left — Form */}
-        <div style={columnStyle}>
-          <div className="rounded-[6px] border border-[#e0e0e0] bg-white p-6">
+        <div style={columnStyle} className="flex flex-col">
+          <div className="flex flex-1 flex-col rounded-[6px] border border-[#e0e0e0] bg-white p-6">
             {/* Client + Email */}
             <div className="mb-5 grid grid-cols-2 gap-4">
               <div>
@@ -444,21 +444,18 @@ export function InvoiceBuilderClient({
           </div>
         </div>
 
-        {/* Right — Live Preview (same fixed width) */}
-        <div style={columnStyle}>
-          <div className="sticky top-6">
-            <p className={`${labelClass} mb-2`}>Live Preview</p>
-            <LivePreview
-              invoiceNumber={invoiceNumber}
-              companyName={selectedCompany?.name ?? ""}
-              clientEmail={clientEmail}
-              issuedDate={issuedDate}
-              dueDate={dueDate}
-              lineItems={lineItems.filter((li) => li.description.trim())}
-              subtotal={subtotal}
-              notes={notes}
-            />
-          </div>
+        {/* Right — Live Preview (same fixed width + stretches to match form height) */}
+        <div style={columnStyle} className="flex flex-col">
+          <LivePreview
+            invoiceNumber={invoiceNumber}
+            companyName={selectedCompany?.name ?? ""}
+            clientEmail={clientEmail}
+            issuedDate={issuedDate}
+            dueDate={dueDate}
+            lineItems={lineItems.filter((li) => li.description.trim())}
+            subtotal={subtotal}
+            notes={notes}
+          />
         </div>
       </div>
 
@@ -509,7 +506,7 @@ function LivePreview({
   notes: string;
 }) {
   return (
-    <div className="rounded-[6px] border border-[#e0e0e0] bg-white p-6">
+    <div className="flex h-full flex-col rounded-[6px] border border-[#e0e0e0] bg-white p-6">
       {/* Branding header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
@@ -647,7 +644,7 @@ function LivePreview({
       )}
 
       {/* Footer */}
-      <div className="mt-6 border-t border-[#f0f0f0] pt-4 text-center">
+      <div className="mt-auto border-t border-[#f0f0f0] pt-4 text-center">
         <p className="text-[11px] text-[#bbb]">
           strvx · hello@strvx.com · Thank you for your business
         </p>
