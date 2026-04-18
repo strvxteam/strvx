@@ -46,30 +46,33 @@ type NavSection = {
 
 const navSections: NavSection[] = [
   {
-    label: "CRM",
+    label: "Work",
     icon: LayoutDashboard,
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/pipeline", label: "Pipeline", icon: Columns3 },
-      { href: "/clients", label: "Clients", icon: BookUser },
       { href: "/tasks", label: "Tasks", icon: CheckSquare },
-    ],
-  },
-  {
-    label: "Partners",
-    icon: Handshake,
-    items: [
-      { href: "/partners/pipeline", label: "Pipeline", icon: Columns3 },
-      { href: "/partners", label: "Directory", icon: Handshake },
-    ],
-  },
-  {
-    label: "Projects",
-    icon: FolderKanban,
-    items: [
       { href: "/projects", label: "Projects", icon: FolderKanban },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/availability", label: "Availability", icon: Users },
+      { href: "/goals", label: "Goals", icon: Target },
+    ],
+  },
+  {
+    label: "Sales",
+    icon: Handshake,
+    items: [
+      { href: "/pipeline", label: "Pipeline", icon: Columns3 },
+      { href: "/clients", label: "Clients", icon: BookUser },
+      { href: "/partners/pipeline", label: "Partners Pipeline", icon: Columns3 },
+      { href: "/partners", label: "Partners Directory", icon: Handshake },
+    ],
+  },
+  {
+    label: "Finance",
+    icon: Wallet,
+    items: [
+      { href: "/finances", label: "Finances", icon: Wallet },
+      { href: "/invoices", label: "Invoices", icon: FileText },
     ],
   },
   {
@@ -85,32 +88,11 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "Finance",
-    icon: Wallet,
-    items: [
-      { href: "/finances", label: "Finances", icon: Wallet },
-      { href: "/invoices", label: "Invoices", icon: FileText },
-    ],
-  },
-  {
-    label: "Goals",
-    icon: Target,
-    items: [
-      { href: "/goals", label: "Goals", icon: Target },
-    ],
-  },
-  {
-    label: "Knowledge",
+    label: "Knowledge & Skills",
     icon: BookOpen,
     items: [
-      { href: "/assets", label: "Assets", icon: FolderOpen },
       { href: "/docs", label: "Docs", icon: BookOpen },
-    ],
-  },
-  {
-    label: "Skills & Agents",
-    icon: Boxes,
-    items: [
+      { href: "/assets", label: "Assets", icon: FolderOpen },
       { href: "/skills", label: "Library", icon: Boxes },
       { href: "/skills/components", label: "Components", icon: Brain },
       { href: "/skills/rules", label: "Rules", icon: ScrollText },
