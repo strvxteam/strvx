@@ -328,7 +328,13 @@ function ContactsList({ contacts }: { contacts: Contact[] }) {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <p className="text-[13px] font-medium">{c.name}</p>
+                  <Link
+                    href={`/contacts/${c.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="text-[13px] font-medium text-[#1a73e8] hover:underline"
+                  >
+                    {c.name}
+                  </Link>
                   <Pencil
                     size={10}
                     className="text-transparent group-hover:text-muted-foreground"

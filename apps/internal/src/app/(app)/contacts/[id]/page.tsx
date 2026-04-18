@@ -1,24 +1,24 @@
 import { notFound } from "next/navigation";
-import { getProject } from "@/lib/queries";
+import { getContact } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Project Overview" };
+export const metadata = { title: "Contact Overview" };
 
-export default async function ProjectOverviewPage({
+export default async function ContactOverviewPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const project = await getProject(id);
-  if (!project) return notFound();
+  const contact = await getContact(id);
+  if (!contact) return notFound();
   return (
     <div className="grid grid-cols-2 gap-4">
-      <Field label="Name" value={project.name} />
-      <Field label="Client" value={project.client ?? "—"} />
-      <Field label="Status" value={project.status ?? "—"} />
-      <Field label="Engagement" value={project.engagementId ?? "—"} />
+      <Field label="Name" value={contact.name} />
+      <Field label="Email" value={contact.email ?? "—"} />
+      <Field label="Phone" value={contact.phone ?? "—"} />
+      <Field label="Role" value={contact.role ?? "—"} />
     </div>
   );
 }

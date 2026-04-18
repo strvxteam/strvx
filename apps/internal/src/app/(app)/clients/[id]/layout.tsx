@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { EntityShell } from "@/components/shell/entity-shell";
-import { loadEngagementShell } from "@/lib/engagement-shell-data";
+import { loadShellData } from "@/lib/shell-data";
 
 export default async function EngagementLayout({
   params,
@@ -10,7 +10,7 @@ export default async function EngagementLayout({
   children: React.ReactNode;
 }) {
   const { id } = await params;
-  const data = await loadEngagementShell(id);
+  const data = await loadShellData("engagement", id);
   if (!data) return notFound();
 
   const tabs = [
