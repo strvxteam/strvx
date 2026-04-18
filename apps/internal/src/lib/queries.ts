@@ -771,6 +771,14 @@ export async function getProject(id: string) {
   return project;
 }
 
+export async function getProjectsByEngagement(engagementId: string) {
+  return db
+    .select()
+    .from(projects)
+    .where(eq(projects.engagementId, engagementId))
+    .orderBy(desc(projects.createdAt));
+}
+
 // ── Invoice Queries ───────────────────────────────────
 
 export async function getInvoices(limit = 500) {
@@ -783,6 +791,14 @@ export async function getInvoice(id: string) {
     .from(invoices)
     .where(eq(invoices.id, id));
   return invoice;
+}
+
+export async function getInvoicesByEngagement(engagementId: string) {
+  return db
+    .select()
+    .from(invoices)
+    .where(eq(invoices.engagementId, engagementId))
+    .orderBy(desc(invoices.createdAt));
 }
 
 // ── Recurring Invoice Schedule Queries ───────────────
