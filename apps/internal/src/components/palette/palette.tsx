@@ -79,6 +79,11 @@ export function Palette() {
         setSelected(0);
       }
       if (e.key === "Escape" && open) {
+        // Don't swallow Escape when the user is dismissing a native dropdown/autocomplete
+        const tag = (e.target as HTMLElement | null)?.tagName;
+        if (tag === "SELECT" || (tag === "INPUT" && (e.target as HTMLInputElement).list)) {
+          return;
+        }
         if (mode === "form") { setMode("search"); setActiveCommand(null); }
         else close();
       }
