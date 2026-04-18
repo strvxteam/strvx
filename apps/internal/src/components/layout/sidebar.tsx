@@ -37,6 +37,8 @@ import {
   Activity,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { PinnedSection } from "./pinned-section";
+import { RecentsSection } from "./recents-section";
 
 type NavSection = {
   label: string;
@@ -211,8 +213,11 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Pinned */}
+      <PinnedSection collapsed={collapsed} />
+
       {/* Nav sections */}
-      <nav className="flex-1 overflow-y-auto px-2">
+      <nav className="overflow-y-auto px-2">
         {navSections.map((section) => {
           const isOpen = openSections.has(section.label);
           const hasActive = section.items.some(
@@ -277,8 +282,11 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* Recents */}
+      <RecentsSection collapsed={collapsed} />
+
       {/* Sign out */}
-      <div className="mt-auto border-t border-[#e8e8e8] px-2 pt-3">
+      <div className="border-t border-[#e8e8e8] px-2 pt-3">
         <button
           type="button"
           onClick={handleSignOut}
