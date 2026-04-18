@@ -43,6 +43,7 @@ export function Palette() {
   const [, startSearch] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -116,7 +117,7 @@ export function Palette() {
     const prev = document.activeElement as HTMLElement | null;
     function trap(e: KeyboardEvent) {
       if (e.key !== "Tab") return;
-      const dialog = document.querySelector("[role='dialog']");
+      const dialog = dialogRef.current;
       if (!dialog) return;
       const focusables = dialog.querySelectorAll<HTMLElement>("input, button, [tabindex]:not([tabindex='-1'])");
       if (focusables.length === 0) return;
@@ -171,6 +172,7 @@ export function Palette() {
       role="presentation"
     >
       <div
+        ref={dialogRef}
         className="w-full max-w-lg overflow-hidden rounded-lg border border-[#e0e0e0] bg-white"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
