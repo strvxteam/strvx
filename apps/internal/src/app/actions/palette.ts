@@ -36,6 +36,10 @@ export type PaletteResult = {
 const queryShape = z.string().min(1).max(100);
 const LIMIT = 5;
 
+// NOTE: Results are not user/tenant-filtered beyond the `getCurrentUser()` auth gate.
+// Acceptable for the current single-tenant strvx-internal app, but this action will
+// need per-user scoping (or the schema equivalent of RLS) if/when multi-user isolation
+// becomes a requirement. See follow-up review comment #3.
 export async function searchAll(query: string): Promise<PaletteResult[]> {
   const parsed = queryShape.safeParse(query);
   if (!parsed.success) return [];
