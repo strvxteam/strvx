@@ -110,6 +110,26 @@ export function Palette() {
     el?.scrollIntoView({ block: "nearest" });
   }, [selected]);
 
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.activeElement as HTMLElement | null;
+    function trap(e: KeyboardEvent) {
+      if (e.key !== "Tab") return;
+      const dialog = document.querySelector("[role='dialog']");
+      if (!dialog) return;
+      const focusables = dialog.querySelectorAll<HTMLElement>("input, button, [tabindex]:not([tabindex='-1'])");
+      if (focusables.length === 0) return;
+      const first = focusables[0], last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+    document.addEventListener("keydown", trap);
+    return () => {
+      document.removeEventListener("keydown", trap);
+      prev?.focus?.();
+    };
+  }, [open]);
+
   function onKeyDown(e: React.KeyboardEvent) {
     if ((e.metaKey || e.ctrlKey) && /^[1-9]$/.test(e.key)) {
       e.preventDefault();
