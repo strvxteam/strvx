@@ -90,20 +90,21 @@ export function Palette() {
 
   useEffect(() => {
     if (!open) return;
-    getRecents().then(setRecents).catch(() => setRecents([]));
+    getRecents()
+      .then((r) => { setRecents(r); setSelected(0); })
+      .catch(() => { setRecents([]); setSelected(0); });
   }, [open]);
 
   useEffect(() => {
     const t = setTimeout(() => {
-      if (!query.trim()) { setResults([]); return; }
+      if (!query.trim()) { setResults([]); setSelected(0); return; }
       startSearch(async () => {
-        try { setResults(await searchAll(query)); } catch { setResults([]); }
+        try { setResults(await searchAll(query)); setSelected(0); }
+        catch { setResults([]); setSelected(0); }
       });
     }, 200);
     return () => clearTimeout(t);
   }, [query]);
-
-  useEffect(() => { if (selected >= allItems.length) setSelected(0); }, [allItems.length, selected]);
 
   useEffect(() => {
     const el = listRef.current?.querySelector("[data-selected='true']");
