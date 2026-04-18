@@ -111,6 +111,20 @@ export function Palette() {
   }, [selected]);
 
   function onKeyDown(e: React.KeyboardEvent) {
+    if ((e.metaKey || e.ctrlKey) && /^[1-9]$/.test(e.key)) {
+      e.preventDefault();
+      const groupIndex = Number(e.key) - 1;
+      const groupStart = findNthGroupStart(allItems, groupIndex);
+      if (groupStart !== -1) setSelected(groupStart);
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      const item = allItems[selected];
+      if (item?.kind === "result") window.open((item.payload as PaletteResult).href, "_blank");
+      else if (item?.kind === "recent") window.open(resolveRecentHref(item.payload as Recent), "_blank");
+      return;
+    }
     if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => (s + 1) % Math.max(allItems.length, 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setSelected((s) => (s - 1 + allItems.length) % Math.max(allItems.length, 1)); }
     else if (e.key === "Enter") {
@@ -181,6 +195,20 @@ export function Palette() {
       </div>
     </div>
   );
+}
+
+function findNthGroupStart(items: Array<{ kind: "result" | "command" | "recent"; payload: unknown }>, n: number): number {
+  const seen = new Set<string>();
+  for (let i = 0; i < items.length; i++) {
+    const key = items[i].kind === "result"
+      ? `r:${(items[i].payload as { group: string }).group}`
+      : items[i].kind === "command" ? "commands" : "recent";
+    if (!seen.has(key)) {
+      seen.add(key);
+      if (seen.size - 1 === n) return i;
+    }
+  }
+  return -1;
 }
 
 function resolveRecentHref(r: Recent): string {
