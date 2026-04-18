@@ -362,6 +362,23 @@ export async function getContacts() {
     .orderBy(contacts.name);
 }
 
+export async function getContact(id: string) {
+  const [row] = await db
+    .select({
+      id: contacts.id,
+      name: contacts.name,
+      email: contacts.email,
+      phone: contacts.phone,
+      role: contacts.role,
+      companyId: contacts.companyId,
+      companyName: companies.name,
+    })
+    .from(contacts)
+    .innerJoin(companies, eq(contacts.companyId, companies.id))
+    .where(eq(contacts.id, id));
+  return row;
+}
+
 export async function getAllContactsByCompany() {
   const rows = await db
     .select({
