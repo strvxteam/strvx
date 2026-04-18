@@ -3,6 +3,11 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@strvx/db"],
+  async redirects() {
+    return [
+      { source: "/maintenance", destination: "/development/monitoring", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {

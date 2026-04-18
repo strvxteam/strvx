@@ -3,12 +3,12 @@ import {
   getAllSitesLatestStatus,
   getAllSitesCheckHistory,
 } from "@/lib/queries";
-import MaintenanceClient from "./maintenance-client";
+import MonitoringClient from "./monitoring-client";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Monitoring" };
 
-export default async function MaintenancePage() {
+export default async function MonitoringPage() {
   const [sites, historyRows] = await Promise.all([
     getAllSitesLatestStatus(),
     getAllSitesCheckHistory(24),
@@ -39,5 +39,5 @@ export default async function MaintenancePage() {
     history: historyMap[s.site_id] ?? [],
   }));
 
-  return <MaintenanceClient sites={serialized} />;
+  return <MonitoringClient sites={serialized} />;
 }

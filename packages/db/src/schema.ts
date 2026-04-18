@@ -1035,3 +1035,129 @@ export const patterns = pgTable("patterns", {
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ── Development (DevOps) ──────────────────────────────
+
+export const devRepos = pgTable(
+  "dev_repos",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    githubOwner: text("github_owner").notNull(),
+    githubRepo: text("github_repo").notNull(),
+    defaultBranch: text("default_branch").notNull().default("main"),
+    vercelProjectId: text("vercel_project_id"),
+    ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+    color: text("color").notNull().default("#1a73e8"),
+    isActive: boolean("is_active").notNull().default(true),
+    lastRefreshedAt: timestamp("last_refreshed_at", { withTimezone: true }),
+    lastRefreshError: text("last_refresh_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("dev_repos_owner_repo_idx").on(t.githubOwner, t.githubRepo)],
+);
+
+export const githubPrCache = pgTable(
+  "github_pr_cache",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    repoId: uuid("repo_id")
+      .notNull()
+      .references(() => devRepos.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    state: text("state").notNull(), // open | closed | merged
+    isDraft: boolean("is_draft").notNull().default(false),
+    authorLogin: text("author_login"),
+    authorAvatarUrl: text("author_avatar_url"),
+    headBranch: text("head_branch"),
+    baseBranch: text("base_branch"),
+    htmlUrl: text("html_url").notNull(),
+    requestedReviewers: jsonb("requested_reviewers").$type<string[]>(),
+    ciStatus: text("ci_status"), // success | failure | pending | null
+    additions: integer("additions"),
+    deletions: integer("deletions"),
+    changedFiles: integer("changed_files"),
+    createdAtRemote: timestamp("created_at_remote", { withTimezone: true }).notNull(),
+    updatedAtRemote: timestamp("updated_at_remote", { withTimezone: true }).notNull(),
+    mergedAt: timestamp("merged_at", { withTimezone: true }),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("github_pr_cache_repo_number_idx").on(t.repoId, t.number),
+    index("github_pr_cache_state_idx").on(t.state),
+  ],
+);
+
+export const vercelDeployCache = pgTable(
+  "vercel_deploy_cache",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    repoId: uuid("repo_id")
+      .notNull()
+      .references(() => devRepos.id, { onDelete: "cascade" }),
+    deploymentId: text("deployment_id").notNull(),
+    url: text("url").notNull(),
+    target: text("target"), // production | preview
+    state: text("state").notNull(), // READY | ERROR | BUILDING | QUEUED | CANCELED
+    branch: text("branch"),
+    commitSha: text("commit_sha"),
+    commitMessage: text("commit_message"),
+    commitAuthor: text("commit_author"),
+    buildDurationMs: integer("build_duration_ms"),
+    createdAtRemote: timestamp("created_at_remote", { withTimezone: true }).notNull(),
+    readyAt: timestamp("ready_at", { withTimezone: true }),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("vercel_deploy_cache_deployment_idx").on(t.deploymentId),
+    index("vercel_deploy_cache_repo_created_idx").on(t.repoId, t.createdAtRemote),
+  ],
+);
+
+export const githubCiCache = pgTable(
+  "github_ci_cache",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    repoId: uuid("repo_id")
+      .notNull()
+      .references(() => devRepos.id, { onDelete: "cascade" }),
+    runId: text("run_id").notNull(),
+    workflowName: text("workflow_name").notNull(),
+    status: text("status").notNull(), // queued | in_progress | completed
+    conclusion: text("conclusion"), // success | failure | cancelled | null
+    branch: text("branch"),
+    event: text("event"), // push | pull_request | schedule | workflow_dispatch
+    actor: text("actor"),
+    htmlUrl: text("html_url").notNull(),
+    durationMs: integer("duration_ms"),
+    createdAtRemote: timestamp("created_at_remote", { withTimezone: true }).notNull(),
+    updatedAtRemote: timestamp("updated_at_remote", { withTimezone: true }).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("github_ci_cache_run_idx").on(t.runId),
+    index("github_ci_cache_repo_created_idx").on(t.repoId, t.createdAtRemote),
+    index("github_ci_cache_conclusion_idx").on(t.conclusion),
+  ],
+);
+
+export const dependabotAlertCache = pgTable(
+  "dependabot_alert_cache",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    repoId: uuid("repo_id")
+      .notNull()
+      .references(() => devRepos.id, { onDelete: "cascade" }),
+    alertNumber: integer("alert_number").notNull(),
+    state: text("state").notNull(), // open | fixed | dismissed | auto_dismissed
+    severity: text("severity").notNull(), // low | medium | high | critical
+    packageName: text("package_name"),
+    ecosystem: text("ecosystem"),
+    summary: text("summary"),
+    htmlUrl: text("html_url").notNull(),
+    createdAtRemote: timestamp("created_at_remote", { withTimezone: true }).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("dependabot_alert_cache_repo_number_idx").on(t.repoId, t.alertNumber)],
+);

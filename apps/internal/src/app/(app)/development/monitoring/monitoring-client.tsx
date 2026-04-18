@@ -123,7 +123,7 @@ function UptimeBar({ history, hours = 24 }: { history: HistoryPoint[]; hours?: n
   );
 }
 
-export default function MaintenanceClient({ sites }: { sites: SiteData[] }) {
+export default function MonitoringClient({ sites }: { sites: SiteData[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [checking, setChecking] = useState(false);

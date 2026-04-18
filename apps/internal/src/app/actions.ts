@@ -35,6 +35,7 @@ import {
   agentRuleLinks,
   corrections,
   patterns,
+  devRepos,
 } from "@/lib/db/schema";
 import { eq, and, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -1435,7 +1436,7 @@ export async function addMonitoredSite(data: { name: string; url: string; type: 
       type: data.type,
     })
     .returning();
-  revalidatePath("/maintenance");
+  revalidatePath("/development/monitoring");
   return site;
 }
 
@@ -1446,7 +1447,117 @@ export async function removeMonitoredSite(siteId: string) {
 
   const { monitoredSites } = await import("@/lib/db/schema");
   await db.delete(monitoredSites).where(eq(monitoredSites.id, parsedId.data));
-  revalidatePath("/maintenance");
+  revalidatePath("/development/monitoring");
+}
+
+// ── Development (DevOps) Actions ──────────────────────
+
+const addDevRepoSchema = z.object({
+  name: z.string().min(1).max(100),
+  githubOwner: z.string().min(1).max(100),
+  githubRepo: z.string().min(1).max(100),
+  defaultBranch: z.string().min(1).max(100).optional(),
+  vercelProjectId: z.string().max(200).optional().nullable(),
+  ownerUserId: z.string().uuid().optional().nullable(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+});
+
+export async function addDevRepoAction(data: {
+  name: string;
+  githubOwner: string;
+  githubRepo: string;
+  defaultBranch?: string;
+  vercelProjectId?: string | null;
+  ownerUserId?: string | null;
+  color?: string;
+}) {
+  await getCurrentUser();
+  const parsed = addDevRepoSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Invalid repo data");
+
+  const [repo] = await db
+    .insert(devRepos)
+    .values({
+      name: parsed.data.name.trim(),
+      githubOwner: parsed.data.githubOwner.trim(),
+      githubRepo: parsed.data.githubRepo.trim(),
+      defaultBranch: parsed.data.defaultBranch?.trim() || "main",
+      vercelProjectId: parsed.data.vercelProjectId?.trim() || null,
+      ownerUserId: parsed.data.ownerUserId || null,
+      color: parsed.data.color || "#1a73e8",
+    })
+    .returning();
+  revalidatePath("/development");
+  revalidatePath("/development/repos");
+  return repo;
+}
+
+const updateDevRepoSchema = addDevRepoSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
+
+export async function updateDevRepoAction(repoId: string, data: {
+  name?: string;
+  githubOwner?: string;
+  githubRepo?: string;
+  defaultBranch?: string;
+  vercelProjectId?: string | null;
+  ownerUserId?: string | null;
+  color?: string;
+  isActive?: boolean;
+}) {
+  await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(repoId);
+  if (!parsedId.success) throw new Error("Invalid repo ID");
+  const parsed = updateDevRepoSchema.safeParse(data);
+  if (!parsed.success) throw new Error("Invalid repo data");
+
+  await db
+    .update(devRepos)
+    .set({
+      ...(parsed.data.name !== undefined && { name: parsed.data.name.trim() }),
+      ...(parsed.data.githubOwner !== undefined && { githubOwner: parsed.data.githubOwner.trim() }),
+      ...(parsed.data.githubRepo !== undefined && { githubRepo: parsed.data.githubRepo.trim() }),
+      ...(parsed.data.defaultBranch !== undefined && { defaultBranch: parsed.data.defaultBranch.trim() }),
+      ...(parsed.data.vercelProjectId !== undefined && { vercelProjectId: parsed.data.vercelProjectId?.trim() || null }),
+      ...(parsed.data.ownerUserId !== undefined && { ownerUserId: parsed.data.ownerUserId || null }),
+      ...(parsed.data.color !== undefined && { color: parsed.data.color }),
+      ...(parsed.data.isActive !== undefined && { isActive: parsed.data.isActive }),
+    })
+    .where(eq(devRepos.id, parsedId.data));
+  revalidatePath("/development");
+  revalidatePath("/development/repos");
+}
+
+export async function removeDevRepoAction(repoId: string) {
+  await getCurrentUser();
+  const parsedId = uuidSchema.safeParse(repoId);
+  if (!parsedId.success) throw new Error("Invalid repo ID");
+  await db.delete(devRepos).where(eq(devRepos.id, parsedId.data));
+  revalidatePath("/development");
+  revalidatePath("/development/repos");
+}
+
+export async function refreshDevOpsAction() {
+  await getCurrentUser();
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3100";
+  const secret = process.env.DEV_OPS_REFRESH_SECRET ?? "";
+  try {
+    const res = await fetch(`${origin}/api/dev/refresh${secret ? `?secret=${encodeURIComponent(secret)}` : ""}`, {
+      method: "POST",
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      throw new Error(`Refresh failed: ${res.status}`);
+    }
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : "Refresh failed");
+  }
+  revalidatePath("/development");
+  revalidatePath("/development/repos");
+  revalidatePath("/development/deployments");
+  revalidatePath("/development/pull-requests");
+  revalidatePath("/development/actions");
 }
 
 // ── Company Actions ──────────────────────────────────

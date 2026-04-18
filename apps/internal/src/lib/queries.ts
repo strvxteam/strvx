@@ -34,6 +34,11 @@ import {
   agentRuleLinks,
   corrections,
   patterns,
+  devRepos,
+  githubPrCache,
+  vercelDeployCache,
+  githubCiCache,
+  dependabotAlertCache,
 } from "./db/schema";
 import { eq, desc, and, lte, isNull, isNotNull, sql, count } from "drizzle-orm";
 
@@ -1673,4 +1678,198 @@ export async function getPatternsByArchetype(archetype: string) {
     .from(patterns)
     .where(eq(patterns.archetype, archetype))
     .orderBy(patterns.name);
+}
+
+// ── Development (DevOps) Queries ──────────────────────
+
+export interface DevRepoOverview {
+  id: string;
+  name: string;
+  githubOwner: string;
+  githubRepo: string;
+  defaultBranch: string;
+  vercelProjectId: string | null;
+  color: string;
+  ownerUserId: string | null;
+  ownerName: string | null;
+  lastRefreshedAt: Date | null;
+  lastRefreshError: string | null;
+  openPrCount: number;
+  dependabotOpenCount: number;
+  failingCiCount: number;
+  latestDeployState: string | null;
+  latestDeployUrl: string | null;
+  latestDeployAt: Date | null;
+  latestDeployBranch: string | null;
+  latestDeployCommitMessage: string | null;
+}
+
+export async function getDevReposOverview(): Promise<DevRepoOverview[]> {
+  const result = await db.execute(sql`
+    SELECT
+      r.id,
+      r.name,
+      r.github_owner,
+      r.github_repo,
+      r.default_branch,
+      r.vercel_project_id,
+      r.color,
+      r.owner_user_id,
+      u.name AS owner_name,
+      r.last_refreshed_at,
+      r.last_refresh_error,
+      COALESCE((SELECT COUNT(*) FROM github_pr_cache pr WHERE pr.repo_id = r.id AND pr.state = 'open'), 0) AS open_pr_count,
+      COALESCE((SELECT COUNT(*) FROM dependabot_alert_cache da WHERE da.repo_id = r.id AND da.state = 'open'), 0) AS dependabot_open_count,
+      COALESCE((
+        SELECT COUNT(*) FROM github_ci_cache ci
+        WHERE ci.repo_id = r.id
+          AND ci.conclusion = 'failure'
+          AND ci.created_at_remote > NOW() - INTERVAL '7 days'
+      ), 0) AS failing_ci_count,
+      latest.state AS latest_deploy_state,
+      latest.url AS latest_deploy_url,
+      latest.created_at_remote AS latest_deploy_at,
+      latest.branch AS latest_deploy_branch,
+      latest.commit_message AS latest_deploy_commit_message
+    FROM dev_repos r
+    LEFT JOIN users u ON u.id = r.owner_user_id
+    LEFT JOIN LATERAL (
+      SELECT d.state, d.url, d.created_at_remote, d.branch, d.commit_message
+      FROM vercel_deploy_cache d
+      WHERE d.repo_id = r.id AND d.target = 'production'
+      ORDER BY d.created_at_remote DESC
+      LIMIT 1
+    ) latest ON true
+    WHERE r.is_active = true
+    ORDER BY r.name ASC
+  `);
+
+  const rows = result as unknown as Array<Record<string, unknown>>;
+  return rows.map((row) => ({
+    id: String(row.id),
+    name: String(row.name),
+    githubOwner: String(row.github_owner),
+    githubRepo: String(row.github_repo),
+    defaultBranch: String(row.default_branch),
+    vercelProjectId: (row.vercel_project_id as string) ?? null,
+    color: String(row.color),
+    ownerUserId: (row.owner_user_id as string) ?? null,
+    ownerName: (row.owner_name as string) ?? null,
+    lastRefreshedAt: row.last_refreshed_at ? new Date(String(row.last_refreshed_at)) : null,
+    lastRefreshError: (row.last_refresh_error as string) ?? null,
+    openPrCount: Number(row.open_pr_count),
+    dependabotOpenCount: Number(row.dependabot_open_count),
+    failingCiCount: Number(row.failing_ci_count),
+    latestDeployState: (row.latest_deploy_state as string) ?? null,
+    latestDeployUrl: (row.latest_deploy_url as string) ?? null,
+    latestDeployAt: row.latest_deploy_at ? new Date(String(row.latest_deploy_at)) : null,
+    latestDeployBranch: (row.latest_deploy_branch as string) ?? null,
+    latestDeployCommitMessage: (row.latest_deploy_commit_message as string) ?? null,
+  }));
+}
+
+export async function getAllDevRepos() {
+  return db.select().from(devRepos).orderBy(devRepos.name);
+}
+
+export async function getDevRepoById(id: string) {
+  const [row] = await db.select().from(devRepos).where(eq(devRepos.id, id));
+  return row ?? null;
+}
+
+export async function getAllOpenPullRequests() {
+  return db
+    .select({
+      id: githubPrCache.id,
+      repoId: githubPrCache.repoId,
+      repoName: devRepos.name,
+      repoColor: devRepos.color,
+      number: githubPrCache.number,
+      title: githubPrCache.title,
+      state: githubPrCache.state,
+      isDraft: githubPrCache.isDraft,
+      authorLogin: githubPrCache.authorLogin,
+      authorAvatarUrl: githubPrCache.authorAvatarUrl,
+      headBranch: githubPrCache.headBranch,
+      baseBranch: githubPrCache.baseBranch,
+      htmlUrl: githubPrCache.htmlUrl,
+      requestedReviewers: githubPrCache.requestedReviewers,
+      ciStatus: githubPrCache.ciStatus,
+      createdAtRemote: githubPrCache.createdAtRemote,
+      updatedAtRemote: githubPrCache.updatedAtRemote,
+    })
+    .from(githubPrCache)
+    .innerJoin(devRepos, eq(githubPrCache.repoId, devRepos.id))
+    .where(eq(githubPrCache.state, "open"))
+    .orderBy(desc(githubPrCache.updatedAtRemote));
+}
+
+export async function getAllRecentDeployments(limit = 100) {
+  return db
+    .select({
+      id: vercelDeployCache.id,
+      repoId: vercelDeployCache.repoId,
+      repoName: devRepos.name,
+      repoColor: devRepos.color,
+      deploymentId: vercelDeployCache.deploymentId,
+      url: vercelDeployCache.url,
+      target: vercelDeployCache.target,
+      state: vercelDeployCache.state,
+      branch: vercelDeployCache.branch,
+      commitSha: vercelDeployCache.commitSha,
+      commitMessage: vercelDeployCache.commitMessage,
+      commitAuthor: vercelDeployCache.commitAuthor,
+      buildDurationMs: vercelDeployCache.buildDurationMs,
+      createdAtRemote: vercelDeployCache.createdAtRemote,
+      readyAt: vercelDeployCache.readyAt,
+    })
+    .from(vercelDeployCache)
+    .innerJoin(devRepos, eq(vercelDeployCache.repoId, devRepos.id))
+    .orderBy(desc(vercelDeployCache.createdAtRemote))
+    .limit(limit);
+}
+
+export async function getAllRecentWorkflowRuns(limit = 100) {
+  return db
+    .select({
+      id: githubCiCache.id,
+      repoId: githubCiCache.repoId,
+      repoName: devRepos.name,
+      repoColor: devRepos.color,
+      runId: githubCiCache.runId,
+      workflowName: githubCiCache.workflowName,
+      status: githubCiCache.status,
+      conclusion: githubCiCache.conclusion,
+      branch: githubCiCache.branch,
+      event: githubCiCache.event,
+      actor: githubCiCache.actor,
+      htmlUrl: githubCiCache.htmlUrl,
+      durationMs: githubCiCache.durationMs,
+      createdAtRemote: githubCiCache.createdAtRemote,
+      updatedAtRemote: githubCiCache.updatedAtRemote,
+    })
+    .from(githubCiCache)
+    .innerJoin(devRepos, eq(githubCiCache.repoId, devRepos.id))
+    .orderBy(desc(githubCiCache.createdAtRemote))
+    .limit(limit);
+}
+
+export async function getAllOpenDependabotAlerts() {
+  return db
+    .select({
+      id: dependabotAlertCache.id,
+      repoId: dependabotAlertCache.repoId,
+      repoName: devRepos.name,
+      alertNumber: dependabotAlertCache.alertNumber,
+      severity: dependabotAlertCache.severity,
+      packageName: dependabotAlertCache.packageName,
+      ecosystem: dependabotAlertCache.ecosystem,
+      summary: dependabotAlertCache.summary,
+      htmlUrl: dependabotAlertCache.htmlUrl,
+      createdAtRemote: dependabotAlertCache.createdAtRemote,
+    })
+    .from(dependabotAlertCache)
+    .innerJoin(devRepos, eq(dependabotAlertCache.repoId, devRepos.id))
+    .where(eq(dependabotAlertCache.state, "open"))
+    .orderBy(desc(dependabotAlertCache.createdAtRemote));
 }

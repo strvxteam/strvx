@@ -30,6 +30,11 @@ import {
   Bot,
   ShieldAlert,
   LayoutTemplate,
+  Rocket,
+  GitPullRequest,
+  Zap,
+  Server,
+  Activity,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -64,9 +69,20 @@ const navSections: NavSection[] = [
     icon: FolderKanban,
     items: [
       { href: "/projects", label: "Projects", icon: FolderKanban },
-      { href: "/maintenance", label: "Monitoring", icon: Wrench },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/availability", label: "Availability", icon: Users },
+    ],
+  },
+  {
+    label: "Development",
+    icon: Rocket,
+    items: [
+      { href: "/development", label: "Overview", icon: Activity },
+      { href: "/development/deployments", label: "Deployments", icon: Rocket },
+      { href: "/development/pull-requests", label: "Pull Requests", icon: GitPullRequest },
+      { href: "/development/actions", label: "Actions", icon: Zap },
+      { href: "/development/monitoring", label: "Monitoring", icon: Wrench },
+      { href: "/development/repos", label: "Repos", icon: Server },
     ],
   },
   {
