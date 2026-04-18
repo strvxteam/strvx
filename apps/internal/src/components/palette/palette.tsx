@@ -8,11 +8,20 @@ import {
   CheckSquare as CheckSquareIcon,
 } from "lucide-react";
 import type { PaletteResult, PaletteGroupKey } from "@/app/actions/palette";
-import { searchAll } from "@/app/actions/palette";
+import {
+  searchAll,
+  createTaskInline,
+  createEngagementInline,
+  createContactInline,
+  logInteractionInline,
+  addNextActionInline,
+  addFollowupLinkInline,
+} from "@/app/actions/palette";
 import { getRecents, type UserRecent } from "@/app/actions/ui-state";
 import { COMMANDS, matchCommands, type Command } from "./commands";
 import { resolveRouteContext } from "@/lib/route-context";
 import { PaletteInlineForm } from "./palette-form";
+import { toast } from "sonner";
 
 type Mode = "search" | "form";
 type Recent = UserRecent;
@@ -289,6 +298,157 @@ function renderSublabel(it: ListItem): string | null {
   return null;
 }
 
-function CommandForm(_: { command: Command; ctx: ReturnType<typeof resolveRouteContext>; onCancel: () => void; onSuccess: () => void; }) {
-  return <div className="p-3 text-[12px] text-[#888]">Command form renders here (Task 11).</div>;
+type FormConfig = {
+  title: string;
+  fields: Parameters<typeof PaletteInlineForm>[0]["fields"];
+  submit: (values: Record<string, string>, ctx: ReturnType<typeof resolveRouteContext>) => Promise<{ success: true } | { success: false; error: string }>;
+  successToast: string;
+};
+
+function buildFormConfig(cmd: Command, ctx: ReturnType<typeof resolveRouteContext>): FormConfig | null {
+  switch (cmd.id) {
+    case "new-task":
+      return {
+        title: "New task",
+        fields: [
+          { key: "title", label: "Title", type: "text", required: true, placeholder: "e.g. Follow up Acme" },
+          { key: "dueDate", label: "Due", type: "date" },
+        ],
+        submit: async (v) => {
+          const res = await createTaskInline({
+            title: v.title,
+            dueDate: v.dueDate || undefined,
+            engagementId: ctx?.kind === "engagement" ? ctx.id : undefined,
+          });
+          return res.success ? { success: true } : { success: false, error: res.error };
+        },
+        successToast: "Task created",
+      };
+    case "new-engagement":
+      return {
+        title: "New engagement",
+        fields: [
+          { key: "companyName", label: "Company", type: "text", required: true },
+          { key: "name", label: "Engagement name", type: "text", required: true, placeholder: "e.g. Q2 rebuild" },
+        ],
+        submit: async (v) => {
+          const res = await createEngagementInline({ companyName: v.companyName, name: v.name });
+          return res.success ? { success: true } : { success: false, error: res.error };
+        },
+        successToast: "Engagement created",
+      };
+    case "new-contact":
+      return {
+        title: "New contact",
+        fields: [
+          { key: "name", label: "Name", type: "text", required: true },
+          { key: "email", label: "Email", type: "text" },
+          { key: "companyId", label: "Company ID", type: "text", required: true, placeholder: "Paste company UUID" },
+        ],
+        submit: async (v) => {
+          const res = await createContactInline({ name: v.name, email: v.email || undefined, companyId: v.companyId });
+          return res.success ? { success: true } : { success: false, error: res.error };
+        },
+        successToast: "Contact created",
+      };
+    case "log-interaction":
+      if (ctx?.kind !== "engagement") return null;
+      return {
+        title: "Log interaction",
+        fields: [
+          {
+            key: "type", label: "Type", type: "select", required: true,
+            options: [
+              { value: "note", label: "Note" },
+              { value: "meeting", label: "Meeting" },
+            ],
+          },
+          { key: "content", label: "Content", type: "textarea", required: true, rows: 3 },
+        ],
+        submit: async (v) => {
+          const res = await logInteractionInline({
+            engagementId: ctx.id,
+            type: v.type as "note" | "meeting",
+            content: v.content,
+          });
+          return res.success ? { success: true } : { success: false, error: res.error };
+        },
+        successToast: "Interaction logged",
+      };
+    case "add-next-action":
+      if (ctx?.kind !== "engagement") return null;
+      return {
+        title: "Add next action",
+        fields: [
+          { key: "description", label: "Description", type: "text", required: true },
+          { key: "dueDate", label: "Due", type: "date" },
+        ],
+        submit: async (v) => {
+          const res = await addNextActionInline({
+            engagementId: ctx.id, description: v.description, dueDate: v.dueDate || undefined,
+          });
+          return res.success ? { success: true } : { success: false, error: res.error };
+        },
+        successToast: "Next action added",
+      };
+    case "add-followup-link":
+      if (ctx?.kind !== "engagement") return null;
+      return {
+        title: "Mint follow-up meeting link",
+        fields: [
+          {
+            key: "meetingType", label: "Meeting type", type: "select", required: true,
+            options: [
+              { value: "proposal", label: "Proposal" },
+              { value: "revision", label: "Revision" },
+              { value: "in_person", label: "In person" },
+            ],
+          },
+        ],
+        submit: async (v) => {
+          const res = await addFollowupLinkInline({
+            engagementId: ctx.id,
+            meetingType: v.meetingType as "proposal" | "revision" | "in_person",
+          });
+          return res.success ? { success: true } : { success: false, error: res.error };
+        },
+        successToast: "Follow-up link minted",
+      };
+    case "new-invoice":
+      // No inline form — this command routes to /invoices/new (existing multi-step flow).
+      // Return null; CommandForm will render a placeholder with a "Go to invoice builder" CTA.
+      return null;
+    case "pin-current":
+    case "unpin-current":
+    case "go-settings":
+    case "sign-out":
+      return null;
+  }
+  return null;
+}
+
+function CommandForm({ command, ctx, onCancel, onSuccess }: {
+  command: Command;
+  ctx: ReturnType<typeof resolveRouteContext>;
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  const cfg = buildFormConfig(command, ctx);
+  if (!cfg) {
+    return (
+      <div className="p-4 text-[13px] text-[#555]">
+        <p>{command.label} — not yet implemented in palette.</p>
+        <button onClick={onCancel} className="mt-3 text-[12px] text-[#888] underline">Back</button>
+      </div>
+    );
+  }
+  return (
+    <PaletteInlineForm
+      title={cfg.title}
+      fields={cfg.fields}
+      onCancel={onCancel}
+      onSubmit={(v) => cfg.submit(v, ctx)}
+      onSuccess={() => { toast.success(cfg.successToast); onSuccess(); }}
+    />
+  );
 }
