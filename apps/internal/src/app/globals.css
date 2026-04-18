@@ -549,3 +549,26 @@ body {
   pointer-events: none;
   user-select: none;
 }
+
+/* ── Data tables: column separators ─────────────────────
+ * Applies vertical dividers between every th/td (except the last)
+ * to any <table> inside the app shell routes. Richtext / editor
+ * tables inside TipTap (.ProseMirror) are explicitly excluded so
+ * document editing stays clean.
+ */
+main table th:not(:last-child),
+main table td:not(:last-child) {
+  border-right: 1px solid #f0f0f0;
+}
+
+.ProseMirror table th,
+.ProseMirror table td {
+  border-right: inherit;
+}
+
+/* Grid-based "tables" opt in via the `data-divided-grid` attribute.
+ * Each direct child (except the last in a row) gets a right border.
+ */
+[data-divided-grid] > *:not(:last-child) {
+  border-right: 1px solid #f0f0f0;
+}

@@ -199,17 +199,18 @@ export default function OverviewClient({
             <h2 style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>Client fleet</h2>
             <Link href="/development/repos" style={{ fontSize: 12, color: "#1a73e8" }}>Manage →</Link>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 70px 90px 90px 90px", gap: 12, padding: "10px 16px", borderBottom: "1px solid #f0f0f0", backgroundColor: "#fafafa" }}>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888" }}>Repo</span>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888" }}>Deploy</span>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888" }}>PRs</span>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888" }}>CI fails</span>
-            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888" }}>Alerts</span>
+          <div data-divided-grid style={{ display: "grid", gridTemplateColumns: "1fr 110px 70px 90px 90px 90px", gap: 12, padding: "10px 16px", borderBottom: "1px solid #f0f0f0", backgroundColor: "#fafafa" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888", paddingRight: 12 }}>Repo</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888", paddingRight: 12 }}>Deploy</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888", paddingRight: 12 }}>PRs</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888", paddingRight: 12 }}>CI fails</span>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888", paddingRight: 12 }}>Alerts</span>
             <span style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, color: "#888" }}>Owner</span>
           </div>
           {repos.map((r) => (
             <div
               key={r.id}
+              data-divided-grid
               style={{
                 display: "grid",
                 gridTemplateColumns: "1fr 110px 70px 90px 90px 90px",

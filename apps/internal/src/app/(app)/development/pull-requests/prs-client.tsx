@@ -101,7 +101,7 @@ export default function PRsClient({
         display: "flex",
         flexDirection: "column",
       }}>
-        <div style={{
+        <div data-divided-grid style={{
           display: "grid",
           gridTemplateColumns: "140px 50px 1fr 140px 110px 90px 32px",
           gap: 12,
@@ -123,6 +123,7 @@ export default function PRsClient({
           ) : filtered.map((pr) => (
             <div
               key={pr.id}
+              data-divided-grid
               style={{
                 display: "grid",
                 gridTemplateColumns: "140px 50px 1fr 140px 110px 90px 32px",

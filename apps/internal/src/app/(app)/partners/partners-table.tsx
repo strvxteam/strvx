@@ -437,7 +437,7 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
       {/* Table */}
       <div className="flex min-h-0 flex-1 flex-col rounded-[6px] border border-[#e0e0e0] bg-white">
         {/* Table header */}
-        <div className="grid shrink-0 grid-cols-[2fr_1fr_1fr_80px] border-b border-[#e0e0e0] px-4 py-2.5">
+        <div data-divided-grid className="grid shrink-0 grid-cols-[2fr_1fr_1fr_80px] border-b border-[#e0e0e0] px-4 py-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Name</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stage</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Tags</span>
@@ -456,6 +456,7 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
           filtered.map((partner) => (
             <div
               key={partner.id}
+              data-divided-grid
               onClick={() => router.push(`/partners/${partner.id}`)}
               className="grid cursor-pointer grid-cols-[2fr_1fr_1fr_80px] items-center border-b border-[#e0e0e0] px-4 py-3 hover:bg-[#fafafa]"
             >

@@ -167,25 +167,25 @@ export function InvoicesClient({
             </colgroup>
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b-2 border-[#e0e0e0]">
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                <th className="border-r border-[#f0f0f0] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                   Invoice #
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                <th className="border-r border-[#f0f0f0] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                   Client
                 </th>
-                <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                <th className="border-r border-[#f0f0f0] px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                   Amount
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                <th className="border-r border-[#f0f0f0] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                   Status
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                <th className="border-r border-[#f0f0f0] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                   Due Date
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                <th className="border-r border-[#f0f0f0] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                   Bank
                 </th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
+                <th className="border-r border-[#f0f0f0] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                   Payment
                 </th>
                 <th className="px-2 py-3" aria-label="Actions" />
@@ -213,7 +213,7 @@ export function InvoicesClient({
                       key={inv.id}
                       className="group border-b border-[#e8e8e8] transition-colors hover:bg-[#fafafa]"
                     >
-                      <td className="px-4 py-3">
+                      <td className="border-r border-[#f0f0f0] px-4 py-3">
                         <Link
                           href={`/invoices/${inv.id}`}
                           className="text-[13px] font-medium text-[#1a73e8] hover:underline"
@@ -221,23 +221,23 @@ export function InvoicesClient({
                           {inv.number}
                         </Link>
                       </td>
-                      <td className="px-4 py-3 text-[13px] text-[#555] truncate">
+                      <td className="border-r border-[#f0f0f0] px-4 py-3 text-[13px] text-[#555] truncate">
                         {inv.client}
                       </td>
-                      <td className="px-4 py-3 text-right text-[13px] font-medium text-[#222]">
+                      <td className="border-r border-[#f0f0f0] px-4 py-3 text-right text-[13px] font-medium text-[#222]">
                         ${inv.amount.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="border-r border-[#f0f0f0] px-4 py-3">
                         <span
                           className={`rounded px-2 py-0.5 text-[11px] font-medium capitalize ${INVOICE_STATUS_COLORS[inv.status]}`}
                         >
                           {inv.status}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-[13px] text-[#555]">
+                      <td className="border-r border-[#f0f0f0] px-4 py-3 text-[13px] text-[#555]">
                         {inv.dueDate}
                       </td>
-                      <td className="px-4 py-3 text-[12px]">
+                      <td className="border-r border-[#f0f0f0] px-4 py-3 text-[12px]">
                         {recLabel ? (
                           <span className={`font-medium ${recLabel.color}`}>
                             {recLabel.text}
@@ -246,7 +246,7 @@ export function InvoicesClient({
                           <span className="text-[#bbb]">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-[13px]">
+                      <td className="border-r border-[#f0f0f0] px-4 py-3 text-[13px]">
                         {inv.stripePaymentUrl ? (
                           <a
                             href={inv.stripePaymentUrl}

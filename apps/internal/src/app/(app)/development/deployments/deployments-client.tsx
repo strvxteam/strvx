@@ -132,7 +132,7 @@ export default function DeploymentsClient({
         display: "flex",
         flexDirection: "column",
       }}>
-        <div style={{
+        <div data-divided-grid style={{
           display: "grid",
           gridTemplateColumns: "140px 1fr 90px 120px 100px 110px 90px 32px",
           gap: 12,
@@ -153,6 +153,7 @@ export default function DeploymentsClient({
           ) : filtered.map((d) => (
             <div
               key={d.id}
+              data-divided-grid
               style={{
                 display: "grid",
                 gridTemplateColumns: "140px 1fr 90px 120px 100px 110px 90px 32px",
