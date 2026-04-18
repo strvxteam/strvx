@@ -96,7 +96,7 @@ import {
 
 let _devFallbackWarned = false;
 
-async function getCurrentUser() {
+export async function getCurrentUser() {
   // Try real Supabase Auth first
   try {
     const supabase = await createClient();
