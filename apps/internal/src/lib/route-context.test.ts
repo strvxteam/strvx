@@ -51,4 +51,28 @@ describe("resolveRouteContext", () => {
       id: "abc-123",
     });
   });
+
+  it("returns null for empty and root pathnames", () => {
+    expect(resolveRouteContext("")).toBeNull();
+    expect(resolveRouteContext("/")).toBeNull();
+  });
+
+  it("returns null for bare list with trailing slash", () => {
+    expect(resolveRouteContext("/clients/")).toBeNull();
+  });
+
+  it("returns null for double-slash after prefix", () => {
+    expect(resolveRouteContext("/clients//abc-123")).toBeNull();
+  });
+
+  it("strips URL hash fragments", () => {
+    expect(resolveRouteContext("/clients/abc-123#notes")).toEqual({
+      kind: "engagement",
+      id: "abc-123",
+    });
+  });
+
+  it("does not match on prefix collision", () => {
+    expect(resolveRouteContext("/clientsXYZ/abc")).toBeNull();
+  });
 });

@@ -10,7 +10,7 @@ const PATTERNS: { prefix: string; kind: RouteContext["kind"] }[] = [
 ];
 
 export function resolveRouteContext(pathname: string): RouteContext | null {
-  const clean = pathname.split("?")[0].replace(/\/+$/, "");
+  const clean = pathname.split(/[?#]/)[0].replace(/\/+$/, "");
   for (const { prefix, kind } of PATTERNS) {
     if (!clean.startsWith(prefix)) continue;
     const rest = clean.slice(prefix.length);
