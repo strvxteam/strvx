@@ -63,6 +63,7 @@ const navSections: NavSection[] = [
     items: [
       { href: "/pipeline", label: "Pipeline", icon: Columns3 },
       { href: "/clients", label: "Clients", icon: BookUser },
+      { href: "/contacts", label: "Contacts", icon: Users },
       { href: "/partners/pipeline", label: "Partners Pipeline", icon: Columns3 },
       { href: "/partners", label: "Partners Directory", icon: Handshake },
     ],
