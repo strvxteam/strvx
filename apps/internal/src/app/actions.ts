@@ -23,7 +23,6 @@ import {
   partnerContacts,
   partnerLinks,
   partnerInteractions,
-  partnerInvoices,
   partnerStageHistory,
   partnerStageEnum,
   skillLibraries,
@@ -93,8 +92,6 @@ import {
   createPartnerContactSchema,
   createPartnerLinkSchema,
   createPartnerInteractionSchema,
-  createPartnerInvoiceSchema,
-  updatePartnerInvoiceSchema,
 } from "@/lib/partner-validations";
 
 let _devFallbackWarned = false;
@@ -2447,81 +2444,6 @@ export async function createPartnerInteraction(formData: FormData) {
 
   revalidatePath(`/partners/${parsed.data.partnerId}`);
   return interaction;
-}
-
-export async function createPartnerInvoice(data: {
-  partnerId: string;
-  engagementId?: string;
-  direction: "payable" | "receivable";
-  amount: number;
-  currency?: string;
-  description: string;
-  status?: string;
-  issuedAt?: string;
-  dueAt?: string;
-}) {
-  await getCurrentUser();
-  const parsed = createPartnerInvoiceSchema.safeParse(data);
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
-  }
-
-  const [invoice] = await db
-    .insert(partnerInvoices)
-    .values({
-      partnerId: parsed.data.partnerId,
-      engagementId: parsed.data.engagementId || null,
-      direction: parsed.data.direction,
-      amount: String(parsed.data.amount),
-      currency: parsed.data.currency ?? "USD",
-      description: parsed.data.description,
-      status: (parsed.data.status as "draft" | "sent" | "paid" | "overdue" | "cancelled") ?? "draft",
-      issuedAt: parsed.data.issuedAt ? new Date(parsed.data.issuedAt) : null,
-      dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null,
-    })
-    .returning();
-
-  revalidatePath(`/partners/${parsed.data.partnerId}`);
-  revalidatePath("/partners/invoices");
-  return invoice;
-}
-
-export async function updatePartnerInvoice(
-  invoiceId: string,
-  data: Record<string, unknown>
-) {
-  await getCurrentUser();
-  const parsedId = uuidSchema.safeParse(invoiceId);
-  if (!parsedId.success) throw new Error("Invalid invoice ID");
-  const parsed = updatePartnerInvoiceSchema.safeParse(data);
-  if (!parsed.success) {
-    throw new Error(parsed.error.issues.map((i) => i.message).join(", "));
-  }
-
-  const updateData: Record<string, unknown> = {};
-  if (parsed.data.status !== undefined) updateData.status = parsed.data.status;
-  if (parsed.data.amount !== undefined) updateData.amount = String(parsed.data.amount);
-  if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
-  if (parsed.data.issuedAt !== undefined) updateData.issuedAt = parsed.data.issuedAt ? new Date(parsed.data.issuedAt) : null;
-  if (parsed.data.dueAt !== undefined) updateData.dueAt = parsed.data.dueAt ? new Date(parsed.data.dueAt) : null;
-  if (parsed.data.paidAt !== undefined) updateData.paidAt = parsed.data.paidAt ? new Date(parsed.data.paidAt) : null;
-
-  if (parsed.data.status === "paid" && !parsed.data.paidAt) {
-    updateData.paidAt = new Date();
-  }
-
-  const [invoice] = await db
-    .select({ partnerId: partnerInvoices.partnerId })
-    .from(partnerInvoices)
-    .where(eq(partnerInvoices.id, invoiceId));
-
-  await db
-    .update(partnerInvoices)
-    .set(updateData)
-    .where(eq(partnerInvoices.id, invoiceId));
-
-  if (invoice) revalidatePath(`/partners/${invoice.partnerId}`);
-  revalidatePath("/partners/invoices");
 }
 
 export async function quickAddPartnerNote(partnerId: string, content: string) {

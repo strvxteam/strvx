@@ -4,7 +4,6 @@ import {
   partnerContacts,
   partnerLinks,
   partnerInteractions,
-  partnerInvoices,
   partnerStageHistory,
   engagements,
   companies,
@@ -62,15 +61,6 @@ export async function getAllPartners() {
         SELECT COUNT(*) FROM partner_links pl
         WHERE pl.partner_id = ${partners.id} AND pl.project_id IS NOT NULL
       )`,
-      outstandingBalance: sql<number>`(
-        SELECT COALESCE(SUM(
-          CASE WHEN pi.direction = 'payable' THEN -CAST(pi.amount AS NUMERIC)
-               ELSE CAST(pi.amount AS NUMERIC) END
-        ), 0)
-        FROM partner_invoices pi
-        WHERE pi.partner_id = ${partners.id}
-          AND pi.status IN ('sent', 'overdue')
-      )`,
     })
     .from(partners)
     .where(isNull(partners.archivedAt))
@@ -97,20 +87,6 @@ export async function getPartnerPipeline() {
       linkedProjectCount: sql<number>`(
         SELECT COUNT(*) FROM partner_links pl
         WHERE pl.partner_id = ${partners.id} AND pl.project_id IS NOT NULL
-      )`,
-      outstandingPayable: sql<number>`(
-        SELECT COALESCE(SUM(CAST(pi.amount AS NUMERIC)), 0)
-        FROM partner_invoices pi
-        WHERE pi.partner_id = ${partners.id}
-          AND pi.direction = 'payable'
-          AND pi.status IN ('sent', 'overdue')
-      )`,
-      outstandingReceivable: sql<number>`(
-        SELECT COALESCE(SUM(CAST(pi.amount AS NUMERIC)), 0)
-        FROM partner_invoices pi
-        WHERE pi.partner_id = ${partners.id}
-          AND pi.direction = 'receivable'
-          AND pi.status IN ('sent', 'overdue')
       )`,
     })
     .from(partners)
@@ -228,87 +204,6 @@ export async function getPartnerTimeline(partnerId: string) {
     .orderBy(desc(partnerInteractions.createdAt));
 }
 
-// ── Partner invoices ──────────────────────────────────
-
-export async function getPartnerInvoicesForPartner(partnerId: string) {
-  return db
-    .select()
-    .from(partnerInvoices)
-    .where(eq(partnerInvoices.partnerId, partnerId))
-    .orderBy(desc(partnerInvoices.createdAt));
-}
-
-export async function getAllPartnerInvoices() {
-  return db
-    .select({
-      id: partnerInvoices.id,
-      direction: partnerInvoices.direction,
-      amount: partnerInvoices.amount,
-      currency: partnerInvoices.currency,
-      description: partnerInvoices.description,
-      status: partnerInvoices.status,
-      issuedAt: partnerInvoices.issuedAt,
-      dueAt: partnerInvoices.dueAt,
-      paidAt: partnerInvoices.paidAt,
-      createdAt: partnerInvoices.createdAt,
-      partnerId: partners.id,
-      partnerName: partners.name,
-      engagementId: partnerInvoices.engagementId,
-      engagementName: engagements.name,
-    })
-    .from(partnerInvoices)
-    .innerJoin(partners, eq(partnerInvoices.partnerId, partners.id))
-    .leftJoin(engagements, eq(partnerInvoices.engagementId, engagements.id))
-    .orderBy(desc(partnerInvoices.createdAt));
-}
-
-export async function getPartnerInvoiceSummary() {
-  const [result] = await db
-    .select({
-      totalPayable: sql<number>`COALESCE(SUM(
-        CASE WHEN direction = 'payable' AND status IN ('sent', 'overdue')
-        THEN CAST(amount AS NUMERIC) ELSE 0 END
-      ), 0)`,
-      totalReceivable: sql<number>`COALESCE(SUM(
-        CASE WHEN direction = 'receivable' AND status IN ('sent', 'overdue')
-        THEN CAST(amount AS NUMERIC) ELSE 0 END
-      ), 0)`,
-      paidThisMonth: sql<number>`COALESCE(SUM(
-        CASE WHEN status = 'paid'
-          AND paid_at >= date_trunc('month', CURRENT_DATE)
-        THEN CAST(amount AS NUMERIC) ELSE 0 END
-      ), 0)`,
-    })
-    .from(partnerInvoices);
-
-  return result;
-}
-
-// ── Partner financial summary (for detail view) ───────
-
-export async function getPartnerFinancialSummary(partnerId: string) {
-  const [result] = await db
-    .select({
-      paidYtd: sql<number>`COALESCE(SUM(
-        CASE WHEN direction = 'payable' AND status = 'paid'
-          AND paid_at >= date_trunc('year', CURRENT_DATE)
-        THEN CAST(amount AS NUMERIC) ELSE 0 END
-      ), 0)`,
-      outstanding: sql<number>`COALESCE(SUM(
-        CASE WHEN status IN ('sent', 'overdue')
-        THEN CAST(amount AS NUMERIC) ELSE 0 END
-      ), 0)`,
-      commissionEarned: sql<number>`COALESCE(SUM(
-        CASE WHEN direction = 'receivable' AND status = 'paid'
-        THEN CAST(amount AS NUMERIC) ELSE 0 END
-      ), 0)`,
-    })
-    .from(partnerInvoices)
-    .where(eq(partnerInvoices.partnerId, partnerId));
-
-  return result;
-}
-
 // ── Partner stage history ─────────────────────────────
 
 export async function getPartnerStageHistory(partnerId: string) {
@@ -322,16 +217,6 @@ export async function getPartnerStageHistory(partnerId: string) {
 // ── Dashboard alerts ──────────────────────────────────
 
 export async function getPartnerAlerts() {
-  const overdueInvoices = await db
-    .select({ count: count() })
-    .from(partnerInvoices)
-    .where(
-      and(
-        eq(partnerInvoices.status, "overdue"),
-        eq(partnerInvoices.direction, "payable")
-      )
-    );
-
   const staleOnboarding = await db
     .select({ count: count() })
     .from(partners)
@@ -344,7 +229,6 @@ export async function getPartnerAlerts() {
     );
 
   return {
-    overduePartnerInvoices: overdueInvoices[0]?.count ?? 0,
     staleOnboarding: staleOnboarding[0]?.count ?? 0,
   };
 }

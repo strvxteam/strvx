@@ -93,21 +93,6 @@ export function PartnerCard({
           </div>
         )}
 
-        {partner.stage === "active" &&
-          (partner.outstandingPayable > 0 || partner.outstandingReceivable > 0) && (
-            <div className="mt-1.5 flex items-center gap-2 text-[11px]">
-              {partner.outstandingPayable > 0 && (
-                <span className="text-[#c0392b]">
-                  Owe ${Number(partner.outstandingPayable).toLocaleString()}
-                </span>
-              )}
-              {partner.outstandingReceivable > 0 && (
-                <span className="text-[#27ae60]">
-                  Recv ${Number(partner.outstandingReceivable).toLocaleString()}
-                </span>
-              )}
-            </div>
-          )}
       </Link>
     </div>
   );

@@ -516,19 +516,6 @@ export const partnerInteractionTypeEnum = pgEnum("partner_interaction_type", [
   "stage_change",
 ]);
 
-export const partnerInvoiceDirectionEnum = pgEnum("partner_invoice_direction", [
-  "payable",
-  "receivable",
-]);
-
-export const partnerInvoiceStatusEnum = pgEnum("partner_invoice_status", [
-  "draft",
-  "sent",
-  "paid",
-  "overdue",
-  "cancelled",
-]);
-
 // ── Partners ─────────────────────────────────────────
 
 export const partners = pgTable("partners", {
@@ -597,27 +584,6 @@ export const partnerInteractions = pgTable("partner_interactions", {
   userId: uuid("user_id")
     .notNull()
     .references(() => users.id),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-export const partnerInvoices = pgTable("partner_invoices", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  partnerId: uuid("partner_id")
-    .notNull()
-    .references(() => partners.id, { onDelete: "cascade" }),
-  engagementId: uuid("engagement_id").references(() => engagements.id, {
-    onDelete: "set null",
-  }),
-  direction: partnerInvoiceDirectionEnum("direction").notNull(),
-  amount: numeric("amount").notNull(),
-  currency: text("currency").notNull().default("USD"),
-  description: text("description").notNull(),
-  status: partnerInvoiceStatusEnum("status").notNull().default("draft"),
-  issuedAt: timestamp("issued_at", { withTimezone: true }),
-  dueAt: timestamp("due_at", { withTimezone: true }),
-  paidAt: timestamp("paid_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

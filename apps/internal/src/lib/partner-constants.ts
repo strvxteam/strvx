@@ -65,6 +65,4 @@ export interface PartnerPipelineItem {
   hourlyRate: string | null;
   linkedEngagementCount: number;
   linkedProjectCount: number;
-  outstandingPayable: number;
-  outstandingReceivable: number;
 }

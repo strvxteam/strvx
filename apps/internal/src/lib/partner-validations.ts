@@ -56,24 +56,3 @@ export const createPartnerInteractionSchema = z.object({
   type: z.enum(["note", "meeting", "call", "email"]),
   content: z.string().min(1, "Content is required").max(10000),
 });
-
-export const createPartnerInvoiceSchema = z.object({
-  partnerId: z.string().uuid("Invalid partner ID"),
-  engagementId: z.string().uuid().optional().or(z.literal("")),
-  direction: z.enum(["payable", "receivable"]),
-  amount: z.number().positive("Amount must be positive"),
-  currency: z.string().default("USD"),
-  description: z.string().min(1, "Description is required").max(5000),
-  status: z.enum(["draft", "sent", "paid", "overdue", "cancelled"]).optional(),
-  issuedAt: z.string().optional(),
-  dueAt: z.string().optional(),
-});
-
-export const updatePartnerInvoiceSchema = z.object({
-  status: z.enum(["draft", "sent", "paid", "overdue", "cancelled"]).optional(),
-  amount: z.number().positive().optional(),
-  description: z.string().min(1).max(5000).optional(),
-  issuedAt: z.string().optional().nullable(),
-  dueAt: z.string().optional().nullable(),
-  paidAt: z.string().optional().nullable(),
-});

@@ -97,12 +97,6 @@ type TimelineEntry = {
   authorName: string;
 };
 
-type FinancialSummary = {
-  paidYtd: number;
-  outstanding: number;
-  commissionEarned: number;
-};
-
 type Engagement = {
   id: string;
   name: string;
@@ -269,7 +263,6 @@ export function PartnerDetailView({
   linkedEngagements,
   linkedProjects,
   timeline,
-  financials,
   allEngagements,
 }: {
   partner: Partner;
@@ -277,7 +270,6 @@ export function PartnerDetailView({
   linkedEngagements: LinkedEngagement[];
   linkedProjects: LinkedProject[];
   timeline: TimelineEntry[];
-  financials: FinancialSummary;
   allEngagements: Engagement[];
 }) {
   const router = useRouter();
@@ -463,33 +455,6 @@ export function PartnerDetailView({
                   prefix="$"
                 />
               </div>
-            </div>
-          </div>
-
-          {/* ── Financial Summary card ── */}
-          <div className="rounded-lg border border-border bg-white p-4">
-            <SectionHeader title="Financials" />
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-lg bg-[#f8f9fa] p-3">
-                <p className="text-[11px] text-[#aaa] uppercase tracking-wide">Paid YTD</p>
-                <p className="mt-1 text-[15px] font-semibold text-foreground">{fmt(financials.paidYtd)}</p>
-              </div>
-              <div className="rounded-lg p-3" style={{ backgroundColor: "#fef3e2" }}>
-                <p className="text-[11px] uppercase tracking-wide" style={{ color: "#f39c12" }}>Outstanding</p>
-                <p className="mt-1 text-[15px] font-semibold text-foreground">{fmt(financials.outstanding)}</p>
-              </div>
-              <div className="rounded-lg p-3" style={{ backgroundColor: "#e8f5e9" }}>
-                <p className="text-[11px] uppercase tracking-wide" style={{ color: "#27ae60" }}>Commission</p>
-                <p className="mt-1 text-[15px] font-semibold text-foreground">{fmt(financials.commissionEarned)}</p>
-              </div>
-            </div>
-            <div className="mt-3">
-              <Link
-                href="/partners/invoices"
-                className="text-[12px] font-medium text-[#1a73e8] hover:underline"
-              >
-                View All Invoices →
-              </Link>
             </div>
           </div>
 

@@ -6,7 +6,6 @@ import {
   getPartnerLinkedEngagements,
   getPartnerLinkedProjects,
   getPartnerTimeline,
-  getPartnerFinancialSummary,
 } from "@/lib/partner-queries";
 import { getPipelineEngagements } from "@/lib/queries";
 import { PartnerDetailView } from "@/components/partner/partner-detail-view";
@@ -20,14 +19,13 @@ export default async function PartnerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [partner, contacts, linkedEngagements, linkedProjects, timeline, financials, allEngagements] =
+  const [partner, contacts, linkedEngagements, linkedProjects, timeline, allEngagements] =
     await Promise.all([
       getPartner(id),
       getPartnerContacts(id),
       getPartnerLinkedEngagements(id),
       getPartnerLinkedProjects(id),
       getPartnerTimeline(id),
-      getPartnerFinancialSummary(id),
       getPipelineEngagements(),
     ]);
 
@@ -40,7 +38,6 @@ export default async function PartnerDetailPage({
       linkedEngagements={linkedEngagements}
       linkedProjects={linkedProjects}
       timeline={timeline}
-      financials={financials}
       allEngagements={allEngagements}
     />
   );

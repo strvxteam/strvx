@@ -24,7 +24,6 @@ type Partner = {
   hourlyRate: string | null;
   createdAt: Date | string;
   linkedEngagementCount: number;
-  outstandingBalance: number;
 };
 
 interface PartnersTableProps {
@@ -438,12 +437,11 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
       {/* Table */}
       <div className="flex min-h-0 flex-1 flex-col rounded-[6px] border border-[#e0e0e0] bg-white">
         {/* Table header */}
-        <div className="grid shrink-0 grid-cols-[2fr_1fr_1fr_80px_100px] border-b border-[#e0e0e0] px-4 py-2.5">
+        <div className="grid shrink-0 grid-cols-[2fr_1fr_1fr_80px] border-b border-[#e0e0e0] px-4 py-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Name</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stage</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Tags</span>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Engagements</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-right text-[#888]">Outstanding</span>
         </div>
 
         {/* Rows */}
@@ -459,7 +457,7 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
             <div
               key={partner.id}
               onClick={() => router.push(`/partners/${partner.id}`)}
-              className="grid cursor-pointer grid-cols-[2fr_1fr_1fr_80px_100px] items-center border-b border-[#e0e0e0] px-4 py-3 hover:bg-[#fafafa]"
+              className="grid cursor-pointer grid-cols-[2fr_1fr_1fr_80px] items-center border-b border-[#e0e0e0] px-4 py-3 hover:bg-[#fafafa]"
             >
               {/* Name + company */}
               <div className="min-w-0">
@@ -488,11 +486,6 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
                 {partner.linkedEngagementCount > 0 ? partner.linkedEngagementCount : (
                   <span className="text-[#ccc]">—</span>
                 )}
-              </div>
-
-              {/* Outstanding balance */}
-              <div className="text-right text-[13px] text-[#555]">
-                {formatCurrency(partner.outstandingBalance)}
               </div>
             </div>
           ))
