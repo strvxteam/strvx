@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import {
+  Search, ArrowRight, ChevronRight, FileText as FileIcon,
+  Building2, User, Kanban, Receipt, BookOpen, Box, Hash,
+  CheckSquare as CheckSquareIcon,
+} from "lucide-react";
 import type { PaletteResult, PaletteGroupKey } from "@/app/actions/palette";
 import { searchAll } from "@/app/actions/palette";
 import { getRecents, type UserRecent } from "@/app/actions/ui-state";
@@ -184,13 +188,105 @@ function resolveRecentHref(r: Recent): string {
 }
 
 // Stubs — full implementations come in Tasks 10 and 11.
-function PaletteList(_: {
-  items: Array<{ kind: "result" | "command" | "recent"; payload: PaletteResult | Command | Recent }>;
+type ListItem = { kind: "result" | "command" | "recent"; payload: PaletteResult | Command | Recent };
+
+function PaletteList({ items, selected, onSelect, onActivate }: {
+  items: ListItem[];
   selected: number;
   onSelect: (i: number) => void;
   onActivate: (i: number) => void;
 }) {
-  return <div className="p-3 text-[12px] text-[#888]">Results render here (Task 10).</div>;
+  if (items.length === 0) {
+    return <div className="px-3 py-6 text-center text-[13px] text-[#aaa]">No results</div>;
+  }
+
+  const groups: Array<{ title: string; range: [number, number] }> = [];
+  let cursor = 0;
+  function pushGroup(title: string, predicate: (it: ListItem) => boolean) {
+    const start = cursor;
+    while (cursor < items.length && predicate(items[cursor])) cursor++;
+    if (cursor > start) groups.push({ title, range: [start, cursor] });
+  }
+  if (items[0]?.kind === "result") {
+    for (const key of GROUP_ORDER) {
+      pushGroup(GROUP_LABELS[key], (it) => it.kind === "result" && (it.payload as PaletteResult).group === key);
+    }
+    pushGroup("Commands", (it) => it.kind === "command");
+  } else {
+    pushGroup("Commands", (it) => it.kind === "command");
+    pushGroup("Recent", (it) => it.kind === "recent");
+  }
+
+  return (
+    <>
+      {groups.map((g) => (
+        <div key={g.title}>
+          <div className="border-t border-[#f0f0f0] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[#888] first:border-t-0">
+            {g.title}
+          </div>
+          {items.slice(g.range[0], g.range[1]).map((it, offset) => {
+            const index = g.range[0] + offset;
+            const isSel = selected === index;
+            return (
+              <button
+                key={itemKey(it, index)}
+                data-selected={isSel}
+                onMouseEnter={() => onSelect(index)}
+                onClick={() => onActivate(index)}
+                role="option"
+                aria-selected={isSel}
+                className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${isSel ? "bg-[#f0f0f0]" : "hover:bg-[#f5f5f5]"}`}
+              >
+                {renderIcon(it)}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-medium text-[#222]">{renderLabel(it)}</div>
+                  {renderSublabel(it) && (
+                    <div className="truncate text-[11px] text-[#888]">{renderSublabel(it)}</div>
+                  )}
+                </div>
+                {it.kind !== "command" && <ArrowRight size={14} strokeWidth={1.5} className="shrink-0 text-[#ccc]" />}
+                {it.kind === "command" && <ChevronRight size={14} strokeWidth={1.5} className="shrink-0 text-[#ccc]" />}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function itemKey(it: ListItem, i: number): string {
+  if (it.kind === "command") return `c-${(it.payload as Command).id}`;
+  if (it.kind === "result") return `r-${(it.payload as PaletteResult).group}-${(it.payload as PaletteResult).id}`;
+  return `h-${(it.payload as Recent).id}-${i}`;
+}
+
+function renderIcon(it: ListItem) {
+  if (it.kind === "command") {
+    const Icon = (it.payload as Command).icon;
+    return <Icon size={16} strokeWidth={1.5} className="shrink-0 text-[#888]" />;
+  }
+  const kind = it.kind === "result" ? (it.payload as PaletteResult).group : (it.payload as Recent).kind;
+  const map: Record<string, typeof FileIcon> = {
+    pages: Hash, engagements: Building2, contacts: User, tasks: CheckSquareIcon,
+    projects: Kanban, invoices: Receipt, docs: BookOpen, skills: Box,
+    page: Hash, engagement: Building2, contact: User, task: CheckSquareIcon,
+    project: Kanban, invoice: Receipt, doc: BookOpen,
+  };
+  const Icon = (map as Record<string, typeof FileIcon>)[kind] ?? FileIcon;
+  return <Icon size={16} strokeWidth={1.5} className="shrink-0 text-[#888]" />;
+}
+
+function renderLabel(it: ListItem): string {
+  if (it.kind === "command") return (it.payload as Command).label;
+  if (it.kind === "result") return (it.payload as PaletteResult).label;
+  return (it.payload as Recent).label;
+}
+
+function renderSublabel(it: ListItem): string | null {
+  if (it.kind === "command") return null;
+  if (it.kind === "result") return (it.payload as PaletteResult).sublabel ?? null;
+  return null;
 }
 
 function CommandForm(_: { command: Command; ctx: ReturnType<typeof resolveRouteContext>; onCancel: () => void; onSuccess: () => void; }) {
