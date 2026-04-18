@@ -17,7 +17,7 @@ import {
   addNextActionInline,
   addFollowupLinkInline,
 } from "@/app/actions/palette";
-import { getRecents, type UserRecent } from "@/app/actions/ui-state";
+import { getRecents, pinItem, unpinItem, type UserRecent, type UserRecentKind } from "@/app/actions/ui-state";
 import { matchCommands, type Command } from "./commands";
 import { resolveRouteContext } from "@/lib/route-context";
 import { PaletteInlineForm } from "./palette-form";
@@ -162,6 +162,10 @@ export function Palette() {
       else if (item.kind === "recent") { router.push(resolveRecentHref(item.payload as Recent)); close(); }
       else if (item.kind === "command") {
         const cmd = item.payload as Command;
+        if (cmd.id === "pin-current" || cmd.id === "unpin-current") {
+          handleNoFormCommand(cmd, pathname ?? "/", ctx).then(() => close());
+          return;
+        }
         setActiveCommand(cmd);
         setMode("form");
       }
@@ -249,6 +253,37 @@ function resolveRecentHref(r: Recent): string {
     case "task": return `/tasks?taskId=${r.ref}`;
     case "doc": return `/docs/${r.ref}`;
     default: return "/";
+  }
+}
+
+function inferPageLabel(pathname: string): string {
+  const clean = pathname.split("?")[0].replace(/\/+$/, "") || "/";
+  const segs = clean.split("/").filter(Boolean);
+  if (segs.length === 0) return "Home";
+  const last = segs[segs.length - 1];
+  return last
+    .split("-")
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
+async function handleNoFormCommand(
+  cmd: Command,
+  pathname: string,
+  ctx: ReturnType<typeof resolveRouteContext>,
+) {
+  const kind: UserRecentKind = ctx ? ctx.kind : "page";
+  const ref = ctx ? ctx.id : pathname;
+  const label = inferPageLabel(pathname);
+  const iconKey = ctx ? ctx.kind : "Hash";
+  if (cmd.id === "pin-current") {
+    const res = await pinItem({ kind, ref, label, iconKey });
+    if (res.success) toast.success("Pinned");
+    else toast.error(res.error);
+  } else if (cmd.id === "unpin-current") {
+    const res = await unpinItem({ kind, ref });
+    if (res.success) toast.success("Unpinned");
+    else toast.error("Failed to unpin");
   }
 }
 
