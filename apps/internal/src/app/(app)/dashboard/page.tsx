@@ -11,6 +11,7 @@ import {
 } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {

@@ -387,7 +387,7 @@ export async function getAllContactsByCompany() {
   return grouped;
 }
 
-export async function getAllEngagementTimelines() {
+export async function getAllEngagementTimelines(limit = 1000) {
   const rows = await db
     .select({
       id: interactions.id,
@@ -400,7 +400,8 @@ export async function getAllEngagementTimelines() {
     })
     .from(interactions)
     .innerJoin(users, eq(interactions.authorId, users.id))
-    .orderBy(desc(interactions.createdAt));
+    .orderBy(desc(interactions.createdAt))
+    .limit(limit);
 
   const grouped: Record<string, typeof rows> = {};
   for (const row of rows) {
@@ -410,7 +411,7 @@ export async function getAllEngagementTimelines() {
   return grouped;
 }
 
-export async function getAllEngagementActions() {
+export async function getAllEngagementActions(limit = 1000) {
   const rows = await db
     .select({
       id: nextActions.id,
@@ -425,7 +426,8 @@ export async function getAllEngagementActions() {
     .from(nextActions)
     .innerJoin(users, eq(nextActions.ownerId, users.id))
     .where(isNull(nextActions.archivedAt))
-    .orderBy(nextActions.completed, nextActions.dueDate);
+    .orderBy(nextActions.completed, nextActions.dueDate)
+    .limit(limit);
 
   const grouped: Record<string, typeof rows> = {};
   for (const row of rows) {

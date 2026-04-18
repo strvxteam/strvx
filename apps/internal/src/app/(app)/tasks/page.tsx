@@ -3,6 +3,7 @@ import { getTasks, getUsers, getProjects, getPipelineEngagements } from "@/lib/q
 import { type Task } from "@/lib/mock-tasks";
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export const metadata = { title: "Tasks" };
 

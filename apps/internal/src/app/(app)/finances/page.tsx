@@ -4,6 +4,7 @@ import { getInvoices, getExpenses, getMRR, getMonthlyRevenue, getPipelineEngagem
 import { getMercuryAccounts, getAllMercuryTransactions, isMercuryConfigured, getAllMercuryCards, type MercuryCard } from "@/lib/mercury";
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 export const metadata = { title: "Finances" };
 
@@ -35,7 +36,7 @@ export default async function FinancesServerPage() {
     try {
       const [accounts, transactions, cards] = await Promise.all([
         getMercuryAccounts(),
-        getAllMercuryTransactions({ limit: 500 }),
+        getAllMercuryTransactions({ limit: 200 }),
         getAllMercuryCards(),
       ]);
       mercuryCards = cards;
