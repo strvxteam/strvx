@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 
 type Field =
@@ -25,6 +25,10 @@ export function PaletteInlineForm({
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const firstFieldRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(null);
+  useEffect(() => {
+    firstFieldRef.current?.focus();
+  }, []);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,11 +47,12 @@ export function PaletteInlineForm({
     <form onSubmit={handleSubmit} className="p-4">
       <div className="mb-3 text-[13px] font-semibold text-[#222]">{title}</div>
       <div className="flex flex-col gap-3">
-        {fields.map((f) => (
+        {fields.map((f, index) => (
           <label key={f.key} className="flex flex-col gap-1">
             <span className="text-[11px] uppercase tracking-wide text-[#888]">{f.label}</span>
             {f.type === "textarea" ? (
               <textarea
+                ref={index === 0 ? (firstFieldRef as React.RefObject<HTMLTextAreaElement>) : undefined}
                 rows={f.rows ?? 3}
                 required={f.required}
                 value={values[f.key] ?? ""}
@@ -56,6 +61,7 @@ export function PaletteInlineForm({
               />
             ) : f.type === "select" ? (
               <select
+                ref={index === 0 ? (firstFieldRef as React.RefObject<HTMLSelectElement>) : undefined}
                 required={f.required}
                 value={values[f.key] ?? ""}
                 onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
@@ -66,6 +72,7 @@ export function PaletteInlineForm({
               </select>
             ) : (
               <input
+                ref={index === 0 ? (firstFieldRef as React.RefObject<HTMLInputElement>) : undefined}
                 type={f.type === "date" ? "date" : "text"}
                 required={f.required}
                 placeholder={"placeholder" in f ? f.placeholder : undefined}
