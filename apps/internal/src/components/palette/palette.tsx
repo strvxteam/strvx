@@ -18,7 +18,7 @@ import {
   addFollowupLinkInline,
 } from "@/app/actions/palette";
 import { getRecents, type UserRecent } from "@/app/actions/ui-state";
-import { COMMANDS, matchCommands, type Command } from "./commands";
+import { matchCommands, type Command } from "./commands";
 import { resolveRouteContext } from "@/lib/route-context";
 import { PaletteInlineForm } from "./palette-form";
 import { toast } from "sonner";
