@@ -1908,3 +1908,61 @@ export async function getAllOpenDependabotAlerts() {
     .where(eq(dependabotAlertCache.state, "open"))
     .orderBy(desc(dependabotAlertCache.createdAtRemote));
 }
+
+// ── Infrastructure Alerts (Inbox) ─────────────────────
+
+export async function getInfrastructureAlerts() {
+  // Failed deploys in the last 24h — schema uses `state` (not status) and `created_at_remote`
+  // Project name comes from dev_repos via repo_id
+  const failedDeploys = await db.execute(sql`
+    SELECT v.id, r.name AS project_name, v.state AS status, v.url, v.created_at_remote AS created_at
+    FROM vercel_deploy_cache v
+    JOIN dev_repos r ON r.id = v.repo_id
+    WHERE v.state = 'ERROR'
+      AND v.created_at_remote > NOW() - INTERVAL '24 hours'
+    ORDER BY v.created_at_remote DESC
+    LIMIT 20
+  `);
+
+  // Monitors failing in last 10 minutes — monitored_sites has `name` (no `label` column)
+  const failingMonitors = await db.execute(sql`
+    SELECT DISTINCT ON (ms.id) ms.id AS site_id, ms.url, ms.name AS label,
+      uc.status_code, uc.error_message
+    FROM monitored_sites ms
+    JOIN uptime_checks uc ON uc.site_id = ms.id
+    WHERE uc.checked_at > NOW() - INTERVAL '10 minutes'
+      AND (uc.status_code IS NULL OR uc.status_code >= 500)
+    ORDER BY ms.id, uc.checked_at DESC
+  `);
+
+  // Overdue invoices
+  const overdueInvoices = await db
+    .select({
+      id: invoices.id,
+      number: invoices.invoiceNumber,
+      client: invoices.clientName,
+      amount: invoices.amount,
+      dueDate: invoices.dueDate,
+    })
+    .from(invoices)
+    .where(and(eq(invoices.status, "overdue"), isNotNull(invoices.dueDate)))
+    .limit(10);
+
+  return {
+    failedDeploys: failedDeploys as unknown as {
+      id: string;
+      project_name: string;
+      status: string;
+      url: string;
+      created_at: string;
+    }[],
+    failingMonitors: failingMonitors as unknown as {
+      site_id: string;
+      url: string;
+      label: string | null;
+      status_code: number | null;
+      error_message: string | null;
+    }[],
+    overdueInvoices,
+  };
+}
