@@ -91,6 +91,22 @@ export const users = pgTable("users", {
     .defaultNow(),
 });
 
+export const userRecents = pgTable(
+  "user_recents",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),              // 'page' | 'engagement' | 'project' | 'contact' | 'invoice' | 'task' | 'doc'
+    ref: text("ref").notNull(),                // route path or entity uuid
+    label: text("label").notNull(),
+    lastVisitedAt: timestamp("last_visited_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    uniq: uniqueIndex("user_recents_user_kind_ref").on(t.userId, t.kind, t.ref),
+    byUserRecent: index("user_recents_user_recent").on(t.userId, t.lastVisitedAt),
+  })
+);
+
 // ── Companies ──────────────────────────────────────────
 
 export const companies = pgTable("companies", {
