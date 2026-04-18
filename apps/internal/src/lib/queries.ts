@@ -362,6 +362,23 @@ export async function getContacts() {
     .orderBy(contacts.name);
 }
 
+export async function getContact(id: string) {
+  const [row] = await db
+    .select({
+      id: contacts.id,
+      name: contacts.name,
+      email: contacts.email,
+      phone: contacts.phone,
+      role: contacts.role,
+      companyId: contacts.companyId,
+      companyName: companies.name,
+    })
+    .from(contacts)
+    .innerJoin(companies, eq(contacts.companyId, companies.id))
+    .where(eq(contacts.id, id));
+  return row;
+}
+
 export async function getAllContactsByCompany() {
   const rows = await db
     .select({
@@ -754,6 +771,14 @@ export async function getProject(id: string) {
   return project;
 }
 
+export async function getProjectsByEngagement(engagementId: string) {
+  return db
+    .select()
+    .from(projects)
+    .where(eq(projects.engagementId, engagementId))
+    .orderBy(desc(projects.createdAt));
+}
+
 // ── Invoice Queries ───────────────────────────────────
 
 export async function getInvoices(limit = 500) {
@@ -766,6 +791,14 @@ export async function getInvoice(id: string) {
     .from(invoices)
     .where(eq(invoices.id, id));
   return invoice;
+}
+
+export async function getInvoicesByEngagement(engagementId: string) {
+  return db
+    .select()
+    .from(invoices)
+    .where(eq(invoices.engagementId, engagementId))
+    .orderBy(desc(invoices.createdAt));
 }
 
 // ── Recurring Invoice Schedule Queries ───────────────
