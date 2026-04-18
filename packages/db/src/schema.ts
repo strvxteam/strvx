@@ -107,6 +107,24 @@ export const userRecents = pgTable(
   })
 );
 
+export const userPins = pgTable(
+  "user_pins",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    ref: text("ref").notNull(),
+    label: text("label").notNull(),
+    iconKey: text("icon_key").notNull().default(""),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    uniq: uniqueIndex("user_pins_user_kind_ref").on(t.userId, t.kind, t.ref),
+    byUserPos: index("user_pins_user_position").on(t.userId, t.position),
+  })
+);
+
 // ── Companies ──────────────────────────────────────────
 
 export const companies = pgTable("companies", {

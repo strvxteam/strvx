@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/generate-invoices",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cleanup/ui-state?secret=${UI_STATE_CLEANUP_SECRET}",
+      "schedule": "0 5 * * *"
     }
   ]
 }
