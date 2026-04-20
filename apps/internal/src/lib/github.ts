@@ -192,3 +192,72 @@ export async function getRepoMeta({ owner, repo }: GhRepoCoord): Promise<GhRepoM
 export function isGithubConfigured(): boolean {
   return Boolean(process.env.GITHUB_TOKEN);
 }
+
+export interface GhOrgRepo {
+  id: number;
+  name: string;
+  owner: string;
+  defaultBranch: string;
+  isPrivate: boolean;
+  isArchived: boolean;
+  isFork: boolean;
+  htmlUrl: string;
+  pushedAt: string | null;
+}
+
+export async function listOrgRepos(org: string): Promise<GhOrgRepo[]> {
+  const gh = client();
+  const results: GhOrgRepo[] = [];
+  let page = 1;
+  while (true) {
+    const { data } = await gh.repos.listForOrg({
+      org,
+      type: "all",
+      per_page: 100,
+      page,
+    });
+    if (data.length === 0) break;
+    for (const r of data) {
+      results.push({
+        id: r.id,
+        name: r.name,
+        owner: r.owner.login,
+        defaultBranch: r.default_branch ?? "main",
+        isPrivate: Boolean(r.private),
+        isArchived: Boolean(r.archived),
+        isFork: Boolean(r.fork),
+        htmlUrl: r.html_url,
+        pushedAt: r.pushed_at ?? null,
+      });
+    }
+    if (data.length < 100) break;
+    page++;
+  }
+  return results;
+}
+
+export async function getRepoById(githubId: number): Promise<GhOrgRepo | null> {
+  const gh = client();
+  try {
+    const { data } = await gh.request("GET /repositories/{id}", { id: githubId });
+    const r = data as {
+      id: number; name: string; default_branch: string;
+      private: boolean; archived: boolean; fork: boolean;
+      html_url: string; pushed_at: string | null;
+      owner: { login: string };
+    };
+    return {
+      id: r.id,
+      name: r.name,
+      owner: r.owner.login,
+      defaultBranch: r.default_branch ?? "main",
+      isPrivate: Boolean(r.private),
+      isArchived: Boolean(r.archived),
+      isFork: Boolean(r.fork),
+      htmlUrl: r.html_url,
+      pushedAt: r.pushed_at ?? null,
+    };
+  } catch {
+    return null;
+  }
+}

@@ -37,14 +37,19 @@ import {
   Activity,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { PinnedSection } from "./pinned-section";
-import { RecentsSection } from "./recents-section";
 
+type NavLeaf = { href: string; label: string; icon: React.ElementType };
+type NavSubGroup = { label: string; icon: React.ElementType; items: NavLeaf[] };
+type NavItem = NavLeaf | NavSubGroup;
 type NavSection = {
   label: string;
   icon: React.ElementType;
-  items: { href: string; label: string; icon: React.ElementType }[];
+  items: NavItem[];
 };
+
+function isSubGroup(item: NavItem): item is NavSubGroup {
+  return "items" in item;
+}
 
 const navSections: NavSection[] = [
   {
@@ -66,8 +71,14 @@ const navSections: NavSection[] = [
       { href: "/pipeline", label: "Pipeline", icon: Columns3 },
       { href: "/clients", label: "Clients", icon: BookUser },
       { href: "/contacts", label: "Contacts", icon: Users },
-      { href: "/partners/pipeline", label: "Partners Pipeline", icon: Columns3 },
-      { href: "/partners", label: "Partners Directory", icon: Handshake },
+      {
+        label: "Partners",
+        icon: Handshake,
+        items: [
+          { href: "/partners/pipeline", label: "Pipeline", icon: Columns3 },
+          { href: "/partners", label: "Directory", icon: Handshake },
+        ],
+      },
     ],
   },
   {
@@ -91,20 +102,41 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "Knowledge & Skills",
+    label: "Knowledge",
     icon: BookOpen,
     items: [
       { href: "/docs", label: "Docs", icon: BookOpen },
       { href: "/assets", label: "Assets", icon: FolderOpen },
-      { href: "/skills", label: "Library", icon: Boxes },
-      { href: "/skills/components", label: "Components", icon: Brain },
-      { href: "/skills/rules", label: "Rules", icon: ScrollText },
-      { href: "/skills/patterns", label: "Patterns", icon: LayoutTemplate },
-      { href: "/skills/corrections", label: "Corrections", icon: ShieldAlert },
-      { href: "/skills/agents", label: "Agents", icon: Bot },
+      {
+        label: "Skills",
+        icon: Boxes,
+        items: [
+          { href: "/skills", label: "Library", icon: Boxes },
+          { href: "/skills/components", label: "Components", icon: Brain },
+          { href: "/skills/rules", label: "Rules", icon: ScrollText },
+          { href: "/skills/patterns", label: "Patterns", icon: LayoutTemplate },
+          { href: "/skills/corrections", label: "Corrections", icon: ShieldAlert },
+          { href: "/skills/agents", label: "Agents", icon: Bot },
+        ],
+      },
     ],
   },
 ];
+
+function isLeafActive(href: string, pathname: string, hasNestedHrefs: boolean): boolean {
+  if (hasNestedHrefs) return pathname === href;
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
+function subGroupHasActive(sub: NavSubGroup, pathname: string): boolean {
+  return sub.items.some((leaf) => pathname === leaf.href || pathname.startsWith(leaf.href + "/"));
+}
+
+function sectionHasActive(section: NavSection, pathname: string): boolean {
+  return section.items.some((item) =>
+    isSubGroup(item) ? subGroupHasActive(item, pathname) : (pathname === item.href || pathname.startsWith(item.href + "/")),
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -113,11 +145,19 @@ export function Sidebar() {
   const [prevPathname, setPrevPathname] = useState(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [openSections, setOpenSections] = useState<Set<string>>(() => {
-    // Auto-open the section containing the current page
     const initial = new Set<string>();
     for (const section of navSections) {
-      if (section.items.some((item) => pathname === item.href || pathname.startsWith(item.href + "/"))) {
-        initial.add(section.label);
+      if (sectionHasActive(section, pathname)) initial.add(section.label);
+    }
+    return initial;
+  });
+  const [openSubGroups, setOpenSubGroups] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    for (const section of navSections) {
+      for (const item of section.items) {
+        if (isSubGroup(item) && subGroupHasActive(item, pathname)) {
+          initial.add(`${section.label}/${item.label}`);
+        }
       }
     }
     return initial;
@@ -129,31 +169,37 @@ export function Sidebar() {
     router.push("/login");
   }, [router]);
 
-  // Close sidebar on route change (mobile)
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
     setMobileOpen(false);
   }
 
-  // Auto-open section when navigating
   useEffect(() => {
-    const matchingSections = navSections
-      .filter((section) =>
-        section.items.some(
-          (item) => pathname === item.href || pathname.startsWith(item.href + "/"),
-        ),
-      )
-      .map((s) => s.label);
-    if (matchingSections.length === 0) return;
+    const nextSections: string[] = [];
+    const nextSubGroups: string[] = [];
+    for (const section of navSections) {
+      if (sectionHasActive(section, pathname)) nextSections.push(section.label);
+      for (const item of section.items) {
+        if (isSubGroup(item) && subGroupHasActive(item, pathname)) {
+          nextSubGroups.push(`${section.label}/${item.label}`);
+        }
+      }
+    }
+    if (nextSections.length === 0 && nextSubGroups.length === 0) return;
     const id = requestAnimationFrame(() => {
       setOpenSections((prev) => {
         let changed = false;
         const next = new Set(prev);
-        for (const label of matchingSections) {
-          if (!next.has(label)) {
-            next.add(label);
-            changed = true;
-          }
+        for (const label of nextSections) {
+          if (!next.has(label)) { next.add(label); changed = true; }
+        }
+        return changed ? next : prev;
+      });
+      setOpenSubGroups((prev) => {
+        let changed = false;
+        const next = new Set(prev);
+        for (const key of nextSubGroups) {
+          if (!next.has(key)) { next.add(key); changed = true; }
         }
         return changed ? next : prev;
       });
@@ -175,13 +221,75 @@ export function Sidebar() {
   const toggleSection = (label: string) => {
     setOpenSections((prev) => {
       const next = new Set(prev);
-      if (next.has(label)) {
-        next.delete(label);
-      } else {
-        next.add(label);
-      }
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
       return next;
     });
+  };
+
+  const toggleSubGroup = (key: string) => {
+    setOpenSubGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const renderLeaf = (leaf: NavLeaf, hasSiblingSubpaths: boolean) => {
+    const isActive = isLeafActive(leaf.href, pathname, hasSiblingSubpaths);
+    return (
+      <Link
+        key={leaf.href}
+        href={leaf.href}
+        onClick={closeMobile}
+        className={`flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] transition-colors ${
+          isActive
+            ? "bg-[#111] font-medium text-white"
+            : "text-[#666] hover:bg-[#f0f0f0] hover:text-[#222]"
+        }`}
+      >
+        <leaf.icon size={14} strokeWidth={1.5} />
+        {leaf.label}
+      </Link>
+    );
+  };
+
+  const renderSubGroup = (sub: NavSubGroup, sectionLabel: string) => {
+    const key = `${sectionLabel}/${sub.label}`;
+    const isOpen = openSubGroups.has(key);
+    const hasActive = subGroupHasActive(sub, pathname);
+    const SubIcon = sub.icon;
+    return (
+      <div key={key} className="flex flex-col gap-0.5">
+        <button
+          type="button"
+          onClick={() => toggleSubGroup(key)}
+          className={`flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors ${
+            hasActive && !isOpen
+              ? "bg-[#f0f0f0] text-[#111]"
+              : "text-[#666] hover:bg-[#f0f0f0] hover:text-[#222]"
+          }`}
+        >
+          <SubIcon size={14} strokeWidth={1.5} className={hasActive ? "text-[#111]" : "text-[#888]"} />
+          <span className="flex-1 font-medium">{sub.label}</span>
+          <ChevronDown
+            size={12}
+            className={`text-[#aaa] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+          />
+        </button>
+        {isOpen && (
+          <div className="ml-3 flex flex-col gap-0.5 border-l border-[#e8e8e8] pl-3">
+            {sub.items.map((leaf) => {
+              const hasSiblingSubpaths = sub.items.some(
+                (other) => other !== leaf && other.href.startsWith(leaf.href + "/"),
+              );
+              return renderLeaf(leaf, hasSiblingSubpaths);
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const sidebarContent = (
@@ -213,21 +321,16 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Pinned */}
-      <PinnedSection collapsed={collapsed} />
-
       {/* Nav sections */}
       <nav className="overflow-y-auto px-2">
         {navSections.map((section) => {
           const isOpen = openSections.has(section.label);
-          const hasActive = section.items.some(
-            (item) => pathname === item.href || pathname.startsWith(item.href + "/")
-          );
+          const hasActive = sectionHasActive(section, pathname);
           const SectionIcon = section.icon;
 
           return (
             <div key={section.label} className="mb-1">
-              {/* Section header button */}
+              {/* Section header */}
               <button
                 type="button"
                 onClick={() => collapsed ? setCollapsed(false) : toggleSection(section.label)}
@@ -249,31 +352,16 @@ export function Sidebar() {
                 )}
               </button>
 
-              {/* Child items — animated expand */}
+              {/* Children */}
               {!collapsed && isOpen && (
                 <div className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-[#e8e8e8] pl-3">
                   {section.items.map((item) => {
-                    const hasSubItems = section.items.some(
-                      (other) => other !== item && other.href.startsWith(item.href + "/")
+                    if (isSubGroup(item)) return renderSubGroup(item, section.label);
+                    const leafSiblings = section.items.filter((i): i is NavLeaf => !isSubGroup(i));
+                    const hasSiblingSubpaths = leafSiblings.some(
+                      (other) => other !== item && other.href.startsWith(item.href + "/"),
                     );
-                    const isActive = hasSubItems
-                      ? pathname === item.href
-                      : pathname === item.href || pathname.startsWith(item.href + "/");
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={closeMobile}
-                        className={`flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] transition-colors ${
-                          isActive
-                            ? "bg-[#111] font-medium text-white"
-                            : "text-[#666] hover:bg-[#f0f0f0] hover:text-[#222]"
-                        }`}
-                      >
-                        <item.icon size={14} strokeWidth={1.5} />
-                        {item.label}
-                      </Link>
-                    );
+                    return renderLeaf(item, hasSiblingSubpaths);
                   })}
                 </div>
               )}
@@ -282,8 +370,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Recents */}
-      <RecentsSection collapsed={collapsed} />
+      <div className="flex-1" />
 
       {/* Sign out */}
       <div className="border-t border-[#e8e8e8] px-2 pt-3">

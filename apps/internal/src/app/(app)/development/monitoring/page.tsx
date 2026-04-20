@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import {
   getAllSitesLatestStatus,
   getAllSitesCheckHistory,
+  getLatestDeploymentPerRepo,
 } from "@/lib/queries";
 import MonitoringClient from "./monitoring-client";
 
@@ -9,9 +10,10 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Monitoring" };
 
 export default async function MonitoringPage() {
-  const [sites, historyRows] = await Promise.all([
+  const [sites, historyRows, vercelRows] = await Promise.all([
     getAllSitesLatestStatus(),
     getAllSitesCheckHistory(24),
+    getLatestDeploymentPerRepo(),
   ]);
 
   const historyMap: Record<string, { status: string; responseMs: number | null; checkedAt: string }[]> = {};
@@ -39,5 +41,23 @@ export default async function MonitoringPage() {
     history: historyMap[s.site_id] ?? [],
   }));
 
-  return <MonitoringClient sites={serialized} />;
+  const vercelDeploys = vercelRows.map((r) => ({
+    repoId: r.repo_id,
+    repoName: r.repo_name,
+    repoColor: r.repo_color,
+    vercelProjectId: r.vercel_project_id,
+    productionUrl: r.vercel_production_url,
+    deploymentId: r.deployment_id,
+    state: r.state,
+    url: r.url,
+    branch: r.branch,
+    commitSha: r.commit_sha,
+    commitMessage: r.commit_message,
+    commitAuthor: r.commit_author,
+    buildDurationMs: r.build_duration_ms,
+    createdAt: r.created_at_remote,
+    readyAt: r.ready_at,
+  }));
+
+  return <MonitoringClient sites={serialized} vercelDeploys={vercelDeploys} />;
 }

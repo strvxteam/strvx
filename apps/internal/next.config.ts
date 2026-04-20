@@ -1,8 +1,14 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
+import path from "path";
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@strvx/db"],
+  // Pin Turbopack's workspace root to this app to avoid it picking up
+  // stray ~/package-lock.json files and panicking.
+  turbopack: {
+    root: path.join(__dirname, "..", ".."),
+  },
   async redirects() {
     return [
       { source: "/maintenance", destination: "/development/monitoring", permanent: false },

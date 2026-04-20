@@ -2,7 +2,6 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { SidebarBreadcrumbs } from "@/components/layout/sidebar-breadcrumbs";
 import { RealtimeProvider } from "@/components/layout/realtime-provider";
 import { Palette } from "@/components/palette/palette";
-import { VisitRecorder } from "@/components/palette/visit-recorder";
 import { Toaster } from "@/components/ui/sonner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +15,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       <Palette />
-      <VisitRecorder />
       <Toaster />
     </RealtimeProvider>
   );

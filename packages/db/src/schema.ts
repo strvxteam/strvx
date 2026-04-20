@@ -91,22 +91,6 @@ export const users = pgTable("users", {
     .defaultNow(),
 });
 
-export const userRecents = pgTable(
-  "user_recents",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-    kind: text("kind").notNull(),              // 'page' | 'engagement' | 'project' | 'contact' | 'invoice' | 'task' | 'doc'
-    ref: text("ref").notNull(),                // route path or entity uuid
-    label: text("label").notNull(),
-    lastVisitedAt: timestamp("last_visited_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    uniq: uniqueIndex("user_recents_user_kind_ref").on(t.userId, t.kind, t.ref),
-    byUserRecent: index("user_recents_user_recent").on(t.userId, t.lastVisitedAt),
-  })
-);
-
 export const userPins = pgTable(
   "user_pins",
   {
@@ -1042,11 +1026,17 @@ export const devRepos = pgTable(
   "dev_repos",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    githubId: integer("github_id").unique(),
     name: text("name").notNull(),
     githubOwner: text("github_owner").notNull(),
     githubRepo: text("github_repo").notNull(),
     defaultBranch: text("default_branch").notNull().default("main"),
+    isPrivate: boolean("is_private").notNull().default(false),
+    isArchived: boolean("is_archived").notNull().default(false),
+    isFork: boolean("is_fork").notNull().default(false),
     vercelProjectId: text("vercel_project_id"),
+    vercelProductionUrl: text("vercel_production_url"),
+    monitoredSiteId: uuid("monitored_site_id").references(() => monitoredSites.id, { onDelete: "set null" }),
     ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
     color: text("color").notNull().default("#1a73e8"),
     isActive: boolean("is_active").notNull().default(true),

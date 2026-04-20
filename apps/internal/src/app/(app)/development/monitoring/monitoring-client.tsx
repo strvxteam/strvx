@@ -123,7 +123,92 @@ function UptimeBar({ history, hours = 24 }: { history: HistoryPoint[]; hours?: n
   );
 }
 
-export default function MonitoringClient({ sites }: { sites: SiteData[] }) {
+interface VercelDeploy {
+  repoId: string;
+  repoName: string;
+  repoColor: string;
+  vercelProjectId: string | null;
+  productionUrl: string | null;
+  deploymentId: string | null;
+  state: string | null;
+  url: string | null;
+  branch: string | null;
+  commitSha: string | null;
+  commitMessage: string | null;
+  commitAuthor: string | null;
+  buildDurationMs: number | null;
+  createdAt: string | null;
+  readyAt: string | null;
+}
+
+const VERCEL_STATE_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  READY: { label: "Ready", color: "#16a34a", bg: "#dcfce7" },
+  ERROR: { label: "Error", color: "#dc2626", bg: "#fee2e2" },
+  BUILDING: { label: "Building", color: "#2563eb", bg: "#dbeafe" },
+  QUEUED: { label: "Queued", color: "#6b7280", bg: "#f3f4f6" },
+  CANCELED: { label: "Canceled", color: "#9ca3af", bg: "#f3f4f6" },
+  INITIALIZING: { label: "Initializing", color: "#2563eb", bg: "#dbeafe" },
+};
+
+function VercelTile({ d }: { d: VercelDeploy }) {
+  const style = d.state ? (VERCEL_STATE_STYLE[d.state] ?? { label: d.state, color: "#6b7280", bg: "#f3f4f6" }) : { label: "No deploys", color: "#9ca3af", bg: "#f3f4f6" };
+  const ageHours = d.createdAt ? Math.round((Date.now() - new Date(d.createdAt).getTime()) / 3600000) : null;
+  return (
+    <div
+      style={{
+        borderRadius: 10,
+        border: "1px solid #e5e7eb",
+        borderLeft: `4px solid ${d.repoColor}`,
+        backgroundColor: "#fff",
+        padding: 16,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8, gap: 8 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: 0 }}>{d.repoName}</p>
+          {d.productionUrl && (
+            <a href={d.productionUrl} target="_blank" rel="noreferrer"
+              style={{ fontSize: 11, color: "#6b7280", textDecoration: "none" }}>
+              {d.productionUrl.replace(/^https?:\/\//, "")}
+            </a>
+          )}
+        </div>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            padding: "2px 8px",
+            borderRadius: 999,
+            color: style.color,
+            backgroundColor: style.bg,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {style.label}
+        </span>
+      </div>
+      {d.deploymentId ? (
+        <div style={{ fontSize: 11, color: "#6b7280", display: "flex", flexDirection: "column", gap: 2 }}>
+          {d.commitMessage && <p style={{ margin: 0, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.commitMessage}</p>}
+          <p style={{ margin: 0 }}>
+            {d.branch ?? "?"}
+            {d.commitSha && <> · <code style={{ fontFamily: "ui-monospace,monospace" }}>{d.commitSha.slice(0, 7)}</code></>}
+            {d.commitAuthor && <> · {d.commitAuthor}</>}
+          </p>
+          <p style={{ margin: 0 }}>
+            {d.buildDurationMs != null && <>{Math.round(d.buildDurationMs / 1000)}s build</>}
+            {d.buildDurationMs != null && ageHours != null && " · "}
+            {ageHours != null && (ageHours < 1 ? "just now" : ageHours < 24 ? `${ageHours}h ago` : `${Math.round(ageHours / 24)}d ago`)}
+          </p>
+        </div>
+      ) : (
+        <p style={{ fontSize: 11, color: "#9ca3af", margin: 0 }}>No deployments yet</p>
+      )}
+    </div>
+  );
+}
+
+export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites: SiteData[]; vercelDeploys?: VercelDeploy[] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [checking, setChecking] = useState(false);
@@ -239,6 +324,22 @@ export default function MonitoringClient({ sites }: { sites: SiteData[] }) {
           </button>
         </div>
       </div>
+
+      {vercelDeploys.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 600, color: "#333", textTransform: "uppercase", letterSpacing: 0.4 }}>
+              Vercel Deployments
+            </h2>
+            <span style={{ fontSize: 11, color: "#888" }}>
+              {vercelDeploys.filter((d) => d.state === "ERROR").length} failing · {vercelDeploys.filter((d) => d.state === "READY").length} ready
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+            {vercelDeploys.map((d) => <VercelTile key={d.repoId} d={d} />)}
+          </div>
+        </div>
+      )}
 
       {/* Summary */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

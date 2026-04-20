@@ -17,14 +17,13 @@ import {
   addNextActionInline,
   addFollowupLinkInline,
 } from "@/app/actions/palette";
-import { getRecents, pinItem, unpinItem, type UserRecent, type UserRecentKind } from "@/app/actions/ui-state";
+import { pinItem, unpinItem, type UserPinKind } from "@/app/actions/ui-state";
 import { matchCommands, type Command } from "./commands";
 import { resolveRouteContext } from "@/lib/route-context";
 import { PaletteInlineForm } from "./palette-form";
 import { toast } from "sonner";
 
 type Mode = "search" | "form";
-type Recent = UserRecent;
 
 const GROUP_ORDER: PaletteGroupKey[] = ["pages", "engagements", "contacts", "tasks", "projects", "invoices", "docs", "skills"];
 const GROUP_LABELS: Record<PaletteGroupKey, string> = {
@@ -38,7 +37,6 @@ export function Palette() {
   const [activeCommand, setActiveCommand] = useState<Command | null>(null);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PaletteResult[]>([]);
-  const [recents, setRecents] = useState<Recent[]>([]);
   const [selected, setSelected] = useState(0);
   const [, startSearch] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +49,7 @@ export function Palette() {
   const hasEngagementCtx = ctx?.kind === "engagement";
   const commandMatches = matchCommands(query, hasEngagementCtx);
 
-  const allItems: Array<{ kind: "result" | "command" | "recent"; payload: PaletteResult | Command | Recent }> =
+  const allItems: Array<{ kind: "result" | "command"; payload: PaletteResult | Command }> =
     query.trim()
       ? [
           ...results.map((r) => ({ kind: "result" as const, payload: r })),
@@ -59,7 +57,6 @@ export function Palette() {
         ]
       : [
           ...commandMatches.map((c) => ({ kind: "command" as const, payload: c })),
-          ...recents.map((r) => ({ kind: "recent" as const, payload: r })),
         ];
 
   const close = useCallback(() => {
@@ -96,9 +93,7 @@ export function Palette() {
 
   useEffect(() => {
     if (!open) return;
-    getRecents()
-      .then((r) => { setRecents(r); setSelected(0); })
-      .catch(() => { setRecents([]); setSelected(0); });
+    setSelected(0);
   }, [open]);
 
   useEffect(() => {
@@ -149,7 +144,6 @@ export function Palette() {
       e.preventDefault();
       const item = allItems[selected];
       if (item?.kind === "result") window.open((item.payload as PaletteResult).href, "_blank");
-      else if (item?.kind === "recent") window.open(resolveRecentHref(item.payload as Recent), "_blank");
       return;
     }
     if (e.key === "ArrowDown") { e.preventDefault(); setSelected((s) => (s + 1) % Math.max(allItems.length, 1)); }
@@ -159,7 +153,6 @@ export function Palette() {
       const item = allItems[selected];
       if (!item) return;
       if (item.kind === "result") { router.push((item.payload as PaletteResult).href); close(); }
-      else if (item.kind === "recent") { router.push(resolveRecentHref(item.payload as Recent)); close(); }
       else if (item.kind === "command") {
         const cmd = item.payload as Command;
         if (cmd.id === "pin-current" || cmd.id === "unpin-current") {
@@ -229,31 +222,18 @@ export function Palette() {
   );
 }
 
-function findNthGroupStart(items: Array<{ kind: "result" | "command" | "recent"; payload: unknown }>, n: number): number {
+function findNthGroupStart(items: Array<{ kind: "result" | "command"; payload: unknown }>, n: number): number {
   const seen = new Set<string>();
   for (let i = 0; i < items.length; i++) {
     const key = items[i].kind === "result"
       ? `r:${(items[i].payload as { group: string }).group}`
-      : items[i].kind === "command" ? "commands" : "recent";
+      : "commands";
     if (!seen.has(key)) {
       seen.add(key);
       if (seen.size - 1 === n) return i;
     }
   }
   return -1;
-}
-
-function resolveRecentHref(r: Recent): string {
-  switch (r.kind) {
-    case "page": return r.ref;
-    case "engagement": return `/clients/${r.ref}`;
-    case "project": return `/projects/${r.ref}`;
-    case "contact": return `/contacts/${r.ref}`;
-    case "invoice": return `/invoices?invoiceId=${r.ref}`;
-    case "task": return `/tasks?taskId=${r.ref}`;
-    case "doc": return `/docs/${r.ref}`;
-    default: return "/";
-  }
 }
 
 function inferPageLabel(pathname: string): string {
@@ -272,7 +252,7 @@ async function handleNoFormCommand(
   pathname: string,
   ctx: ReturnType<typeof resolveRouteContext>,
 ) {
-  const kind: UserRecentKind = ctx ? ctx.kind : "page";
+  const kind: UserPinKind = ctx ? ctx.kind : "page";
   const ref = ctx ? ctx.id : pathname;
   const label = inferPageLabel(pathname);
   const iconKey = ctx ? ctx.kind : "Hash";
@@ -287,8 +267,7 @@ async function handleNoFormCommand(
   }
 }
 
-// Stubs — full implementations come in Tasks 10 and 11.
-type ListItem = { kind: "result" | "command" | "recent"; payload: PaletteResult | Command | Recent };
+type ListItem = { kind: "result" | "command"; payload: PaletteResult | Command };
 
 function PaletteList({ items, selected, onSelect, onActivate }: {
   items: ListItem[];
@@ -314,7 +293,6 @@ function PaletteList({ items, selected, onSelect, onActivate }: {
     pushGroup("Commands", (it) => it.kind === "command");
   } else {
     pushGroup("Commands", (it) => it.kind === "command");
-    pushGroup("Recent", (it) => it.kind === "recent");
   }
 
   return (
@@ -329,7 +307,7 @@ function PaletteList({ items, selected, onSelect, onActivate }: {
             const isSel = selected === index;
             return (
               <button
-                key={itemKey(it, index)}
+                key={itemKey(it)}
                 data-selected={isSel}
                 onMouseEnter={() => onSelect(index)}
                 onClick={() => onActivate(index)}
@@ -344,7 +322,7 @@ function PaletteList({ items, selected, onSelect, onActivate }: {
                     <div className="truncate text-[11px] text-[#888]">{renderSublabel(it)}</div>
                   )}
                 </div>
-                {it.kind !== "command" && <ArrowRight size={14} strokeWidth={1.5} className="shrink-0 text-[#ccc]" />}
+                {it.kind === "result" && <ArrowRight size={14} strokeWidth={1.5} className="shrink-0 text-[#ccc]" />}
                 {it.kind === "command" && <ChevronRight size={14} strokeWidth={1.5} className="shrink-0 text-[#ccc]" />}
               </button>
             );
@@ -355,10 +333,9 @@ function PaletteList({ items, selected, onSelect, onActivate }: {
   );
 }
 
-function itemKey(it: ListItem, i: number): string {
+function itemKey(it: ListItem): string {
   if (it.kind === "command") return `c-${(it.payload as Command).id}`;
-  if (it.kind === "result") return `r-${(it.payload as PaletteResult).group}-${(it.payload as PaletteResult).id}`;
-  return `h-${(it.payload as Recent).id}-${i}`;
+  return `r-${(it.payload as PaletteResult).group}-${(it.payload as PaletteResult).id}`;
 }
 
 function renderIcon(it: ListItem) {
@@ -366,21 +343,18 @@ function renderIcon(it: ListItem) {
     const Icon = (it.payload as Command).icon;
     return <Icon size={16} strokeWidth={1.5} className="shrink-0 text-[#888]" />;
   }
-  const kind = it.kind === "result" ? (it.payload as PaletteResult).group : (it.payload as Recent).kind;
+  const kind = (it.payload as PaletteResult).group;
   const map: Record<string, typeof FileIcon> = {
     pages: Hash, engagements: Building2, contacts: User, tasks: CheckSquareIcon,
     projects: Kanban, invoices: Receipt, docs: BookOpen, skills: Box,
-    page: Hash, engagement: Building2, contact: User, task: CheckSquareIcon,
-    project: Kanban, invoice: Receipt, doc: BookOpen,
   };
-  const Icon = (map as Record<string, typeof FileIcon>)[kind] ?? FileIcon;
+  const Icon = map[kind] ?? FileIcon;
   return <Icon size={16} strokeWidth={1.5} className="shrink-0 text-[#888]" />;
 }
 
 function renderLabel(it: ListItem): string {
   if (it.kind === "command") return (it.payload as Command).label;
-  if (it.kind === "result") return (it.payload as PaletteResult).label;
-  return (it.payload as Recent).label;
+  return (it.payload as PaletteResult).label;
 }
 
 function renderSublabel(it: ListItem): string | null {

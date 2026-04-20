@@ -1864,6 +1864,46 @@ export async function getAllRecentDeployments(limit = 100) {
     .limit(limit);
 }
 
+export async function getLatestDeploymentPerRepo() {
+  // Latest production deployment per repo, with repo identity columns.
+  const rows = await db.execute<{
+    repo_id: string;
+    repo_name: string;
+    repo_color: string;
+    vercel_project_id: string | null;
+    vercel_production_url: string | null;
+    deployment_id: string | null;
+    state: string | null;
+    url: string | null;
+    branch: string | null;
+    commit_sha: string | null;
+    commit_message: string | null;
+    commit_author: string | null;
+    build_duration_ms: number | null;
+    created_at_remote: string | null;
+    ready_at: string | null;
+  }>(sql`
+    SELECT r.id AS repo_id, r.name AS repo_name, r.color AS repo_color,
+           r.vercel_project_id, r.vercel_production_url,
+           d.deployment_id, d.state, d.url, d.branch,
+           d.commit_sha, d.commit_message, d.commit_author,
+           d.build_duration_ms, d.created_at_remote, d.ready_at
+    FROM dev_repos r
+    LEFT JOIN LATERAL (
+      SELECT deployment_id, state, url, branch,
+             commit_sha, commit_message, commit_author,
+             build_duration_ms, created_at_remote, ready_at
+      FROM vercel_deploy_cache
+      WHERE repo_id = r.id AND target = 'production'
+      ORDER BY created_at_remote DESC
+      LIMIT 1
+    ) d ON TRUE
+    WHERE r.vercel_project_id IS NOT NULL
+    ORDER BY r.name ASC
+  `);
+  return rows;
+}
+
 export async function getAllRecentWorkflowRuns(limit = 100) {
   return db
     .select({

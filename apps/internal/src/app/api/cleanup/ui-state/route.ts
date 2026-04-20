@@ -12,17 +12,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  // Delete recents/pins whose entity-typed ref points at a deleted/archived entity.
+  // Delete pins whose entity-typed ref points at a deleted/archived entity.
   // Page-typed rows are skipped (their ref is a route path, always valid).
-  const deletedRecents = await db.execute(sql`
-    DELETE FROM user_recents
-    WHERE (kind = 'engagement' AND ref NOT IN (SELECT id::text FROM engagements WHERE archived_at IS NULL))
-       OR (kind = 'project' AND ref NOT IN (SELECT id::text FROM projects))
-       OR (kind = 'contact' AND ref NOT IN (SELECT id::text FROM contacts WHERE archived_at IS NULL))
-       OR (kind = 'task' AND ref NOT IN (SELECT id::text FROM tasks))
-       OR (kind = 'invoice' AND ref NOT IN (SELECT id::text FROM invoices))
-  `);
-
   const deletedPins = await db.execute(sql`
     DELETE FROM user_pins
     WHERE (kind = 'engagement' AND ref NOT IN (SELECT id::text FROM engagements WHERE archived_at IS NULL))
@@ -34,7 +25,6 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     success: true,
-    deletedRecents: deletedRecents.length ?? 0,
     deletedPins: deletedPins.length ?? 0,
   });
 }
