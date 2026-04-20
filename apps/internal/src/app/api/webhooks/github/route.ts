@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { devRepos } from "@strvx/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { deleteRepoByGithubId, STRVX_ORG } from "@/lib/dev-sync";
 import { getRepoById } from "@/lib/github";
 
@@ -33,33 +33,53 @@ type RepoPayload = {
 
 async function upsertFromRepo(r: RepoPayload) {
   const owner = r.owner?.login ?? STRVX_ORG;
-  const existing = await db.select().from(devRepos).where(eq(devRepos.githubId, r.id));
-  if (existing.length === 0) {
-    await db.insert(devRepos).values({
-      githubId: r.id,
-      name: r.name,
-      githubOwner: owner,
-      githubRepo: r.name,
-      defaultBranch: r.default_branch ?? "main",
-      isPrivate: Boolean(r.private),
-      isArchived: Boolean(r.archived),
-      isFork: Boolean(r.fork),
-      isActive: !r.archived,
-    });
-  } else {
+  // Look up by github_id first (stable), then fall back to (owner, repo) so we
+  // can backfill github_id on rows inserted before the auto-sync rollout.
+  const byId = await db.select().from(devRepos).where(eq(devRepos.githubId, r.id));
+  if (byId.length > 0) {
     await db
       .update(devRepos)
       .set({
         name: r.name,
         githubOwner: owner,
         githubRepo: r.name,
-        defaultBranch: r.default_branch ?? existing[0].defaultBranch,
+        defaultBranch: r.default_branch ?? byId[0].defaultBranch,
         isPrivate: Boolean(r.private),
         isArchived: Boolean(r.archived),
         isFork: Boolean(r.fork),
       })
       .where(eq(devRepos.githubId, r.id));
+    return;
   }
+  const byOwnerRepo = await db
+    .select()
+    .from(devRepos)
+    .where(and(eq(devRepos.githubOwner, owner), eq(devRepos.githubRepo, r.name)));
+  if (byOwnerRepo.length > 0) {
+    await db
+      .update(devRepos)
+      .set({
+        githubId: r.id,
+        name: r.name,
+        defaultBranch: r.default_branch ?? byOwnerRepo[0].defaultBranch,
+        isPrivate: Boolean(r.private),
+        isArchived: Boolean(r.archived),
+        isFork: Boolean(r.fork),
+      })
+      .where(eq(devRepos.id, byOwnerRepo[0].id));
+    return;
+  }
+  await db.insert(devRepos).values({
+    githubId: r.id,
+    name: r.name,
+    githubOwner: owner,
+    githubRepo: r.name,
+    defaultBranch: r.default_branch ?? "main",
+    isPrivate: Boolean(r.private),
+    isArchived: Boolean(r.archived),
+    isFork: Boolean(r.fork),
+    isActive: !r.archived,
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -138,9 +158,13 @@ export async function POST(req: NextRequest) {
   if (event === "push" || event === "pull_request" || event === "workflow_run" || event === "dependabot_alert") {
     const repo = payload.repository as RepoPayload | undefined;
     if (repo) {
-      const rows = await db.select().from(devRepos).where(eq(devRepos.githubId, repo.id));
-      if (rows.length === 0) {
-        await upsertFromRepo(repo);
+      try {
+        const rows = await db.select().from(devRepos).where(eq(devRepos.githubId, repo.id));
+        if (rows.length === 0) {
+          await upsertFromRepo(repo);
+        }
+      } catch (e) {
+        console.error("webhooks/github passthrough upsert failed", { event, repo: repo.id, err: e instanceof Error ? e.message : String(e) });
       }
     }
     return NextResponse.json({ ok: true, event, cached: true });
