@@ -671,11 +671,16 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
 
   return (
     <motion.div
-      onClick={dismiss}
       animate={{ opacity: exiting ? 0 : 1 }}
       transition={{ duration: 0.8, ease: "easeInOut" }}
-      className="fixed inset-0 z-[100] bg-[#050505] flex items-center justify-center cursor-pointer select-none font-heading overflow-hidden px-4"
+      className="fixed inset-0 z-[100] bg-[#050505] flex items-center justify-center select-none font-heading overflow-hidden px-4 pointer-events-none"
     >
+      {/* Click-to-dismiss surface; excludes the top region so Header nav links (and the mobile dropdown, ~288px when open) remain clickable through the splash. */}
+      <div
+        onClick={dismiss}
+        className="absolute left-0 right-0 bottom-0 top-[18rem] md:top-24 cursor-pointer pointer-events-auto"
+        aria-hidden="true"
+      />
       <div className="flex flex-col items-center md:flex-row md:items-end max-w-full">
 
         {/* strive group */}
