@@ -4,6 +4,11 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ExternalLink, RefreshCw, GitFork, Archive, Lock } from "lucide-react";
 
+interface VercelProjectLink {
+  id: string;
+  name: string;
+  productionUrl: string | null;
+}
 interface Repo {
   id: string;
   name: string;
@@ -13,8 +18,7 @@ interface Repo {
   isPrivate: boolean;
   isArchived: boolean;
   isFork: boolean;
-  vercelProjectId: string | null;
-  vercelProductionUrl: string | null;
+  vercelProjects: VercelProjectLink[];
   color: string;
   isActive: boolean;
   lastRefreshedAt: string | null;
@@ -146,20 +150,31 @@ export default function ReposClient({ repos }: { repos: Repo[] }) {
                 <span style={{ color: "#888" }}>Default branch</span>
                 <span style={{ color: "#333", fontFamily: "ui-monospace,monospace" }}>{r.defaultBranch}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "#888" }}>Vercel</span>
-                <span style={{ color: r.vercelProductionUrl ? "#333" : "#bbb" }}>
-                  {r.vercelProductionUrl ? (
-                    <a
-                      href={r.vercelProductionUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "#1a73e8" }}
-                    >
-                      Linked <ExternalLink size={10} />
-                    </a>
-                  ) : "Not linked"}
-                </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#888" }}>Vercel</span>
+                  <span style={{ color: r.vercelProjects.length > 0 ? "#333" : "#bbb" }}>
+                    {r.vercelProjects.length === 0
+                      ? "Not linked"
+                      : `${r.vercelProjects.length} project${r.vercelProjects.length === 1 ? "" : "s"}`}
+                  </span>
+                </div>
+                {r.vercelProjects.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, paddingLeft: 8 }}>
+                    {r.vercelProjects.map((p) => (
+                      <div key={p.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11 }}>
+                        <span style={{ color: "#555" }}>{p.name}</span>
+                        {p.productionUrl && (
+                          <a href={p.productionUrl} target="_blank" rel="noreferrer"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "#1a73e8" }}>
+                            {p.productionUrl.replace(/^https?:\/\//, "")}
+                            <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#888" }}>Last refresh</span>

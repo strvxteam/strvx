@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import {
   getAllSitesLatestStatus,
   getAllSitesCheckHistory,
-  getLatestDeploymentPerRepo,
+  getLatestDeploymentPerVercelProject,
 } from "@/lib/queries";
 import MonitoringClient from "./monitoring-client";
 
@@ -13,7 +13,7 @@ export default async function MonitoringPage() {
   const [sites, historyRows, vercelRows] = await Promise.all([
     getAllSitesLatestStatus(),
     getAllSitesCheckHistory(24),
-    getLatestDeploymentPerRepo(),
+    getLatestDeploymentPerVercelProject(),
   ]);
 
   const historyMap: Record<string, { status: string; responseMs: number | null; checkedAt: string }[]> = {};
@@ -42,11 +42,13 @@ export default async function MonitoringPage() {
   }));
 
   const vercelDeploys = vercelRows.map((r) => ({
+    projectId: r.project_id,
+    projectName: r.project_name,
+    vercelProjectId: r.vercel_project_id,
+    productionUrl: r.production_url,
     repoId: r.repo_id,
     repoName: r.repo_name,
     repoColor: r.repo_color,
-    vercelProjectId: r.vercel_project_id,
-    productionUrl: r.vercel_production_url,
     deploymentId: r.deployment_id,
     state: r.state,
     url: r.url,

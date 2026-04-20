@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import {
   devRepos,
+  devVercelProjects,
   githubPrCache,
   vercelDeployCache,
   githubCiCache,
@@ -141,42 +142,59 @@ async function refreshRepo(repo: typeof devRepos.$inferSelect) {
     errors.push("github: GITHUB_TOKEN not configured");
   }
 
-  if (isVercelConfigured() && repo.vercelProjectId) {
-    try {
-      const deployments = await listDeployments(repo.vercelProjectId, 20);
-      for (const d of deployments) {
-        await db
-          .insert(vercelDeployCache)
-          .values({
-            repoId: repo.id,
-            deploymentId: d.deploymentId,
-            url: d.url,
-            target: d.target,
-            state: d.state,
-            branch: d.branch,
-            commitSha: d.commitSha,
-            commitMessage: d.commitMessage,
-            commitAuthor: d.commitAuthor,
-            buildDurationMs: d.buildDurationMs,
-            createdAtRemote: new Date(d.createdAt),
-            readyAt: d.readyAt ? new Date(d.readyAt) : null,
-            fetchedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: vercelDeployCache.deploymentId,
-            set: {
+  if (isVercelConfigured()) {
+    const links = await db
+      .select()
+      .from(devVercelProjects)
+      .where(eq(devVercelProjects.devRepoId, repo.id));
+    for (const link of links) {
+      try {
+        const deployments = await listDeployments(link.vercelProjectId, 20);
+        for (const d of deployments) {
+          await db
+            .insert(vercelDeployCache)
+            .values({
+              repoId: repo.id,
+              devVercelProjectId: link.id,
+              deploymentId: d.deploymentId,
+              url: d.url,
+              target: d.target,
               state: d.state,
-              readyAt: d.readyAt ? new Date(d.readyAt) : null,
+              branch: d.branch,
+              commitSha: d.commitSha,
+              commitMessage: d.commitMessage,
+              commitAuthor: d.commitAuthor,
               buildDurationMs: d.buildDurationMs,
+              createdAtRemote: new Date(d.createdAt),
+              readyAt: d.readyAt ? new Date(d.readyAt) : null,
               fetchedAt: new Date(),
-            },
-          });
+            })
+            .onConflictDoUpdate({
+              target: vercelDeployCache.deploymentId,
+              set: {
+                devVercelProjectId: link.id,
+                state: d.state,
+                readyAt: d.readyAt ? new Date(d.readyAt) : null,
+                buildDurationMs: d.buildDurationMs,
+                fetchedAt: new Date(),
+              },
+            });
+        }
+        await db.execute(
+          sql`DELETE FROM vercel_deploy_cache WHERE dev_vercel_project_id = ${link.id} AND id NOT IN (SELECT id FROM vercel_deploy_cache WHERE dev_vercel_project_id = ${link.id} ORDER BY created_at_remote DESC LIMIT 50)`,
+        );
+        await db
+          .update(devVercelProjects)
+          .set({ lastRefreshedAt: new Date(), lastRefreshError: null })
+          .where(eq(devVercelProjects.id, link.id));
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        errors.push(`deploys(${link.name}): ${msg}`);
+        await db
+          .update(devVercelProjects)
+          .set({ lastRefreshedAt: new Date(), lastRefreshError: msg.slice(0, 500) })
+          .where(eq(devVercelProjects.id, link.id));
       }
-      await db.execute(
-        sql`DELETE FROM vercel_deploy_cache WHERE repo_id = ${repo.id} AND id NOT IN (SELECT id FROM vercel_deploy_cache WHERE repo_id = ${repo.id} ORDER BY created_at_remote DESC LIMIT 50)`,
-      );
-    } catch (e) {
-      errors.push(`deploys: ${e instanceof Error ? e.message : String(e)}`);
     }
   }
 

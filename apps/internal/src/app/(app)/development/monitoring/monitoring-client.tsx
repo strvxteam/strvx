@@ -124,11 +124,13 @@ function UptimeBar({ history, hours = 24 }: { history: HistoryPoint[]; hours?: n
 }
 
 interface VercelDeploy {
+  projectId: string;
+  projectName: string;
+  vercelProjectId: string;
+  productionUrl: string | null;
   repoId: string;
   repoName: string;
   repoColor: string;
-  vercelProjectId: string | null;
-  productionUrl: string | null;
   deploymentId: string | null;
   state: string | null;
   url: string | null;
@@ -165,7 +167,10 @@ function VercelTile({ d }: { d: VercelDeploy }) {
     >
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8, gap: 8 }}>
         <div style={{ minWidth: 0, flex: 1 }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: 0 }}>{d.repoName}</p>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: 0 }}>{d.projectName}</p>
+          <p style={{ fontSize: 10, color: "#9ca3af", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: 0.3 }}>
+            {d.repoName}
+          </p>
           {d.productionUrl && (
             <a href={d.productionUrl} target="_blank" rel="noreferrer"
               style={{ fontSize: 11, color: "#6b7280", textDecoration: "none" }}>
@@ -336,7 +341,7 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
             </span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-            {vercelDeploys.map((d) => <VercelTile key={d.repoId} d={d} />)}
+            {vercelDeploys.map((d) => <VercelTile key={d.projectId} d={d} />)}
           </div>
         </div>
       )}

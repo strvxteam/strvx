@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { devRepos, monitoredSites } from "@strvx/db/schema";
+import { devRepos, devVercelProjects, monitoredSites } from "@strvx/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { listOrgRepos, type GhOrgRepo } from "./github";
 import {
@@ -175,6 +175,10 @@ export async function syncVercelProjects(): Promise<VercelSyncResult> {
     reposByOwnerName.set(`${r.githubOwner.toLowerCase()}/${r.githubRepo.toLowerCase()}`, r);
   }
 
+  const existingLinks = await db.select().from(devVercelProjects);
+  const linkByProjectId = new Map<string, typeof existingLinks[number]>();
+  for (const l of existingLinks) linkByProjectId.set(l.vercelProjectId, l);
+
   const vercelIdsSeen = new Set<string>();
 
   for (const project of projects) {
@@ -188,7 +192,9 @@ export async function syncVercelProjects(): Promise<VercelSyncResult> {
       ? (project.productionUrl.startsWith("http") ? project.productionUrl : `https://${project.productionUrl}`)
       : null;
 
-    let monitoredSiteId = match.monitoredSiteId;
+    const existing = linkByProjectId.get(project.id);
+    let monitoredSiteId = existing?.monitoredSiteId ?? null;
+
     if (productionUrl) {
       const existingSite = monitoredSiteId
         ? (await db.select().from(monitoredSites).where(eq(monitoredSites.id, monitoredSiteId)))[0]
@@ -202,40 +208,61 @@ export async function syncVercelProjects(): Promise<VercelSyncResult> {
           result.sitesUpserted++;
         }
       } else {
-        const [inserted] = await db
-          .insert(monitoredSites)
-          .values({ name: project.name, url: productionUrl, type: "internal", isActive: true })
-          .returning({ id: monitoredSites.id });
-        monitoredSiteId = inserted.id;
-        result.sitesUpserted++;
+        const existingByUrl = await db
+          .select()
+          .from(monitoredSites)
+          .where(eq(monitoredSites.url, productionUrl));
+        if (existingByUrl.length > 0) {
+          monitoredSiteId = existingByUrl[0].id;
+        } else {
+          const [inserted] = await db
+            .insert(monitoredSites)
+            .values({ name: project.name, url: productionUrl, type: "internal", isActive: true })
+            .returning({ id: monitoredSites.id });
+          monitoredSiteId = inserted.id;
+          result.sitesUpserted++;
+        }
       }
     }
 
-    const link = {
-      vercelProjectId: project.id,
-      vercelProductionUrl: productionUrl,
-      monitoredSiteId,
-    };
-    if (
-      match.vercelProjectId !== link.vercelProjectId ||
-      match.vercelProductionUrl !== link.vercelProductionUrl ||
-      match.monitoredSiteId !== link.monitoredSiteId
-    ) {
-      await db.update(devRepos).set(link).where(eq(devRepos.id, match.id));
+    if (existing) {
+      const changed =
+        existing.devRepoId !== match.id ||
+        existing.name !== project.name ||
+        existing.productionUrl !== productionUrl ||
+        existing.monitoredSiteId !== monitoredSiteId;
+      if (changed) {
+        await db
+          .update(devVercelProjects)
+          .set({
+            devRepoId: match.id,
+            name: project.name,
+            productionUrl,
+            monitoredSiteId,
+          })
+          .where(eq(devVercelProjects.id, existing.id));
+        result.linked++;
+      }
+    } else {
+      await db.insert(devVercelProjects).values({
+        devRepoId: match.id,
+        vercelProjectId: project.id,
+        name: project.name,
+        productionUrl,
+        monitoredSiteId,
+      });
       result.linked++;
     }
   }
 
-  const stale = repos.filter((r) => r.vercelProjectId && !vercelIdsSeen.has(r.vercelProjectId));
-  for (const repo of stale) {
-    if (repo.monitoredSiteId) {
-      await db.delete(monitoredSites).where(eq(monitoredSites.id, repo.monitoredSiteId));
+  // Remove dev_vercel_projects rows whose Vercel project no longer exists.
+  const stale = existingLinks.filter((l) => !vercelIdsSeen.has(l.vercelProjectId));
+  for (const link of stale) {
+    if (link.monitoredSiteId) {
+      await db.delete(monitoredSites).where(eq(monitoredSites.id, link.monitoredSiteId));
       result.sitesRemoved++;
     }
-    await db
-      .update(devRepos)
-      .set({ vercelProjectId: null, vercelProductionUrl: null, monitoredSiteId: null })
-      .where(eq(devRepos.id, repo.id));
+    await db.delete(devVercelProjects).where(eq(devVercelProjects.id, link.id));
     result.unlinked++;
   }
 
@@ -248,25 +275,30 @@ export async function deleteRepoByGithubId(githubId: number): Promise<boolean> {
     .from(devRepos)
     .where(eq(devRepos.githubId, githubId));
   if (!row) return false;
-  if (row.monitoredSiteId) {
-    await db.delete(monitoredSites).where(eq(monitoredSites.id, row.monitoredSiteId));
+  // Collect monitored_sites pointed at by any dev_vercel_projects under this repo,
+  // delete them before the repo row cascades. (The cascade drops dev_vercel_projects,
+  // but leaves orphan monitored_sites unless we clear them first.)
+  const links = await db
+    .select({ monitoredSiteId: devVercelProjects.monitoredSiteId })
+    .from(devVercelProjects)
+    .where(eq(devVercelProjects.devRepoId, row.id));
+  const siteIds = links.map((l) => l.monitoredSiteId).filter((x): x is string => Boolean(x));
+  if (siteIds.length > 0) {
+    await db.delete(monitoredSites).where(inArray(monitoredSites.id, siteIds));
   }
   await db.delete(devRepos).where(eq(devRepos.id, row.id));
   return true;
 }
 
 export async function unlinkVercelProject(vercelProjectId: string): Promise<boolean> {
-  const [row] = await db
+  const [link] = await db
     .select()
-    .from(devRepos)
-    .where(eq(devRepos.vercelProjectId, vercelProjectId));
-  if (!row) return false;
-  if (row.monitoredSiteId) {
-    await db.delete(monitoredSites).where(eq(monitoredSites.id, row.monitoredSiteId));
+    .from(devVercelProjects)
+    .where(eq(devVercelProjects.vercelProjectId, vercelProjectId));
+  if (!link) return false;
+  if (link.monitoredSiteId) {
+    await db.delete(monitoredSites).where(eq(monitoredSites.id, link.monitoredSiteId));
   }
-  await db
-    .update(devRepos)
-    .set({ vercelProjectId: null, vercelProductionUrl: null, monitoredSiteId: null })
-    .where(eq(devRepos.id, row.id));
+  await db.delete(devVercelProjects).where(eq(devVercelProjects.id, link.id));
   return true;
 }

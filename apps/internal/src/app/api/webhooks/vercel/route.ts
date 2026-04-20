@@ -5,7 +5,7 @@ export const maxDuration = 30;
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { devRepos, vercelDeployCache, monitoredSites } from "@strvx/db/schema";
+import { devVercelProjects, vercelDeployCache } from "@strvx/db/schema";
 import { eq } from "drizzle-orm";
 import { syncVercelProjects, unlinkVercelProject } from "@/lib/dev-sync";
 
@@ -45,11 +45,11 @@ async function upsertDeployment(d: DeploymentPayload) {
   const projectId = d.projectId ?? d.project?.id;
   if (!deploymentId || !projectId) return;
 
-  const [repo] = await db
+  const [link] = await db
     .select()
-    .from(devRepos)
-    .where(eq(devRepos.vercelProjectId, projectId));
-  if (!repo) return;
+    .from(devVercelProjects)
+    .where(eq(devVercelProjects.vercelProjectId, projectId));
+  if (!link) return;
 
   const meta = d.meta ?? {};
   const branch = meta.githubCommitRef ?? meta.gitCommitRef ?? null;
@@ -64,7 +64,8 @@ async function upsertDeployment(d: DeploymentPayload) {
   await db
     .insert(vercelDeployCache)
     .values({
-      repoId: repo.id,
+      repoId: link.devRepoId,
+      devVercelProjectId: link.id,
       deploymentId,
       url: d.url ? (d.url.startsWith("http") ? d.url : `https://${d.url}`) : "",
       target: (d.target ?? null) as string | null,
@@ -81,6 +82,7 @@ async function upsertDeployment(d: DeploymentPayload) {
     .onConflictDoUpdate({
       target: vercelDeployCache.deploymentId,
       set: {
+        devVercelProjectId: link.id,
         state,
         readyAt,
         buildDurationMs,

@@ -1864,14 +1864,17 @@ export async function getAllRecentDeployments(limit = 100) {
     .limit(limit);
 }
 
-export async function getLatestDeploymentPerRepo() {
-  // Latest production deployment per repo, with repo identity columns.
+export async function getLatestDeploymentPerVercelProject() {
+  // One row per Vercel project linked to any dev_repo, plus latest production
+  // deploy. Repos with multiple Vercel projects (monorepos) show multiple rows.
   const rows = await db.execute<{
+    project_id: string;
+    project_name: string;
+    vercel_project_id: string;
+    production_url: string | null;
     repo_id: string;
     repo_name: string;
     repo_color: string;
-    vercel_project_id: string | null;
-    vercel_production_url: string | null;
     deployment_id: string | null;
     state: string | null;
     url: string | null;
@@ -1883,23 +1886,24 @@ export async function getLatestDeploymentPerRepo() {
     created_at_remote: string | null;
     ready_at: string | null;
   }>(sql`
-    SELECT r.id AS repo_id, r.name AS repo_name, r.color AS repo_color,
-           r.vercel_project_id, r.vercel_production_url,
+    SELECT p.id AS project_id, p.name AS project_name,
+           p.vercel_project_id, p.production_url,
+           r.id AS repo_id, r.name AS repo_name, r.color AS repo_color,
            d.deployment_id, d.state, d.url, d.branch,
            d.commit_sha, d.commit_message, d.commit_author,
            d.build_duration_ms, d.created_at_remote, d.ready_at
-    FROM dev_repos r
+    FROM dev_vercel_projects p
+    JOIN dev_repos r ON r.id = p.dev_repo_id
     LEFT JOIN LATERAL (
       SELECT deployment_id, state, url, branch,
              commit_sha, commit_message, commit_author,
              build_duration_ms, created_at_remote, ready_at
       FROM vercel_deploy_cache
-      WHERE repo_id = r.id AND target = 'production'
+      WHERE dev_vercel_project_id = p.id AND target = 'production'
       ORDER BY created_at_remote DESC
       LIMIT 1
     ) d ON TRUE
-    WHERE r.vercel_project_id IS NOT NULL
-    ORDER BY r.name ASC
+    ORDER BY r.name ASC, p.name ASC
   `);
   return rows;
 }

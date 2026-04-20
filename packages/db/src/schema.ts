@@ -1079,6 +1079,27 @@ export const githubPrCache = pgTable(
   ],
 );
 
+// One row per Vercel project linked to a GitHub repo. Supports monorepos —
+// a single dev_repo can have multiple dev_vercel_projects (e.g. one for
+// landing, one for internal tool, both deploying from strvxteam/strvx).
+export const devVercelProjects = pgTable(
+  "dev_vercel_projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    devRepoId: uuid("dev_repo_id")
+      .notNull()
+      .references(() => devRepos.id, { onDelete: "cascade" }),
+    vercelProjectId: text("vercel_project_id").notNull().unique(),
+    name: text("name").notNull(),
+    productionUrl: text("production_url"),
+    monitoredSiteId: uuid("monitored_site_id").references(() => monitoredSites.id, { onDelete: "set null" }),
+    lastRefreshedAt: timestamp("last_refreshed_at", { withTimezone: true }),
+    lastRefreshError: text("last_refresh_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("dev_vercel_projects_repo_idx").on(t.devRepoId)],
+);
+
 export const vercelDeployCache = pgTable(
   "vercel_deploy_cache",
   {
@@ -1086,6 +1107,9 @@ export const vercelDeployCache = pgTable(
     repoId: uuid("repo_id")
       .notNull()
       .references(() => devRepos.id, { onDelete: "cascade" }),
+    // New link (source of truth once backfilled). Nullable during migration.
+    devVercelProjectId: uuid("dev_vercel_project_id")
+      .references(() => devVercelProjects.id, { onDelete: "cascade" }),
     deploymentId: text("deployment_id").notNull(),
     url: text("url").notNull(),
     target: text("target"), // production | preview
@@ -1102,6 +1126,7 @@ export const vercelDeployCache = pgTable(
   (t) => [
     uniqueIndex("vercel_deploy_cache_deployment_idx").on(t.deploymentId),
     index("vercel_deploy_cache_repo_created_idx").on(t.repoId, t.createdAtRemote),
+    index("vercel_deploy_cache_project_created_idx").on(t.devVercelProjectId, t.createdAtRemote),
   ],
 );
 
