@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
 
 const regions = [
@@ -52,30 +52,34 @@ export default function Header() {
   const [pillRect, setPillRect] = useState<{ left: number; width: number } | null>(null);
   const [hasAnimated, setHasAnimated] = useState(false);
 
-  // React Compiler handles memoization; manual useCallback + exhaustive-deps
-  // disable was fighting the compiler.
-  function measure() {
-    const activeIdx = regions.findIndex(r => isActiveRegion(r.href));
+  const measure = useCallback(() => {
+    const activeIdx = regions.findIndex(r => {
+      if (r.href === "/") {
+        return pathname === "/" || pathname === "/services" || pathname === "/process" || pathname === "/book";
+      }
+      return pathname.startsWith(r.href);
+    });
     const el = regionRefs.current[activeIdx];
     const container = containerRef.current;
     if (el && container) {
       const elRect = el.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
-      setPillRect({
+      const next = {
         left: elRect.left - containerRect.left,
         width: elRect.width,
-      });
+      };
+      setPillRect(prev =>
+        prev && prev.left === next.left && prev.width === next.width ? prev : next
+      );
     }
-  }
+  }, [pathname]);
 
   useEffect(() => {
     measure();
-    // Enable animation after first measurement
     const t = requestAnimationFrame(() => setHasAnimated(true));
     return () => cancelAnimationFrame(t);
   }, [measure]);
 
-  // Re-measure on resize
   useEffect(() => {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
