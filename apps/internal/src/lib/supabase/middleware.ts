@@ -45,7 +45,10 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/webhooks") &&
     !request.nextUrl.pathname.startsWith("/portal") &&
     !request.nextUrl.pathname.startsWith("/api/portal") &&
-    !request.nextUrl.pathname.startsWith("/api/dev/")
+    !request.nextUrl.pathname.startsWith("/api/dev/") &&
+    !request.nextUrl.pathname.startsWith("/api/monitor/") &&
+    !request.nextUrl.pathname.startsWith("/api/cleanup/") &&
+    !request.nextUrl.pathname.startsWith("/api/cron/")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
