@@ -4,17 +4,15 @@ import { useState, useTransition, useEffect, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation";
 import {
   Clock,
-  Plus,
   Trash2,
   RefreshCw,
   Globe,
   Server,
   Loader2,
-  X,
   ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
-import { addMonitoredSite, removeMonitoredSite } from "@/app/actions";
+import { removeMonitoredSite } from "@/app/actions";
 
 interface HistoryPoint {
   status: string;
@@ -217,10 +215,6 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [checking, setChecking] = useState(false);
-  const [showAdd, setShowAdd] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newUrl, setNewUrl] = useState("");
-  const [newType, setNewType] = useState<"strvx" | "client" | "demo">("client");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [nextCheck, setNextCheck] = useState(300); // 5 min countdown
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -278,22 +272,6 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
     }
   }
 
-  function handleAdd() {
-    if (!newName.trim() || !newUrl.trim()) return;
-    startTransition(async () => {
-      try {
-        await addMonitoredSite({ name: newName.trim(), url: newUrl.trim(), type: newType });
-        setNewName("");
-        setNewUrl("");
-        setShowAdd(false);
-        router.refresh();
-        toast.success("Site added");
-      } catch {
-        toast.error("Failed to add site");
-      }
-    });
-  }
-
   function handleRemove(siteId: string) {
     startTransition(async () => {
       try {
@@ -326,13 +304,6 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
           >
             {checking ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
             {checking ? "Checking..." : "Check All"}
-          </button>
-          <button
-            onClick={() => setShowAdd(!showAdd)}
-            className="flex items-center gap-1.5 rounded-lg bg-[#111] px-3 py-1.5 text-[13px] font-medium text-white hover:bg-[#333]"
-          >
-            <Plus size={14} />
-            Add Site
           </button>
         </div>
       </div>
@@ -412,52 +383,12 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
         </div>
       </div>
 
-      {/* Add site form */}
-      {showAdd && (
-        <div className="mb-6 rounded-lg border border-[#1a73e8] bg-white p-4">
-          <div className="flex gap-2">
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Site name"
-              className="w-40 rounded-md border border-[#e0e0e0] px-3 py-2 text-[13px] outline-none focus:border-[#1a73e8]"
-              autoFocus
-            />
-            <input
-              value={newUrl}
-              onChange={(e) => setNewUrl(e.target.value)}
-              placeholder="https://example.com"
-              className="flex-1 rounded-md border border-[#e0e0e0] px-3 py-2 text-[13px] outline-none focus:border-[#1a73e8]"
-            />
-            <select
-              value={newType}
-              onChange={(e) => setNewType(e.target.value as "strvx" | "client" | "demo")}
-              className="rounded-md border border-[#e0e0e0] px-3 py-2 text-[13px] outline-none"
-            >
-              <option value="strvx">strvx</option>
-              <option value="client">Client</option>
-              <option value="demo">Demo</option>
-            </select>
-            <button
-              onClick={handleAdd}
-              disabled={!newName.trim() || !newUrl.trim() || isPending}
-              className="rounded-md bg-[#111] px-4 py-2 text-[13px] font-medium text-white hover:bg-[#333] disabled:opacity-40"
-            >
-              Add
-            </button>
-            <button onClick={() => setShowAdd(false)} className="rounded-md p-2 text-[#888] hover:bg-[#f0f0f0]">
-              <X size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Sites list */}
       {sites.length === 0 ? (
         <div style={{ minHeight: "calc(100vh - 300px)" }} className="flex items-center justify-center rounded-lg border border-dashed border-[#e0e0e0] bg-white">
           <div className="text-center">
             <p className="text-[15px] font-medium text-[#aaa]">No sites monitored yet</p>
-            <p className="mt-1 text-[13px] text-[#ccc]">Click &quot;Add Site&quot; to start monitoring.</p>
+            <p className="mt-1 text-[13px] text-[#ccc]">Link a Vercel project to auto-add its production URL.</p>
           </div>
         </div>
       ) : (
