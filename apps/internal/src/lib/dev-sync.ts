@@ -11,13 +11,13 @@ import {
 export const STRVX_ORG = process.env.GITHUB_ORG ?? "strvxteam";
 
 // Classify a GitHub repo (auto-synced from strvxteam) into a monitored_sites.type.
-// strvx  — internal strvx products (the monorepo itself, custos, other own apps)
-// demo   — demos by pattern (demo-*)
+// strvx  — the strvx app/site itself (the monorepo)
+// demo   — demos by pattern (demo-*) or internal product showcases (custos)
 // client — everything else (client projects)
 export function classifySite(githubRepo: string): "strvx" | "client" | "demo" {
   const r = githubRepo.toLowerCase();
-  if (r.startsWith("demo-")) return "demo";
-  if (r === "strvx" || r === "strvx-internal-tool" || r === "custos") return "strvx";
+  if (r.startsWith("demo-") || r === "custos") return "demo";
+  if (r === "strvx" || r === "strvx-internal-tool") return "strvx";
   return "client";
 }
 

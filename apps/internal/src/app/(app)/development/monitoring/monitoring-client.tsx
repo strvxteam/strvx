@@ -11,6 +11,7 @@ import {
   Server,
   Loader2,
   X,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { addMonitoredSite, removeMonitoredSite } from "@/app/actions";
@@ -222,6 +223,13 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
   const [newType, setNewType] = useState<"strvx" | "client" | "demo">("client");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [nextCheck, setNextCheck] = useState(300); // 5 min countdown
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const toggleSection = (key: string) =>
+    setCollapsedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
 
   // Auto-check every 5 minutes when page is open
   const silentCheck = useCallback(async () => {
@@ -329,21 +337,31 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
         </div>
       </div>
 
-      {vercelDeploys.length > 0 && (
-        <div style={{ marginBottom: 32 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h2 style={{ fontSize: 13, fontWeight: 600, color: "#333", textTransform: "uppercase", letterSpacing: 0.4 }}>
-              Vercel Deployments
-            </h2>
-            <span style={{ fontSize: 11, color: "#888" }}>
-              {vercelDeploys.filter((d) => d.state === "ERROR").length} failing · {vercelDeploys.filter((d) => d.state === "READY").length} ready
-            </span>
+      {vercelDeploys.length > 0 && (() => {
+        const collapsed = collapsedSections.has("vercel");
+        return (
+          <div style={{ marginBottom: 32 }}>
+            <button
+              type="button"
+              onClick={() => toggleSection("vercel")}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 12, background: "transparent", border: 0, padding: 0, cursor: "pointer" }}
+            >
+              <h2 style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#333", textTransform: "uppercase", letterSpacing: 0.4, margin: 0 }}>
+                <ChevronDown size={14} style={{ transition: "transform 0.15s", transform: collapsed ? "rotate(-90deg)" : "none", color: "#888" }} />
+                Vercel Deployments
+              </h2>
+              <span style={{ fontSize: 11, color: "#888" }}>
+                {vercelDeploys.filter((d) => d.state === "ERROR").length} failing · {vercelDeploys.filter((d) => d.state === "READY").length} ready
+              </span>
+            </button>
+            {!collapsed && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+                {vercelDeploys.map((d) => <VercelTile key={d.projectId} d={d} />)}
+              </div>
+            )}
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-            {vercelDeploys.map((d) => <VercelTile key={d.projectId} d={d} />)}
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Summary */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -454,11 +472,22 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
           ).map(({ key: type, label }) => {
             const typeSites = sites.filter((s) => s.type === type);
             if (typeSites.length === 0) return null;
+            const collapsed = collapsedSections.has(`sites:${type}`);
             return (
               <div key={type}>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#888]">
+                <button
+                  type="button"
+                  onClick={() => toggleSection(`sites:${type}`)}
+                  className="mb-2 flex w-full items-center gap-1.5 bg-transparent p-0 text-left text-[11px] font-semibold uppercase tracking-wider text-[#888] hover:text-[#555]"
+                >
+                  <ChevronDown
+                    size={12}
+                    style={{ transition: "transform 0.15s", transform: collapsed ? "rotate(-90deg)" : "none" }}
+                  />
                   {label}
-                </p>
+                  <span className="text-[10px] font-normal text-[#aaa]">({typeSites.length})</span>
+                </button>
+                {!collapsed && (
                 <div className="flex flex-col gap-2">
                   {typeSites.map((site) => {
                     const siteErrors24h = site.history.filter((h) => h.status === "down").length;
@@ -532,6 +561,7 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
                     );
                   })}
                 </div>
+                )}
               </div>
             );
           })}
