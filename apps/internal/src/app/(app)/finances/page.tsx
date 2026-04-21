@@ -1,6 +1,6 @@
 import FinancesPage from "./finances-client";
-import type { Invoice, Expense } from "@/lib/mock-finance";
-import { getInvoices, getExpenses, getMRR, getMonthlyRevenue, getPipelineEngagements, getProjectProfitability, getCreditCards, getAllCardBudgets, getAllCardReceipts, getAllCardAlerts } from "@/lib/queries";
+import type { Invoice } from "@/lib/mock-finance";
+import { getInvoices, getMRR, getMonthlyRevenue, getPipelineEngagements, getProjectProfitability, getCreditCards, getAllCardBudgets, getAllCardReceipts, getAllCardAlerts } from "@/lib/queries";
 import { getMercuryAccounts, getAllMercuryTransactions, isMercuryConfigured, getAllMercuryCards, type MercuryCard } from "@/lib/mercury";
 
 export const dynamic = 'force-dynamic';
@@ -9,9 +9,8 @@ export const maxDuration = 60;
 export const metadata = { title: "Finances" };
 
 export default async function FinancesServerPage() {
-  const [realInvoices, realExpenses, mrr, monthlyRevenueRows, engagements, profitabilityRaw] = await Promise.all([
+  const [realInvoices, mrr, monthlyRevenueRows, engagements, profitabilityRaw] = await Promise.all([
     getInvoices(),
-    getExpenses(),
     getMRR(),
     getMonthlyRevenue(),
     getPipelineEngagements(),
@@ -179,15 +178,6 @@ export default async function FinancesServerPage() {
       : [],
   }));
 
-  const expenses: Expense[] = realExpenses.map((exp) => ({
-    id: exp.id,
-    date: exp.date,
-    description: exp.description,
-    category: exp.category as Expense["category"],
-    amount: Number(exp.amount),
-    project: null,
-  }));
-
   const pipelineEngagements = engagements.map((e) => ({
     name: e.name,
     companyName: e.companyName,
@@ -212,7 +202,6 @@ export default async function FinancesServerPage() {
   return (
     <FinancesPage
       invoices={invoices}
-      expenses={expenses}
       monthlyRevenue={monthlyRevenue}
       mrr={mrr}
       pipelineEngagements={pipelineEngagements}
