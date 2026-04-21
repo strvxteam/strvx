@@ -5,7 +5,7 @@ export const maxDuration = 30;
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { devRepos } from "@strvx/db/schema";
+import { devRepos, githubCiCache, githubPrCache } from "@strvx/db/schema";
 import { and, eq } from "drizzle-orm";
 import { deleteRepoByGithubId, STRVX_ORG } from "@/lib/dev-sync";
 import { getRepoById } from "@/lib/github";
@@ -80,6 +80,129 @@ async function upsertFromRepo(r: RepoPayload) {
     isFork: Boolean(r.fork),
     isActive: !r.archived,
   });
+}
+
+type WorkflowRunPayload = {
+  workflow_run?: {
+    id: number;
+    name?: string;
+    status: string;
+    conclusion: string | null;
+    head_branch: string | null;
+    event?: string;
+    actor?: { login?: string };
+    html_url: string;
+    run_started_at?: string;
+    created_at: string;
+    updated_at: string;
+  };
+};
+
+async function writeWorkflowRun(repoId: string, payload: Record<string, unknown>) {
+  const run = (payload as WorkflowRunPayload).workflow_run;
+  if (!run) return;
+  const started = run.run_started_at ? new Date(run.run_started_at).getTime() : null;
+  const ended = run.status === "completed" ? new Date(run.updated_at).getTime() : null;
+  const durationMs = started && ended ? ended - started : null;
+
+  await db
+    .insert(githubCiCache)
+    .values({
+      repoId,
+      runId: String(run.id),
+      workflowName: run.name ?? "unknown",
+      status: run.status,
+      conclusion: run.conclusion,
+      branch: run.head_branch,
+      event: run.event ?? null,
+      actor: run.actor?.login ?? null,
+      htmlUrl: run.html_url,
+      durationMs,
+      createdAtRemote: new Date(run.created_at),
+      updatedAtRemote: new Date(run.updated_at),
+      fetchedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: githubCiCache.runId,
+      set: {
+        status: run.status,
+        conclusion: run.conclusion,
+        durationMs,
+        updatedAtRemote: new Date(run.updated_at),
+        fetchedAt: new Date(),
+      },
+    });
+}
+
+type PullRequestPayload = {
+  pull_request?: {
+    number: number;
+    title: string;
+    state: string;
+    merged?: boolean;
+    draft?: boolean;
+    user?: { login?: string; avatar_url?: string };
+    head?: { ref?: string };
+    base?: { ref?: string };
+    html_url: string;
+    requested_reviewers?: Array<{ login?: string }>;
+    additions?: number;
+    deletions?: number;
+    changed_files?: number;
+    created_at: string;
+    updated_at: string;
+    merged_at?: string | null;
+  };
+};
+
+async function writePullRequest(repoId: string, payload: Record<string, unknown>) {
+  const pr = (payload as PullRequestPayload).pull_request;
+  if (!pr) return;
+  const state = pr.merged ? "merged" : pr.state;
+  const reviewers = (pr.requested_reviewers ?? [])
+    .map((r) => r.login)
+    .filter((l): l is string => Boolean(l));
+
+  await db
+    .insert(githubPrCache)
+    .values({
+      repoId,
+      number: pr.number,
+      title: pr.title,
+      state,
+      isDraft: Boolean(pr.draft),
+      authorLogin: pr.user?.login ?? null,
+      authorAvatarUrl: pr.user?.avatar_url ?? null,
+      headBranch: pr.head?.ref ?? null,
+      baseBranch: pr.base?.ref ?? null,
+      htmlUrl: pr.html_url,
+      requestedReviewers: reviewers,
+      ciStatus: null,
+      additions: pr.additions ?? null,
+      deletions: pr.deletions ?? null,
+      changedFiles: pr.changed_files ?? null,
+      createdAtRemote: new Date(pr.created_at),
+      updatedAtRemote: new Date(pr.updated_at),
+      mergedAt: pr.merged_at ? new Date(pr.merged_at) : null,
+      fetchedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [githubPrCache.repoId, githubPrCache.number],
+      set: {
+        title: pr.title,
+        state,
+        isDraft: Boolean(pr.draft),
+        headBranch: pr.head?.ref ?? null,
+        baseBranch: pr.base?.ref ?? null,
+        requestedReviewers: reviewers,
+        additions: pr.additions ?? null,
+        deletions: pr.deletions ?? null,
+        changedFiles: pr.changed_files ?? null,
+        updatedAtRemote: new Date(pr.updated_at),
+        mergedAt: pr.merged_at ? new Date(pr.merged_at) : null,
+        fetchedAt: new Date(),
+      },
+    });
 }
 
 export async function POST(req: NextRequest) {
@@ -157,14 +280,34 @@ export async function POST(req: NextRequest) {
 
   if (event === "push" || event === "pull_request" || event === "workflow_run" || event === "dependabot_alert") {
     const repo = payload.repository as RepoPayload | undefined;
+    let repoId: string | null = null;
     if (repo) {
       try {
         const rows = await db.select().from(devRepos).where(eq(devRepos.githubId, repo.id));
         if (rows.length === 0) {
           await upsertFromRepo(repo);
+          const after = await db.select().from(devRepos).where(eq(devRepos.githubId, repo.id));
+          repoId = after[0]?.id ?? null;
+        } else {
+          repoId = rows[0].id;
         }
       } catch (e) {
         console.error("webhooks/github passthrough upsert failed", { event, repo: repo.id, err: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
+    if (repoId && event === "workflow_run") {
+      try {
+        await writeWorkflowRun(repoId, payload);
+      } catch (e) {
+        console.error("webhooks/github workflow_run write failed", { err: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    if (repoId && event === "pull_request") {
+      try {
+        await writePullRequest(repoId, payload);
+      } catch (e) {
+        console.error("webhooks/github pull_request write failed", { err: e instanceof Error ? e.message : String(e) });
       }
     }
     return NextResponse.json({ ok: true, event, cached: true });
