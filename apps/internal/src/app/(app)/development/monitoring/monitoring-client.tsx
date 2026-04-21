@@ -25,7 +25,7 @@ interface SiteData {
   id: string;
   name: string;
   url: string;
-  type: "internal" | "client";
+  type: "strvx" | "client" | "demo";
   isActive: boolean;
   status: "up" | "down" | null;
   statusCode: number | null;
@@ -219,7 +219,7 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState("");
   const [newUrl, setNewUrl] = useState("");
-  const [newType, setNewType] = useState<"internal" | "client">("client");
+  const [newType, setNewType] = useState<"strvx" | "client" | "demo">("client");
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [nextCheck, setNextCheck] = useState(300); // 5 min countdown
 
@@ -413,11 +413,12 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
             />
             <select
               value={newType}
-              onChange={(e) => setNewType(e.target.value as "internal" | "client")}
+              onChange={(e) => setNewType(e.target.value as "strvx" | "client" | "demo")}
               className="rounded-md border border-[#e0e0e0] px-3 py-2 text-[13px] outline-none"
             >
-              <option value="internal">Internal</option>
+              <option value="strvx">strvx</option>
               <option value="client">Client</option>
+              <option value="demo">Demo</option>
             </select>
             <button
               onClick={handleAdd}
@@ -443,14 +444,20 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {/* Group by type */}
-          {(["internal", "client"] as const).map((type) => {
+          {/* Group by type: strvx | client | demo */}
+          {(
+            [
+              { key: "strvx", label: "strvx" },
+              { key: "client", label: "Clients" },
+              { key: "demo", label: "Demos" },
+            ] as const
+          ).map(({ key: type, label }) => {
             const typeSites = sites.filter((s) => s.type === type);
             if (typeSites.length === 0) return null;
             return (
               <div key={type}>
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#888]">
-                  {type === "internal" ? "strvx Internal" : "Client Apps"}
+                  {label}
                 </p>
                 <div className="flex flex-col gap-2">
                   {typeSites.map((site) => {
@@ -464,7 +471,7 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-[15px] font-semibold text-[#111]">{site.name}</span>
-                            {site.type === "internal" ? (
+                            {site.type === "strvx" ? (
                               <Server size={12} className="text-[#9ca3af]" />
                             ) : (
                               <Globe size={12} className="text-[#9ca3af]" />

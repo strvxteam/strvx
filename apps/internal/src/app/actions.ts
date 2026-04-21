@@ -1428,7 +1428,7 @@ export async function deleteInvoiceAction(invoiceId: string) {
 
 // ── Monitoring ───────────────────────────────────────
 
-export async function addMonitoredSite(data: { name: string; url: string; type: "internal" | "client" }) {
+export async function addMonitoredSite(data: { name: string; url: string; type: "strvx" | "client" | "demo" }) {
   await getCurrentUser();
   if (!data.name.trim() || !data.url.trim()) throw new Error("Name and URL required");
 

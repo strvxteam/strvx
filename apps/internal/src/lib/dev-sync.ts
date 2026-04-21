@@ -10,6 +10,17 @@ import {
 
 export const STRVX_ORG = process.env.GITHUB_ORG ?? "strvxteam";
 
+// Classify a GitHub repo (auto-synced from strvxteam) into a monitored_sites.type.
+// strvx  — internal strvx products (the monorepo itself, custos, other own apps)
+// demo   — demos by pattern (demo-*)
+// client — everything else (client projects)
+export function classifySite(githubRepo: string): "strvx" | "client" | "demo" {
+  const r = githubRepo.toLowerCase();
+  if (r.startsWith("demo-")) return "demo";
+  if (r === "strvx" || r === "strvx-internal-tool" || r === "custos") return "strvx";
+  return "client";
+}
+
 export interface GithubSyncResult {
   org: string;
   total: number;
@@ -194,16 +205,17 @@ export async function syncVercelProjects(): Promise<VercelSyncResult> {
 
     const existing = linkByProjectId.get(project.id);
     let monitoredSiteId = existing?.monitoredSiteId ?? null;
+    const siteType = classifySite(match.githubRepo);
 
     if (productionUrl) {
       const existingSite = monitoredSiteId
         ? (await db.select().from(monitoredSites).where(eq(monitoredSites.id, monitoredSiteId)))[0]
         : undefined;
       if (existingSite) {
-        if (existingSite.url !== productionUrl || existingSite.name !== project.name) {
+        if (existingSite.url !== productionUrl || existingSite.name !== project.name || existingSite.type !== siteType) {
           await db
             .update(monitoredSites)
-            .set({ url: productionUrl, name: project.name, type: "internal" })
+            .set({ url: productionUrl, name: project.name, type: siteType })
             .where(eq(monitoredSites.id, existingSite.id));
           result.sitesUpserted++;
         }
@@ -214,10 +226,16 @@ export async function syncVercelProjects(): Promise<VercelSyncResult> {
           .where(eq(monitoredSites.url, productionUrl));
         if (existingByUrl.length > 0) {
           monitoredSiteId = existingByUrl[0].id;
+          if (existingByUrl[0].type !== siteType) {
+            await db
+              .update(monitoredSites)
+              .set({ type: siteType })
+              .where(eq(monitoredSites.id, existingByUrl[0].id));
+          }
         } else {
           const [inserted] = await db
             .insert(monitoredSites)
-            .values({ name: project.name, url: productionUrl, type: "internal", isActive: true })
+            .values({ name: project.name, url: productionUrl, type: siteType, isActive: true })
             .returning({ id: monitoredSites.id });
           monitoredSiteId = inserted.id;
           result.sitesUpserted++;

@@ -29,7 +29,7 @@ export default async function MonitoringPage() {
     id: s.site_id,
     name: s.name,
     url: s.url,
-    type: s.type as "internal" | "client",
+    type: s.type as "strvx" | "client" | "demo",
     isActive: s.is_active,
     status: (s.status as "up" | "down") ?? null,
     statusCode: s.status_code,
