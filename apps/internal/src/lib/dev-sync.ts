@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { devRepos, devVercelProjects, monitoredSites } from "@strvx/db/schema";
+import { devRepos, devVercelProjects, devSupabaseProjects, monitoredSites } from "@strvx/db/schema";
 import { eq, inArray } from "drizzle-orm";
 import { listOrgRepos, type GhOrgRepo } from "./github";
 import {
@@ -7,6 +7,11 @@ import {
   type VercelProject,
   isVercelConfigured,
 } from "./vercel";
+import {
+  listSupabaseProjects,
+  getSupabaseProjectStats,
+  isSupabaseMgmtConfigured,
+} from "./supabase-mgmt";
 
 export const STRVX_ORG = process.env.GITHUB_ORG ?? "strvxteam";
 
@@ -319,4 +324,102 @@ export async function unlinkVercelProject(vercelProjectId: string): Promise<bool
   }
   await db.delete(devVercelProjects).where(eq(devVercelProjects.id, link.id));
   return true;
+}
+
+// ── Supabase sync ───────────────────────────────────────
+
+export interface SupabaseSyncResult {
+  total: number;
+  upserted: number;
+  deleted: number;
+  statsFetched: number;
+  errors: string[];
+}
+
+function matchRepoByName(name: string, repos: Array<{ id: string; githubRepo: string }>): string | null {
+  const n = name.toLowerCase();
+  // Exact match
+  const exact = repos.find((r) => r.githubRepo.toLowerCase() === n);
+  if (exact) return exact.id;
+  // Substring fuzzy (e.g. "Dr. Bob Nelson" → "drbobnelson")
+  const normalized = n.replace(/[^a-z0-9]/g, "");
+  const fuzzy = repos.find((r) => normalized.includes(r.githubRepo.toLowerCase().replace(/[^a-z0-9]/g, "")));
+  return fuzzy?.id ?? null;
+}
+
+export async function syncSupabaseProjects(): Promise<SupabaseSyncResult> {
+  const result: SupabaseSyncResult = { total: 0, upserted: 0, deleted: 0, statsFetched: 0, errors: [] };
+  if (!isSupabaseMgmtConfigured()) {
+    result.errors.push("SUPABASE_ACCESS_TOKEN not configured");
+    return result;
+  }
+
+  let projects;
+  try {
+    projects = await listSupabaseProjects();
+  } catch (e) {
+    result.errors.push(`listSupabaseProjects: ${e instanceof Error ? e.message : String(e)}`);
+    return result;
+  }
+  result.total = projects.length;
+
+  const repos = await db.select({ id: devRepos.id, githubRepo: devRepos.githubRepo }).from(devRepos);
+  const refsSeen = new Set<string>();
+
+  for (const p of projects) {
+    refsSeen.add(p.ref);
+    const repoId = matchRepoByName(p.name, repos);
+
+    let sizeBytes: number | null = null;
+    let activeConnections: number | null = null;
+    let statsError: string | null = null;
+    try {
+      const stats = await getSupabaseProjectStats(p.ref);
+      sizeBytes = stats.sizeBytes;
+      activeConnections = stats.activeConnections;
+      result.statsFetched++;
+    } catch (e) {
+      statsError = e instanceof Error ? e.message : String(e);
+      result.errors.push(`stats(${p.name}): ${statsError}`);
+    }
+
+    await db
+      .insert(devSupabaseProjects)
+      .values({
+        devRepoId: repoId,
+        projectRef: p.ref,
+        name: p.name,
+        region: p.region,
+        status: p.status,
+        dbVersion: p.dbVersion ?? null,
+        sizeBytes,
+        activeConnections,
+        lastRefreshedAt: new Date(),
+        lastRefreshError: statsError,
+      })
+      .onConflictDoUpdate({
+        target: devSupabaseProjects.projectRef,
+        set: {
+          devRepoId: repoId,
+          name: p.name,
+          region: p.region,
+          status: p.status,
+          dbVersion: p.dbVersion ?? null,
+          sizeBytes,
+          activeConnections,
+          lastRefreshedAt: new Date(),
+          lastRefreshError: statsError,
+        },
+      });
+    result.upserted++;
+  }
+
+  const existing = await db.select({ id: devSupabaseProjects.id, ref: devSupabaseProjects.projectRef }).from(devSupabaseProjects);
+  const stale = existing.filter((e) => !refsSeen.has(e.ref)).map((e) => e.id);
+  if (stale.length > 0) {
+    await db.delete(devSupabaseProjects).where(inArray(devSupabaseProjects.id, stale));
+    result.deleted = stale.length;
+  }
+
+  return result;
 }

@@ -7,6 +7,7 @@ import {
   boolean,
   date,
   integer,
+  bigint,
   jsonb,
   pgEnum,
   index,
@@ -1175,4 +1176,23 @@ export const dependabotAlertCache = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("dependabot_alert_cache_repo_number_idx").on(t.repoId, t.alertNumber)],
+);
+
+export const devSupabaseProjects = pgTable(
+  "dev_supabase_projects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    devRepoId: uuid("dev_repo_id").references(() => devRepos.id, { onDelete: "set null" }),
+    projectRef: text("project_ref").notNull().unique(),
+    name: text("name").notNull(),
+    region: text("region"),
+    status: text("status"),
+    dbVersion: text("db_version"),
+    sizeBytes: bigint("size_bytes", { mode: "number" }),
+    activeConnections: integer("active_connections"),
+    lastRefreshedAt: timestamp("last_refreshed_at", { withTimezone: true }),
+    lastRefreshError: text("last_refresh_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("dev_supabase_projects_repo_idx").on(t.devRepoId)],
 );

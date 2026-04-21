@@ -14,16 +14,41 @@ type ActivityResult =
   | { enabled: true; rows: ActivityRow[] }
   | { enabled: false; reason: string };
 
+interface SupabaseProject {
+  id: string;
+  projectRef: string;
+  name: string;
+  region: string | null;
+  status: string | null;
+  dbVersion: string | null;
+  sizeBytes: number | null;
+  activeConnections: number | null;
+  lastRefreshedAt: string | null;
+  lastRefreshError: string | null;
+  repoName: string | null;
+}
+
+function prettyBytes(b: number | null): string {
+  if (b == null) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  let n = b;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(n < 10 ? 1 : 0)} ${units[i]}`;
+}
+
 export default function DatabaseClient({
   health,
   tables,
   migrations,
   activity,
+  supabaseProjects,
 }: {
   health: DbHealth;
   tables: TableStats[];
   migrations: MigrationStatus[];
   activity: ActivityResult;
+  supabaseProjects: SupabaseProject[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -36,6 +61,16 @@ export default function DatabaseClient({
     });
 
   const refresh = () => startTransition(() => router.refresh());
+  const [syncing, setSyncing] = useState(false);
+  const syncSupabase = async () => {
+    setSyncing(true);
+    try {
+      await fetch("/api/dev/sync-supabase", { method: "POST" });
+      router.refresh();
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const sectionHeader = (key: string, label: string, tail?: React.ReactNode) => {
     const isCollapsed = collapsed.has(key);
@@ -74,7 +109,90 @@ export default function DatabaseClient({
         </button>
       </div>
 
-      {/* Panel 1 — Health */}
+      {/* Supabase projects tile grid */}
+      <div style={{ marginBottom: 24 }}>
+        {(() => {
+          const isCollapsed = collapsed.has("supabase");
+          return (
+            <>
+              <button
+                type="button"
+                onClick={() => toggle("supabase")}
+                style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: 12, background: "transparent", border: 0, padding: 0, cursor: "pointer" }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#333", textTransform: "uppercase", letterSpacing: 0.4 }}>
+                  <ChevronDown size={14} style={{ transition: "transform 0.15s", transform: isCollapsed ? "rotate(-90deg)" : "none", color: "#888" }} />
+                  Supabase Projects
+                </span>
+                <span style={{ display: "flex", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: "#888" }}>{supabaseProjects.length} projects</span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); syncSupabase(); }}
+                    disabled={syncing}
+                    style={{ fontSize: 11, color: "#1a73e8", background: "transparent", border: 0, cursor: "pointer", padding: 0 }}
+                  >
+                    {syncing ? "Syncing…" : "Sync now"}
+                  </button>
+                </span>
+              </button>
+              {!isCollapsed && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+                  {supabaseProjects.length === 0 ? (
+                    <div style={{ gridColumn: "1 / -1", padding: 20, borderRadius: 10, border: "1px dashed #e0e0e0", textAlign: "center", color: "#888", fontSize: 13 }}>
+                      No Supabase projects synced yet. Click Sync now.
+                    </div>
+                  ) : (
+                    supabaseProjects.map((p) => {
+                      const healthy = p.status === "ACTIVE_HEALTHY" && !p.lastRefreshError;
+                      return (
+                        <div key={p.id} style={{ borderRadius: 10, border: "1px solid #e0e0e0", backgroundColor: "#fff", padding: 16 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8, gap: 8 }}>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <p style={{ fontSize: 14, fontWeight: 600, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</p>
+                              <p style={{ fontSize: 11, color: "#9ca3af", margin: "2px 0 0", textTransform: "uppercase", letterSpacing: 0.3 }}>
+                                {p.repoName ?? "Unlinked"}
+                              </p>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, color: healthy ? "#16a34a" : "#dc2626", backgroundColor: healthy ? "#dcfce7" : "#fee2e2", whiteSpace: "nowrap" }}>
+                              {p.status?.replace("ACTIVE_", "").replace(/_/g, " ") ?? "?"}
+                            </span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12, color: "#555" }}>
+                            <div>
+                              <p style={{ margin: 0, color: "#9ca3af", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.3 }}>Size</p>
+                              <p style={{ margin: 0, fontWeight: 600, color: "#222" }}>{prettyBytes(p.sizeBytes)}</p>
+                            </div>
+                            <div>
+                              <p style={{ margin: 0, color: "#9ca3af", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.3 }}>Connections</p>
+                              <p style={{ margin: 0, fontWeight: 600, color: "#222" }}>{p.activeConnections ?? "—"}</p>
+                            </div>
+                            <div>
+                              <p style={{ margin: 0, color: "#9ca3af", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.3 }}>Region</p>
+                              <p style={{ margin: 0 }}>{p.region ?? "—"}</p>
+                            </div>
+                            <div>
+                              <p style={{ margin: 0, color: "#9ca3af", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.3 }}>PG</p>
+                              <p style={{ margin: 0 }}>{p.dbVersion ?? "—"}</p>
+                            </div>
+                          </div>
+                          {p.lastRefreshError && (
+                            <p style={{ marginTop: 8, fontSize: 11, color: "#b91c1c", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {p.lastRefreshError}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </>
+          );
+        })()}
+      </div>
+
+      {/* Panel 1 — Health (this app's own DB) */}
       <div style={{ marginBottom: 24, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
         <HealthCard
           label="Status"

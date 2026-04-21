@@ -9,6 +9,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/dev/sync-supabase?secret=${DEV_OPS_REFRESH_SECRET}",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/reports/weekly?secret=${WEEKLY_REPORT_SECRET}",
       "schedule": "0 14 * * 1"
     },
