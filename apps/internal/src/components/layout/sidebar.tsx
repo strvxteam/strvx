@@ -35,6 +35,7 @@ import {
   Zap,
   Server,
   Activity,
+  Database,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -98,6 +99,7 @@ const navSections: NavSection[] = [
       { href: "/development/pull-requests", label: "Pull Requests", icon: GitPullRequest },
       { href: "/development/actions", label: "Actions", icon: Zap },
       { href: "/development/monitoring", label: "Monitoring", icon: Wrench },
+      { href: "/development/database", label: "Database", icon: Database },
       { href: "/development/repos", label: "Repos", icon: Server },
     ],
   },
