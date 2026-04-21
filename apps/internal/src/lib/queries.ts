@@ -951,17 +951,17 @@ export async function getSiteUptimeHistory(siteId: string, hours = 24) {
 
 export async function getAllSitesLatestStatus() {
   const result = await db.execute(sql`
-    SELECT DISTINCT ON (uc.site_id)
+    SELECT
       ms.id as site_id,
       ms.name,
       ms.url,
       ms.type,
       ms.is_active,
-      uc.status,
-      uc.status_code,
-      uc.response_ms,
-      uc.error_message,
-      uc.checked_at,
+      latest.status,
+      latest.status_code,
+      latest.response_ms,
+      latest.error_message,
+      latest.checked_at,
       (SELECT COUNT(*) FILTER (WHERE u2.status = 'up')::float /
        NULLIF(COUNT(*)::float, 0) * 100
        FROM uptime_checks u2
@@ -975,8 +975,15 @@ export async function getAllSitesLatestStatus() {
          AND u3.checked_at > NOW() - INTERVAL '1 hour'
       ) as avg_response_1h
     FROM monitored_sites ms
-    LEFT JOIN uptime_checks uc ON uc.site_id = ms.id
-    ORDER BY uc.site_id, uc.checked_at DESC
+    LEFT JOIN LATERAL (
+      SELECT status, status_code, response_ms, error_message, checked_at
+      FROM uptime_checks
+      WHERE site_id = ms.id
+      ORDER BY checked_at DESC
+      LIMIT 1
+    ) latest ON TRUE
+    WHERE ms.is_active = true
+    ORDER BY ms.name ASC
   `);
   return result as unknown as {
     site_id: string;
