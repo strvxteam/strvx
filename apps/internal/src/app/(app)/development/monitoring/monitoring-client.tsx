@@ -151,9 +151,9 @@ const VERCEL_STATE_STYLE: Record<string, { label: string; color: string; bg: str
   INITIALIZING: { label: "Initializing", color: "#2563eb", bg: "#dbeafe" },
 };
 
-function VercelTile({ d }: { d: VercelDeploy }) {
+function VercelTile({ d, now }: { d: VercelDeploy; now: number }) {
   const style = d.state ? (VERCEL_STATE_STYLE[d.state] ?? { label: d.state, color: "#6b7280", bg: "#f3f4f6" }) : { label: "No deploys", color: "#9ca3af", bg: "#f3f4f6" };
-  const ageHours = d.createdAt ? Math.round((Date.now() - new Date(d.createdAt).getTime()) / 3600000) : null;
+  const ageHours = d.createdAt ? Math.round((now - new Date(d.createdAt).getTime()) / 3600000) : null;
   return (
     <div
       style={{
@@ -218,6 +218,7 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [nextCheck, setNextCheck] = useState(300); // 5 min countdown
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [now] = useState(() => Date.now());
   const toggleSection = (key: string) =>
     setCollapsedSections((prev) => {
       const next = new Set(prev);
@@ -327,7 +328,7 @@ export default function MonitoringClient({ sites, vercelDeploys = [] }: { sites:
             </button>
             {!collapsed && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
-                {vercelDeploys.map((d) => <VercelTile key={d.projectId} d={d} />)}
+                {vercelDeploys.map((d) => <VercelTile key={d.projectId} d={d} now={now} />)}
               </div>
             )}
           </div>

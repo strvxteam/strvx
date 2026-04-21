@@ -80,7 +80,7 @@ export default async function DashboardPage() {
           </p>
         </div>
         <div className="rounded-lg border border-[#e0e0e0] bg-white px-4 py-3">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#999]">Today's Meetings</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-[#999]">Today&apos;s Meetings</p>
           <p className="mt-1 text-[20px] font-bold text-[#222]">{todayEvents.length}</p>
         </div>
         <div className="rounded-lg border border-[#e0e0e0] bg-white px-4 py-3">

@@ -91,10 +91,11 @@ export function Palette() {
 
   useEffect(() => { if (open && mode === "search") setTimeout(() => inputRef.current?.focus(), 10); }, [open, mode]);
 
-  useEffect(() => {
-    if (!open) return;
-    setSelected(0);
-  }, [open]);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (open) setSelected(0);
+  }
 
   useEffect(() => {
     const t = setTimeout(() => {
