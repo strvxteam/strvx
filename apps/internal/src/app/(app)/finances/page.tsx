@@ -60,13 +60,12 @@ export default async function FinancesServerPage() {
       const now = Date.now();
       const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
       for (const t of transactions) {
-        // Pending/sent but not yet settled → outstanding bucket
+        if (t.status === "failed" || t.status === "cancelled") continue;
+        // Track pending/sent separately for any downstream views, but still
+        // count them toward income/expenses so the P&L matches real cash flow.
         if (t.status === "pending" || t.status === "sent") {
           mercuryOutstanding += Math.abs(t.amount);
-          continue;
         }
-        if (t.status === "failed" || t.status === "cancelled") continue;
-        // Settled transactions
         if (t.amount > 0) {
           mercuryRevenue += t.amount;
           // MRR approximation: revenue settled within the last 30 days

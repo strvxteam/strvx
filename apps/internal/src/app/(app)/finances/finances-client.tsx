@@ -4,7 +4,6 @@ import { useState, useMemo } from "react";
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
   ArrowUpRight,
   ArrowDownRight,
   Plus,
@@ -12,7 +11,6 @@ import {
   Pencil,
   Trash2,
   PiggyBank,
-  Wallet,
   Landmark,
   ArrowDown,
   ArrowUp,
@@ -186,7 +184,6 @@ export default function FinancesPage({
     ? ((currentMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100
     : 0;
   const ytdRevenue = mercuryMonthlyRevenue.reduce((sum, m) => sum + m.revenue, 0);
-  const mrr = mercuryMRR;
   const maxMonthlyRevenue = mercuryMonthlyRevenue.length > 0
     ? Math.max(...mercuryMonthlyRevenue.map((m) => m.revenue))
     : 1;
@@ -196,7 +193,6 @@ export default function FinancesPage({
   const totalRevenue = mercuryRevenue;
   const totalExpenses = mercuryExpenses;
   const profit = totalRevenue - totalExpenses;
-  const profitMargin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
 
   // Top vendors (Mercury withdrawals by counterparty) — replaces the old
   // expense-by-category breakdown which was keyed off the manual expenses table.
@@ -231,10 +227,6 @@ export default function FinancesPage({
     });
 
   const totalWeighted = pipelineDeals.reduce((sum, d) => sum + d.weighted, 0);
-
-  // Outstanding = pending/in-flight Mercury transactions
-  const totalOutstanding = mercuryOutstanding;
-  const overdueAmount = 0;
 
   // CRUD for expenses
   const handleSaveExpense = (expense: Expense) => {
@@ -327,46 +319,29 @@ export default function FinancesPage({
       </div>
 
       {/* P&L Summary — always visible */}
-      <div className="mb-6 grid grid-cols-5 gap-4">
+      <div className="mb-6 grid grid-cols-3 gap-4">
         <MetricCard
           icon={TrendingUp}
-          label="Total Revenue"
+          label="Income"
           value={`$${totalRevenue.toLocaleString()}`}
           accent="text-[#27ae60]"
           borderColor="border-l-[#27ae60]"
         />
         <MetricCard
           icon={TrendingDown}
-          label="Total Expenses"
+          label="Expenses"
           value={`$${totalExpenses.toLocaleString()}`}
           accent="text-[#c0392b]"
           borderColor="border-l-[#c0392b]"
         />
         <MetricCard
           icon={PiggyBank}
-          label="Net Profit"
+          label="Net"
           value={`$${profit.toLocaleString()}`}
           accent={profit >= 0 ? "text-[#27ae60]" : "text-[#c0392b]"}
           borderColor={
             profit >= 0 ? "border-l-[#27ae60]" : "border-l-[#c0392b]"
           }
-          sub={`${profitMargin.toFixed(1)}% margin`}
-        />
-        <MetricCard
-          icon={Wallet}
-          label="Outstanding"
-          value={`$${totalOutstanding.toLocaleString()}`}
-          accent="text-[#e67e22]"
-          borderColor="border-l-[#e67e22]"
-          sub={overdueAmount > 0 ? `$${overdueAmount.toLocaleString()} overdue` : undefined}
-          subColor="text-[#c0392b]"
-        />
-        <MetricCard
-          icon={DollarSign}
-          label="MRR"
-          value={`$${mrr.toLocaleString()}`}
-          accent="text-[#1a73e8]"
-          borderColor="border-l-[#1a73e8]"
         />
       </div>
 
