@@ -217,7 +217,6 @@ export default function OverviewClient({
                 gap: 12,
                 padding: "14px 16px",
                 borderBottom: "1px solid #f0f0f0",
-                borderLeft: `3px solid ${r.color}`,
                 alignItems: "center",
               }}
             >
@@ -265,7 +264,6 @@ export default function OverviewClient({
                   display: "block",
                   padding: "12px 16px",
                   borderBottom: "1px solid #f0f0f0",
-                  borderLeft: `3px solid ${d.repoColor}`,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>

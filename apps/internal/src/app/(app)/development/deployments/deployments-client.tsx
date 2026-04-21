@@ -160,7 +160,6 @@ export default function DeploymentsClient({
                 gap: 12,
                 padding: "12px 16px",
                 borderBottom: "1px solid #f0f0f0",
-                borderLeft: `3px solid ${d.repoColor}`,
                 alignItems: "center",
                 fontSize: 13,
               }}

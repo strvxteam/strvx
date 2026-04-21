@@ -4,16 +4,10 @@ export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { syncVercelProjects } from "@/lib/dev-sync";
 import { isVercelConfigured } from "@/lib/vercel";
-
-function authorized(req: NextRequest): boolean {
-  const secret = req.nextUrl.searchParams.get("secret") ?? req.headers.get("x-refresh-secret");
-  const expected = process.env.DEV_OPS_REFRESH_SECRET;
-  if (!expected) return process.env.NODE_ENV !== "production";
-  return secret === expected;
-}
+import { isAuthorizedForDevOps } from "@/lib/dev-auth";
 
 async function handle(req: NextRequest) {
-  if (!authorized(req)) {
+  if (!(await isAuthorizedForDevOps(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   if (!isVercelConfigured()) {

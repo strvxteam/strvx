@@ -160,7 +160,6 @@ function VercelTile({ d }: { d: VercelDeploy }) {
       style={{
         borderRadius: 10,
         border: "1px solid #e5e7eb",
-        borderLeft: `4px solid ${d.repoColor}`,
         backgroundColor: "#fff",
         padding: 16,
       }}

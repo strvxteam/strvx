@@ -110,7 +110,6 @@ export default function ReposClient({ repos }: { repos: Repo[] }) {
             style={{
               borderRadius: 10,
               border: "1px solid #e0e0e0",
-              borderLeft: `4px solid ${r.color}`,
               backgroundColor: "#fff",
               padding: 20,
             }}

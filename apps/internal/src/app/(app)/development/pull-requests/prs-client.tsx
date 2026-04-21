@@ -130,7 +130,6 @@ export default function PRsClient({
                 gap: 12,
                 padding: "12px 16px",
                 borderBottom: "1px solid #f0f0f0",
-                borderLeft: `3px solid ${pr.repoColor}`,
                 alignItems: "center",
                 fontSize: 13,
               }}
