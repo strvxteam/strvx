@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/monitor/check?secret=${MONITOR_SECRET}",
-      "schedule": "*/5 * * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/dev/refresh?secret=${DEV_OPS_REFRESH_SECRET}",
@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/dev/sync-supabase?secret=${DEV_OPS_REFRESH_SECRET}",
-      "schedule": "*/15 * * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/reports/weekly?secret=${WEEKLY_REPORT_SECRET}",
