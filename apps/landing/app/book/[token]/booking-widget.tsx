@@ -33,10 +33,10 @@ function formatTime(iso: string) {
   });
 }
 
-function getNext7Days(): Date[] {
+function getNextDays(count: number): Date[] {
   const days: Date[] = [];
   const now = new Date();
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 1; i <= count; i++) {
     const d = new Date(now);
     d.setDate(now.getDate() + i);
     days.push(d);
@@ -49,7 +49,8 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
   const durationMinutes = getMeetingDuration(meetingType);
   const durationDisplay =
     durationMinutes >= 60 ? `${durationMinutes / 60} hr` : `${durationMinutes} min`;
-  const days = getNext7Days();
+  const windowDays = meetingType === "proposal" || meetingType === "revision" ? 14 : 7;
+  const days = getNextDays(windowDays);
 
   const [selectedDay, setSelectedDay] = useState<Date>(days[0]);
   const [slots, setSlots] = useState<DaySlots>({});
@@ -66,7 +67,7 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
   const [confirmed, setConfirmed] = useState<{ startTime: string; meetLink: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch availability for the whole 7-day window once
+  // Fetch availability for the whole window once
   useEffect(() => {
     setLoadingSlots(true);
     const start = new Date(days[0]);
