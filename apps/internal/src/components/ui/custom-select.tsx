@@ -36,10 +36,7 @@ function useMenuPosition(
   }, [triggerRef]);
 
   useLayoutEffect(() => {
-    if (!open) {
-      setRect(null);
-      return;
-    }
+    if (!open) return;
     compute();
   }, [open, compute]);
 
@@ -101,12 +98,9 @@ export function CustomSelect({
   disabled = false,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => setMounted(true), []);
 
   const rect = useMenuPosition(open, triggerRef);
   useOutsideClose(open, () => setOpen(false), [wrapperRef, menuRef]);
@@ -133,7 +127,7 @@ export function CustomSelect({
           className={`text-[#888] transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {mounted && open && rect &&
+      {open && rect &&
         createPortal(
           <div
             ref={menuRef}
@@ -192,12 +186,9 @@ export function MultiSelect({
   className = "",
 }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => setMounted(true), []);
 
   const rect = useMenuPosition(open, triggerRef);
   useOutsideClose(open, () => setOpen(false), [wrapperRef, menuRef]);
@@ -233,7 +224,7 @@ export function MultiSelect({
           className={`shrink-0 text-[#888] transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {mounted && open && rect &&
+      {open && rect &&
         createPortal(
           <div
             ref={menuRef}
