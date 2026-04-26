@@ -16,6 +16,19 @@ function isExpired(createdAt: Date, lastBookingAt: Date | null): boolean {
   return lastActivity.getTime() < cutoff;
 }
 
+const HONORIFICS = new Set([
+  "mr", "mrs", "ms", "mx", "dr", "prof", "professor", "rev", "sir", "dame", "lord", "lady",
+]);
+
+function firstName(fullName: string): string {
+  const tokens = fullName.trim().split(/\s+/);
+  for (const t of tokens) {
+    const stripped = t.replace(/\.$/, "").toLowerCase();
+    if (!HONORIFICS.has(stripped)) return t;
+  }
+  return tokens[0] ?? fullName;
+}
+
 export default async function FollowUpBookPage({
   params,
 }: {
@@ -78,7 +91,7 @@ export default async function FollowUpBookPage({
         </h1>
         {row?.contactName && (
           <p className="text-[#666] text-base">
-            Hey {row.contactName.split(" ")[0]}, pick a time that works for you.
+            Hey {firstName(row.contactName)}, pick a time that works for you.
           </p>
         )}
       </div>
