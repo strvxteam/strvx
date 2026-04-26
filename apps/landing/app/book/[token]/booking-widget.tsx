@@ -53,9 +53,14 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
   const days = getNextDays(windowDays);
 
   const [selectedDay, setSelectedDay] = useState<Date>(days[0]);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [slots, setSlots] = useState<DaySlots>({});
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+
+  const visibleDays = days.slice(weekOffset, weekOffset + 7);
+  const canGoPrev = weekOffset > 0;
+  const canGoNext = weekOffset + 7 < windowDays;
 
   // Step 2: contact info
   const [name, setName] = useState(prefill.name);
@@ -145,9 +150,33 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
     <div className="space-y-4">
       {/* Day picker */}
       <div className="rounded-xl border border-white/[0.08] bg-[#0e0e0e] p-5">
-        <p className="mb-4 text-[11px] tracking-[0.15em] uppercase text-[#555]">Select a day</p>
+        <div className="mb-4 flex items-center justify-between">
+          <p className="text-[11px] tracking-[0.15em] uppercase text-[#555]">Select a day</p>
+          {windowDays > 7 && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setWeekOffset((o) => Math.max(0, o - 7))}
+                disabled={!canGoPrev}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-[#888] transition-colors hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                aria-label="Previous week"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setWeekOffset((o) => Math.min(windowDays - 7, o + 7))}
+                disabled={!canGoNext}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-[#888] transition-colors hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
+                aria-label="Next week"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
+        </div>
         <div className="grid grid-cols-7 gap-1.5">
-          {days.map((d) => {
+          {visibleDays.map((d) => {
             const key = dayKey(d);
             const hasSlots = (slots[key] ?? []).length > 0;
             const isSelected = dayKey(d) === dayKey(selectedDay);

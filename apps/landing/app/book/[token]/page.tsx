@@ -24,10 +24,14 @@ function isHonorific(token: string): boolean {
   return HONORIFICS.has(token.replace(/\.$/, "").toLowerCase());
 }
 
+function withPeriod(honorific: string): string {
+  return honorific.endsWith(".") ? honorific : `${honorific}.`;
+}
+
 function greetingName(fullName: string): string {
   const tokens = fullName.trim().split(/\s+/);
   if (tokens.length >= 2 && isHonorific(tokens[0])) {
-    return `${tokens[0]} ${tokens[tokens.length - 1]}`;
+    return `${withPeriod(tokens[0])} ${tokens[tokens.length - 1]}`;
   }
   for (const t of tokens) {
     if (!isHonorific(t)) return t;
