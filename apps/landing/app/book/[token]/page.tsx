@@ -20,11 +20,17 @@ const HONORIFICS = new Set([
   "mr", "mrs", "ms", "mx", "dr", "prof", "professor", "rev", "sir", "dame", "lord", "lady",
 ]);
 
-function firstName(fullName: string): string {
+function isHonorific(token: string): boolean {
+  return HONORIFICS.has(token.replace(/\.$/, "").toLowerCase());
+}
+
+function greetingName(fullName: string): string {
   const tokens = fullName.trim().split(/\s+/);
+  if (tokens.length >= 2 && isHonorific(tokens[0])) {
+    return `${tokens[0]} ${tokens[tokens.length - 1]}`;
+  }
   for (const t of tokens) {
-    const stripped = t.replace(/\.$/, "").toLowerCase();
-    if (!HONORIFICS.has(stripped)) return t;
+    if (!isHonorific(t)) return t;
   }
   return tokens[0] ?? fullName;
 }
@@ -91,7 +97,7 @@ export default async function FollowUpBookPage({
         </h1>
         {row?.contactName && (
           <p className="text-[#666] text-base">
-            Hey {firstName(row.contactName)}, pick a time that works for you.
+            Hey {greetingName(row.contactName)}, pick a time that works for you.
           </p>
         )}
       </div>
