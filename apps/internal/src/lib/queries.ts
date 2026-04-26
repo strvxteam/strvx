@@ -40,7 +40,7 @@ import {
   githubCiCache,
   dependabotAlertCache,
 } from "./db/schema";
-import { eq, desc, and, lte, isNull, isNotNull, sql, count } from "drizzle-orm";
+import { eq, desc, and, or, ne, gte, lte, isNull, isNotNull, sql, count } from "drizzle-orm";
 
 // ── Dashboard Queries ──────────────────────────────────
 
@@ -644,6 +644,7 @@ export async function deleteCalendarEvent(eventId: string) {
 // ── Task Queries ──────────────────────────────────────
 
 export async function getTasks(limit = 500) {
+  const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const rows = await db
     .select({
       id: tasks.id,
@@ -662,6 +663,13 @@ export async function getTasks(limit = 500) {
     .from(tasks)
     .leftJoin(taskAssignees, eq(tasks.id, taskAssignees.taskId))
     .leftJoin(users, eq(taskAssignees.userId, users.id))
+    .where(
+      or(
+        ne(tasks.status, "done"),
+        isNull(tasks.completedAt),
+        gte(tasks.completedAt, twoWeeksAgo),
+      ),
+    )
     .orderBy(tasks.createdAt)
     .limit(limit);
 
