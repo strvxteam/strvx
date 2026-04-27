@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Archive } from "lucide-react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
@@ -12,9 +13,11 @@ import {
 export function PipelineCard({
   engagement,
   isOverlay,
+  onArchive,
 }: {
   engagement: PipelineEngagement;
   isOverlay?: boolean;
+  onArchive?: (id: string, companyName: string) => void;
 }) {
   const [now] = useState(() => Date.now());
   const {
@@ -50,10 +53,26 @@ export function PipelineCard({
       style={isOverlay ? undefined : style}
       {...(isOverlay ? {} : attributes)}
       {...(isOverlay ? {} : listeners)}
-      className={`rounded-md border border-[#e0e0e0] bg-white transition-all hover:border-[#bbb] hover:shadow-sm ${
+      className={`group relative rounded-md border border-[#e0e0e0] bg-white transition-all hover:border-[#bbb] hover:shadow-sm ${
         isDragging && !isOverlay ? "opacity-40" : ""
       } ${isOverlay ? "shadow-md" : ""}`}
     >
+      {!isOverlay && onArchive && (
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onArchive(engagement.id, engagement.companyName);
+          }}
+          aria-label={`Archive ${engagement.companyName}`}
+          title="Archive"
+          className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded text-[#aaa] opacity-0 transition-opacity hover:bg-[#f0f0f0] hover:text-[#555] group-hover:opacity-100"
+        >
+          <Archive size={12} />
+        </button>
+      )}
       <Link
         href={`/clients/${engagement.id}`}
         draggable={false}

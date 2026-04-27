@@ -18,7 +18,7 @@ import {
   KANBAN_STAGES,
   type PipelineEngagement,
 } from "@/lib/pipeline-constants";
-import { changeStage } from "@/app/actions";
+import { changeStage, archiveEngagement } from "@/app/actions";
 import { PipelineColumn } from "./pipeline-column";
 import { PipelineCard } from "./pipeline-card";
 import { toast } from "sonner";
@@ -170,6 +170,35 @@ export function PipelineBoard({
     setEngagementsByStage(serverStateRef.current);
   }, []);
 
+  const handleArchive = useCallback(
+    (id: string, companyName: string) => {
+      if (!window.confirm(`Archive ${companyName}? It will be removed from the pipeline.`)) {
+        return;
+      }
+
+      const snapshot = engagementsByStage;
+
+      setEngagementsByStage((prev) => {
+        const next: EngagementsByStage = {};
+        for (const [stage, engs] of Object.entries(prev)) {
+          next[stage] = engs.filter((e) => e.id !== id);
+        }
+        return next;
+      });
+
+      startTransition(async () => {
+        try {
+          await archiveEngagement(id);
+          toast.success(`Archived ${companyName}`);
+        } catch {
+          setEngagementsByStage(snapshot);
+          toast.error("Failed to archive");
+        }
+      });
+    },
+    [engagementsByStage, startTransition]
+  );
+
   return (
     <DndContext
       id={dndId}
@@ -188,6 +217,7 @@ export function PipelineBoard({
                 key={stage}
                 stage={stage}
                 engagements={engagementsByStage[stage] ?? []}
+                onArchive={handleArchive}
               />
             ))}
           </div>

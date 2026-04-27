@@ -15,9 +15,11 @@ import { PipelineCard } from "./pipeline-card";
 export function PipelineColumn({
   stage,
   engagements,
+  onArchive,
 }: {
   stage: string;
   engagements: PipelineEngagement[];
+  onArchive?: (id: string, companyName: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const dotColor = STAGE_DOT_COLORS[stage] ?? "#888";
@@ -52,7 +54,7 @@ export function PipelineColumn({
             </div>
           ) : (
             engagements.map((eng) => (
-              <PipelineCard key={eng.id} engagement={eng} />
+              <PipelineCard key={eng.id} engagement={eng} onArchive={onArchive} />
             ))
           )}
         </SortableContext>
