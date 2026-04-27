@@ -1205,10 +1205,10 @@ export default function Home() {
               Book a free call
             </Link>
             <a
-              href="mailto:strvxteam@gmail.com"
+              href="mailto:team@strvx.com"
               className="inline-block px-6 md:px-8 py-3 md:py-4 rounded-lg border border-[#333] text-xs md:text-sm font-semibold tracking-[0.06em] uppercase text-[#333] hover:border-[#111] hover:text-[#111] transition-all duration-200"
             >
-              strvxteam@gmail.com
+              team@strvx.com
             </a>
           </motion.div>
         </div>

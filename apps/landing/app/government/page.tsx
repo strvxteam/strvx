@@ -266,7 +266,7 @@ export default function GovernmentPage() {
               className="flex items-center justify-center gap-4 mt-10"
             >
               <a
-                href="mailto:strvxteam@gmail.com?subject=Government%20Demo%20Request"
+                href="mailto:team@strvx.com?subject=Government%20Demo%20Request"
                 className="pointer-events-auto px-6 py-3 rounded-lg bg-white text-[#030810] text-sm font-medium hover:bg-white/90 transition-colors duration-300"
               >
                 Request Demo
@@ -464,7 +464,7 @@ export default function GovernmentPage() {
           <RevealText delay={0.2}>
             <div className="flex items-center justify-center gap-4">
               <a
-                href="mailto:strvxteam@gmail.com?subject=Government%20Inquiry"
+                href="mailto:team@strvx.com?subject=Government%20Inquiry"
                 className="px-8 py-3.5 rounded-lg bg-white text-[#030810] text-sm font-medium hover:bg-white/90 transition-colors duration-300"
               >
                 Get in Touch
@@ -473,7 +473,7 @@ export default function GovernmentPage() {
           </RevealText>
           <RevealText delay={0.4}>
             <p className="text-xs font-mono text-white/20 mt-8 tracking-wider">
-              strvxteam@gmail.com
+              team@strvx.com
             </p>
           </RevealText>
         </div>

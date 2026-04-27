@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 const regions = [
   { label: "USA", href: "/" },
   { label: "Government", href: "/government" },
-  { label: "Southeast Asia", href: "/sea" },
+  { label: "Middle East", href: "/middle-east" },
 ];
 
 export default function RegionSelector() {
