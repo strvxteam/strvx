@@ -12,6 +12,9 @@ import {
   ExternalLink,
   Pencil,
   Trash2,
+  Link2,
+  Copy,
+  Check,
 } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -31,6 +34,7 @@ import {
   deleteCalendarEventAction,
   deleteGoogleCalendarEventAction,
   updateGoogleCalendarEventAction,
+  createInternalBookingLink,
 } from "@/app/actions";
 import { toast } from "sonner";
 
@@ -116,6 +120,9 @@ export function CalendarPageClient({
   const [companies] = useState<Company[]>(initialCompanies);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [defaultDate, setDefaultDate] = useState(formatDate(new Date()));
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -277,6 +284,33 @@ export function CalendarPageClient({
     }
   }, [events, isGoogleCalendarEvent]);
 
+  const handleGenerateLink = useCallback(async () => {
+    setGeneratingLink(true);
+    setLinkCopied(false);
+    try {
+      const token = await createInternalBookingLink();
+      const origin =
+        typeof window !== "undefined" && window.location.hostname.includes("localhost")
+          ? "http://localhost:3001"
+          : "https://strvx.com";
+      setShareLink(`${origin}/book/${token}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate link");
+    } finally {
+      setGeneratingLink(false);
+    }
+  }, []);
+
+  const handleCopyLink = useCallback(() => {
+    if (!shareLink) return;
+    navigator.clipboard.writeText(shareLink).then(() => {
+      setLinkCopied(true);
+      toast.success("Link copied");
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }, [shareLink]);
+
   const selectedEvent = selectedEventId
     ? events.find((e) => e.id === selectedEventId) ?? null
     : null;
@@ -290,6 +324,14 @@ export function CalendarPageClient({
             <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
             Google Calendar synced
           </span>
+          <button
+            onClick={handleGenerateLink}
+            disabled={generatingLink}
+            className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] bg-white px-3 py-1.5 text-[13px] font-medium text-[#333] transition-colors hover:bg-[#f5f5f5] disabled:opacity-50"
+          >
+            <Link2 size={14} strokeWidth={2} />
+            {generatingLink ? "Generating..." : "Generate booking link"}
+          </button>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 rounded-lg bg-[#111] px-3 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-[#333]"
@@ -517,6 +559,55 @@ export function CalendarPageClient({
           defaultDate={editingEvent.date}
           companies={companies}
         />
+      )}
+
+      {/* Share Internal Booking Link Modal */}
+      {shareLink && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4"
+          onClick={() => setShareLink(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[#e0e0e0] bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-[#f0f0f0] px-6 pt-5 pb-4">
+              <div>
+                <h2 className="text-[15px] font-semibold text-[#111]">Internal booking link</h2>
+                <p className="mt-1 text-[12px] text-[#666]">
+                  Share this with anyone — they pick a 30/45/60 min slot from team availability and get a confirmation email.
+                </p>
+              </div>
+              <button
+                onClick={() => setShareLink(null)}
+                className="rounded p-1 text-[#999] hover:bg-[#f5f5f5] hover:text-[#333]"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-2 rounded-lg border border-[#e0e0e0] bg-[#fafafa] px-3 py-2.5">
+                <input
+                  readOnly
+                  value={shareLink}
+                  onClick={(e) => e.currentTarget.select()}
+                  className="flex-1 bg-transparent text-[12px] text-[#333] outline-none"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="flex shrink-0 items-center gap-1 rounded-md bg-[#111] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[#333]"
+                >
+                  {linkCopied ? <Check size={12} /> : <Copy size={12} />}
+                  {linkCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <p className="mt-3 text-[11px] text-[#888]">
+                Link expires after 90 days of inactivity. Reachable from any device.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

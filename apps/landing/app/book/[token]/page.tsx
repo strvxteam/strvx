@@ -1,9 +1,9 @@
 import { notFound } from "next/navigation";
 import { db } from "@strvx/db";
 import { followUpLinks, engagements, companies, contacts, bookings } from "@strvx/db/schema";
-import { eq, and, desc, gte } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import FollowUpBookingWidget from "./booking-widget";
-import { getMeetingLabel } from "@/lib/meeting-types";
+import { getMeetingLabel, isInternalMeeting } from "@/lib/meeting-types";
 
 export const dynamic = "force-dynamic";
 
@@ -75,35 +75,46 @@ export default async function FollowUpBookPage({
     );
   }
 
-  // Load engagement + primary contact for pre-fill
-  const [row] = await db
-    .select({
-      engagementId: engagements.id,
-      engagementName: engagements.name,
-      companyName: companies.name,
-      contactName: contacts.name,
-      contactEmail: contacts.email,
-    })
-    .from(engagements)
-    .innerJoin(companies, eq(engagements.companyId, companies.id))
-    .leftJoin(contacts, eq(engagements.primaryContactId, contacts.id))
-    .where(eq(engagements.id, link.engagementId))
-    .limit(1);
-
+  const internal = isInternalMeeting(link.meetingType);
   const typeLabel = getMeetingLabel(link.meetingType);
+
+  // Load engagement + primary contact for pre-fill (only for engagement-bound links)
+  const row = !internal && link.engagementId
+    ? (
+        await db
+          .select({
+            engagementId: engagements.id,
+            engagementName: engagements.name,
+            companyName: companies.name,
+            contactName: contacts.name,
+            contactEmail: contacts.email,
+          })
+          .from(engagements)
+          .innerJoin(companies, eq(engagements.companyId, companies.id))
+          .leftJoin(contacts, eq(engagements.primaryContactId, contacts.id))
+          .where(eq(engagements.id, link.engagementId))
+          .limit(1)
+      )[0]
+    : null;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#f5f5f5] flex flex-col">
       <div className="max-w-3xl mx-auto px-6 pt-20 md:pt-24 pb-6 w-full">
         <p className="text-[11px] tracking-[0.2em] uppercase text-[#555] mb-3">strvx</p>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
-          Schedule your {typeLabel}.
+          {internal
+            ? "Schedule a meeting with the strvx team."
+            : `Schedule your ${typeLabel}.`}
         </h1>
-        {row?.contactName && (
+        {!internal && row?.contactName ? (
           <p className="text-[#666] text-base">
             Hey {greetingName(row.contactName)}, pick a time that works for you.
           </p>
-        )}
+        ) : internal ? (
+          <p className="text-[#666] text-base">
+            Pick a duration and time that works for you.
+          </p>
+        ) : null}
       </div>
 
       <div className="flex-1 max-w-3xl mx-auto px-6 pb-16 w-full">

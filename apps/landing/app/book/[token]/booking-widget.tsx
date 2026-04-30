@@ -2,7 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
-import { getMeetingDuration, getMeetingLabel } from "@/lib/meeting-types";
+import {
+  getMeetingDuration,
+  getMeetingLabel,
+  isInternalMeeting,
+  INTERNAL_DURATION_OPTIONS,
+} from "@/lib/meeting-types";
 
 type Slot = { start: string; end: string };
 type DaySlots = Record<string, Slot[]>;
@@ -46,7 +51,11 @@ function getNextDays(count: number): Date[] {
 
 export default function FollowUpBookingWidget({ token, meetingType, prefill }: Props) {
   const typeLabel = getMeetingLabel(meetingType);
-  const durationMinutes = getMeetingDuration(meetingType);
+  const internal = isInternalMeeting(meetingType);
+
+  // For internal meetings, the user picks duration. Default to 30.
+  const [internalDuration, setInternalDuration] = useState<number>(30);
+  const durationMinutes = internal ? internalDuration : getMeetingDuration(meetingType);
   const durationDisplay =
     durationMinutes >= 60 ? `${durationMinutes / 60} hr` : `${durationMinutes} min`;
   const windowDays = meetingType === "proposal" || meetingType === "revision" ? 14 : 7;
@@ -72,21 +81,29 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
   const [confirmed, setConfirmed] = useState<{ startTime: string; meetLink: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch availability for the whole window once
+  // Fetch availability for the whole window. Refetches when duration changes
+  // for internal meetings (longer meetings = fewer eligible slots).
   useEffect(() => {
     setLoadingSlots(true);
+    setSelectedSlot(null);
     const start = new Date(days[0]);
     start.setHours(0, 0, 0, 0);
     const end = new Date(days[days.length - 1]);
     end.setHours(23, 59, 59, 999);
 
-    fetch(`/api/book/${token}/availability?start=${start.toISOString()}&end=${end.toISOString()}`)
+    const params = new URLSearchParams({
+      start: start.toISOString(),
+      end: end.toISOString(),
+    });
+    if (internal) params.set("duration", String(internalDuration));
+
+    fetch(`/api/book/${token}/availability?${params.toString()}`)
       .then((r) => r.json())
       .then((data) => setSlots(data.slots ?? {}))
       .catch(() => setError("Failed to load availability."))
       .finally(() => setLoadingSlots(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, internal, internalDuration]);
 
   const dayKey = (d: Date) =>
     d.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
@@ -108,6 +125,7 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
           clientEmail: email.trim(),
           clientCompany: company.trim() || null,
           notes: notes.trim() || null,
+          duration: internal ? internalDuration : undefined,
         }),
       });
       const data = await res.json();
@@ -148,6 +166,32 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
 
   return (
     <div className="space-y-4">
+      {/* Duration picker — internal meetings only */}
+      {internal && (
+        <div className="rounded-xl border border-white/[0.08] bg-[#0e0e0e] p-5">
+          <p className="mb-4 text-[11px] tracking-[0.15em] uppercase text-[#555]">Meeting duration</p>
+          <div className="grid grid-cols-3 gap-2">
+            {INTERNAL_DURATION_OPTIONS.map((d) => {
+              const isSelected = internalDuration === d;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setInternalDuration(d)}
+                  className={`rounded-lg py-2.5 text-center text-[13px] font-medium transition-all ${
+                    isSelected
+                      ? "bg-white text-[#0a0a0a]"
+                      : "border border-white/[0.08] text-[#ccc] hover:border-white/20 hover:bg-white/[0.05]"
+                  }`}
+                >
+                  {d} min
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Day picker */}
       <div className="rounded-xl border border-white/[0.08] bg-[#0e0e0e] p-5">
         <div className="mb-4 flex items-center justify-between">

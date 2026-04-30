@@ -1775,6 +1775,23 @@ export async function createFollowUpLink(
   return token;
 }
 
+// ── Internal Booking Links (no engagement; for partners booking team time) ──
+
+export async function createInternalBookingLink(): Promise<string> {
+  const user = await getCurrentUser();
+  const token = crypto.randomUUID().replace(/-/g, "");
+
+  await db.insert(followUpLinks).values({
+    token,
+    engagementId: null,
+    meetingType: "internal",
+    createdBy: user.id,
+  });
+
+  revalidatePath("/calendar");
+  return token;
+}
+
 // ── Recurring Schedule Actions ──────────────────────
 
 export async function createRecurringScheduleAction(data: {

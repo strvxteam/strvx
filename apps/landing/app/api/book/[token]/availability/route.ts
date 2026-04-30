@@ -5,7 +5,11 @@ import { db } from "@strvx/db";
 import { followUpLinks } from "@strvx/db/schema";
 import { eq } from "drizzle-orm";
 import { getSharedCalendarBusyTimes, calculateSlotsFromBusy } from "@/lib/google-calendar";
-import { getMeetingDuration } from "@/lib/meeting-types";
+import {
+  getMeetingDuration,
+  isInternalMeeting,
+  INTERNAL_DURATION_OPTIONS,
+} from "@/lib/meeting-types";
 
 const BUFFER_15_MIN = 15 * 60 * 1000;
 const BUSINESS_HOURS_END_5PM = 17;
@@ -43,8 +47,18 @@ export async function GET(
       return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
     }
 
-    // 15-min buffer, end at 5 PM — single shared calendar as source of truth
-    const durationMinutes = getMeetingDuration(link.meetingType);
+    // 15-min buffer, end at 5 PM — single shared calendar as source of truth.
+    // For internal meetings, the client picks duration via ?duration= query param.
+    let durationMinutes = getMeetingDuration(link.meetingType);
+    if (isInternalMeeting(link.meetingType)) {
+      const dParam = parseInt(searchParams.get("duration") ?? "", 10);
+      if (
+        Number.isFinite(dParam) &&
+        (INTERNAL_DURATION_OPTIONS as readonly number[]).includes(dParam)
+      ) {
+        durationMinutes = dParam;
+      }
+    }
     const busySlots = await getSharedCalendarBusyTimes(dateStart, dateEnd, BUFFER_15_MIN);
     const slots = calculateSlotsFromBusy(
       busySlots,

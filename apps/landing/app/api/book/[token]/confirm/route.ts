@@ -9,12 +9,15 @@ import {
   users,
   engagements,
   companies,
-  contacts,
 } from "@strvx/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { getSharedCalendarBusyTimes, createCalendarEvent } from "@/lib/google-calendar";
 import { sendFollowUpConfirmation, sendFollowUpTeamNotification } from "@/lib/email";
-import { getMeetingDuration } from "@/lib/meeting-types";
+import {
+  getMeetingDuration,
+  isInternalMeeting,
+  INTERNAL_DURATION_OPTIONS,
+} from "@/lib/meeting-types";
 
 const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -25,7 +28,7 @@ export async function POST(
   try {
     const { token } = await params;
     const body = await request.json();
-    const { startTime, endTime, clientName, clientEmail, clientCompany, notes } = body;
+    const { startTime, endTime, clientName, clientEmail, clientCompany, notes, duration } = body;
 
     if (!startTime || !endTime || !clientName || !clientEmail) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -59,9 +62,25 @@ export async function POST(
     const slotStart = new Date(startTime);
     const slotEnd = new Date(endTime);
     const bufferMs = 15 * 60 * 1000;
-    const durationMinutes = getMeetingDuration(link.meetingType);
 
-    // Ensure the client-submitted slot matches the expected duration for this meeting type
+    // For internal meetings the client picks duration; otherwise use the type default.
+    let durationMinutes = getMeetingDuration(link.meetingType);
+    if (isInternalMeeting(link.meetingType)) {
+      const dParsed = typeof duration === "number" ? duration : parseInt(String(duration ?? ""), 10);
+      if (
+        Number.isFinite(dParsed) &&
+        (INTERNAL_DURATION_OPTIONS as readonly number[]).includes(dParsed)
+      ) {
+        durationMinutes = dParsed;
+      } else {
+        return NextResponse.json(
+          { error: "Invalid duration. Must be 30, 45, or 60 minutes." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Ensure the client-submitted slot matches the expected duration
     const actualDurationMinutes = Math.round((slotEnd.getTime() - slotStart.getTime()) / 60000);
     if (actualDurationMinutes !== durationMinutes) {
       return NextResponse.json(
@@ -100,13 +119,17 @@ export async function POST(
       serviceType: link.meetingType,
     });
 
-    // Get engagement info for the booking record
-    const [engRow] = await db
-      .select({ companyName: companies.name })
-      .from(engagements)
-      .innerJoin(companies, eq(engagements.companyId, companies.id))
-      .where(eq(engagements.id, link.engagementId))
-      .limit(1);
+    // Get engagement info for the booking record (skipped for internal links with no engagement)
+    const engRow = link.engagementId
+      ? (
+          await db
+            .select({ companyName: companies.name })
+            .from(engagements)
+            .innerJoin(companies, eq(engagements.companyId, companies.id))
+            .where(eq(engagements.id, link.engagementId))
+            .limit(1)
+        )[0]
+      : undefined;
 
     // Save booking
     const [booking] = await db
