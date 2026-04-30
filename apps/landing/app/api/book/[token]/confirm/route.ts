@@ -89,6 +89,38 @@ export async function POST(
       );
     }
 
+    // Enforce booking window: weekdays only, 9 AM – 8 PM Pacific.
+    const ptParts = (date: Date) => {
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Los_Angeles",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        weekday: "short",
+      }).formatToParts(date);
+      const get = (t: string) => fmt.find((p) => p.type === t)?.value ?? "0";
+      return {
+        hour: parseInt(get("hour"), 10),
+        minute: parseInt(get("minute"), 10),
+        weekday: get("weekday"),
+      };
+    };
+    const startPT = ptParts(slotStart);
+    const endPT = ptParts(slotEnd);
+    const startDecimal = startPT.hour + startPT.minute / 60;
+    const endDecimal = endPT.hour + endPT.minute / 60;
+    const WEEKDAYS = new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+    if (
+      !WEEKDAYS.has(startPT.weekday) ||
+      startDecimal < 9 ||
+      endDecimal > 20
+    ) {
+      return NextResponse.json(
+        { error: "Bookings must be on weekdays between 9 AM and 8 PM Pacific time." },
+        { status: 400 }
+      );
+    }
+
     const checkStart = new Date(slotStart.getTime() - bufferMs);
     const checkEnd = new Date(slotEnd.getTime() + bufferMs);
     const busySlots = await getSharedCalendarBusyTimes(checkStart, checkEnd, bufferMs);

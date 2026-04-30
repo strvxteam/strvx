@@ -185,15 +185,19 @@ export function calculateAvailability(
   return slots;
 }
 
+const WEEKDAY_NAMES = new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]);
+
 // Simple slot generator against a flat busy list (used with getSharedCalendarBusyTimes).
 // A slot is returned only if it has zero overlap with any busy period.
+// Set weekdaysOnly=true to skip Saturday and Sunday (Pacific time).
 export function calculateSlotsFromBusy(
   busySlots: BusySlot[],
   dateStart: Date,
   dateEnd: Date,
   slotDurationMinutes: number = SLOT_DURATION_MINUTES,
   businessHoursEnd: number = BUSINESS_HOURS_END,
-  stepMinutes?: number
+  stepMinutes?: number,
+  weekdaysOnly: boolean = false
 ): { start: Date; end: Date }[] {
   const slots: { start: Date; end: Date }[] = [];
   const slotMs = slotDurationMinutes * 60 * 1000;
@@ -205,10 +209,17 @@ export function calculateSlotsFromBusy(
     const slotEnd = new Date(cursor.getTime() + slotMs);
     if (slotEnd > dateEnd) break;
 
-    const decimalHour = toPacificDecimalHour(cursor);
+    const parts = getPacificParts(cursor);
+    const decimalHour = parts.hour + parts.minute / 60;
     const decimalHourEnd = toPacificDecimalHour(slotEnd);
+    const isWeekday = WEEKDAY_NAMES.has(parts.weekday);
 
-    if (decimalHour >= BUSINESS_HOURS_START && decimalHour < businessHoursEnd && decimalHourEnd <= businessHoursEnd) {
+    if (
+      decimalHour >= BUSINESS_HOURS_START &&
+      decimalHour < businessHoursEnd &&
+      decimalHourEnd <= businessHoursEnd &&
+      (!weekdaysOnly || isWeekday)
+    ) {
       const isFree = !busySlots.some((b) => {
         const bStart = new Date(b.start).getTime();
         const bEnd = new Date(b.end).getTime();

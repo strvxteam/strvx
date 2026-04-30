@@ -12,8 +12,9 @@ import {
 } from "@/lib/meeting-types";
 
 const BUFFER_10_MIN = 10 * 60 * 1000;
-const BUSINESS_HOURS_END_5PM = 17;
+const BUSINESS_HOURS_END_8PM = 20;
 const STEP_MINUTES = 30;
+const WEEKDAYS_ONLY = true;
 
 export async function GET(
   request: NextRequest,
@@ -47,7 +48,7 @@ export async function GET(
       return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
     }
 
-    // 15-min buffer, end at 5 PM — single shared calendar as source of truth.
+    // 10-min buffer, weekdays only, 9 AM – 8 PM PT — single shared calendar.
     // For internal meetings, the client picks duration via ?duration= query param.
     let durationMinutes = getMeetingDuration(link.meetingType);
     if (isInternalMeeting(link.meetingType)) {
@@ -65,8 +66,9 @@ export async function GET(
       dateStart,
       dateEnd,
       durationMinutes,
-      BUSINESS_HOURS_END_5PM,
-      STEP_MINUTES
+      BUSINESS_HOURS_END_8PM,
+      STEP_MINUTES,
+      WEEKDAYS_ONLY
     );
 
     const grouped: Record<string, { start: string; end: string }[]> = {};
