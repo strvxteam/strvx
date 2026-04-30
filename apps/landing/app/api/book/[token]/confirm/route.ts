@@ -61,7 +61,7 @@ export async function POST(
     // Verify the slot is still available against the shared team calendar
     const slotStart = new Date(startTime);
     const slotEnd = new Date(endTime);
-    const bufferMs = 15 * 60 * 1000;
+    const bufferMs = 10 * 60 * 1000;
 
     // For internal meetings the client picks duration; otherwise use the type default.
     let durationMinutes = getMeetingDuration(link.meetingType);

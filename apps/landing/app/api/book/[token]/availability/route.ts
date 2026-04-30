@@ -11,7 +11,7 @@ import {
   INTERNAL_DURATION_OPTIONS,
 } from "@/lib/meeting-types";
 
-const BUFFER_15_MIN = 15 * 60 * 1000;
+const BUFFER_10_MIN = 10 * 60 * 1000;
 const BUSINESS_HOURS_END_5PM = 17;
 const STEP_MINUTES = 30;
 
@@ -59,7 +59,7 @@ export async function GET(
         durationMinutes = dParam;
       }
     }
-    const busySlots = await getSharedCalendarBusyTimes(dateStart, dateEnd, BUFFER_15_MIN);
+    const busySlots = await getSharedCalendarBusyTimes(dateStart, dateEnd, BUFFER_10_MIN);
     const slots = calculateSlotsFromBusy(
       busySlots,
       dateStart,
