@@ -1,7 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw, Video, WifiOff } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  Video,
+  WifiOff,
+  Link2,
+  Copy,
+  Check,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { createInternalBookingLink } from "@/app/actions";
 import type { TeamAvailabilityResponse, TeamMemberAvailability, MemberEvent } from "@/app/api/availability/team/route";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -161,8 +173,38 @@ export function AvailabilityClient() {
   const [data, setData] = useState<TeamAvailabilityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isCurrentWeek = isSameDay(weekStart, getWeekStart(today));
+
+  const handleGenerateLink = useCallback(async () => {
+    setGeneratingLink(true);
+    setLinkCopied(false);
+    try {
+      const token = await createInternalBookingLink();
+      const origin =
+        typeof window !== "undefined" && window.location.hostname.includes("localhost")
+          ? "http://localhost:3001"
+          : "https://strvx.com";
+      setShareLink(`${origin}/book/${token}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate link");
+    } finally {
+      setGeneratingLink(false);
+    }
+  }, []);
+
+  const handleCopyLink = useCallback(() => {
+    if (!shareLink) return;
+    navigator.clipboard.writeText(shareLink).then(() => {
+      setLinkCopied(true);
+      toast.success("Link copied");
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  }, [shareLink]);
 
   // Scroll to ~8:30am on mount
   useEffect(() => {
@@ -258,6 +300,16 @@ export function AvailabilityClient() {
               </span>
             ))}
           </div>
+
+          {/* Generate booking link */}
+          <button
+            onClick={handleGenerateLink}
+            disabled={generatingLink}
+            className="flex items-center gap-1.5 rounded-md border border-[#e0e0e0] bg-white px-2.5 py-1 text-[12px] font-medium text-[#333] transition-colors hover:bg-[#f5f5f5] disabled:opacity-50"
+          >
+            <Link2 size={13} strokeWidth={2} />
+            {generatingLink ? "Generating..." : "Generate booking link"}
+          </button>
 
           {/* Week navigation */}
           <button
@@ -547,6 +599,55 @@ export function AvailabilityClient() {
           <div className="flex items-center gap-2 text-[13px] text-[#888]">
             <RefreshCw size={14} className="animate-spin" />
             Loading calendars…
+          </div>
+        </div>
+      )}
+
+      {/* ── Share Internal Booking Link Modal ── */}
+      {shareLink && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4"
+          onClick={() => setShareLink(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[#e0e0e0] bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-[#f0f0f0] px-6 pt-5 pb-4">
+              <div>
+                <h2 className="text-[15px] font-semibold text-[#111]">Internal booking link</h2>
+                <p className="mt-1 text-[12px] text-[#666]">
+                  Share this with anyone — they pick a 30/45/60 min slot from team availability and get a confirmation email.
+                </p>
+              </div>
+              <button
+                onClick={() => setShareLink(null)}
+                className="rounded p-1 text-[#999] hover:bg-[#f5f5f5] hover:text-[#333]"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-2 rounded-lg border border-[#e0e0e0] bg-[#fafafa] px-3 py-2.5">
+                <input
+                  readOnly
+                  value={shareLink}
+                  onClick={(e) => e.currentTarget.select()}
+                  className="flex-1 bg-transparent text-[12px] text-[#333] outline-none"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="flex shrink-0 items-center gap-1 rounded-md bg-[#111] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[#333]"
+                >
+                  {linkCopied ? <Check size={12} /> : <Copy size={12} />}
+                  {linkCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <p className="mt-3 text-[11px] text-[#888]">
+                Link expires after 90 days of inactivity. Reachable from any device.
+              </p>
+            </div>
           </div>
         </div>
       )}
