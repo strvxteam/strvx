@@ -49,8 +49,17 @@ export default async function DashboardPage() {
     id: string; name: string; company_name: string; last_interaction_at: string | null;
   }[]).slice(0, 5);
 
+  // Overdue tasks — only those assigned to the current user, excluding blocked
   const overdueTasks = allTasks
-    .filter((t) => t.status !== "done" && t.dueDate && t.dueDate < todayStr)
+    .filter(
+      (t) =>
+        t.status !== "done" &&
+        t.status !== "blocked" &&
+        t.dueDate &&
+        t.dueDate < todayStr &&
+        currentUser?.id &&
+        t.assigneeIds.includes(currentUser.id),
+    )
     .slice(0, 8);
 
   const totalActions = overdueActions.length + staleEngagements.length + overdueTasks.length;
