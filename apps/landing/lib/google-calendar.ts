@@ -276,12 +276,20 @@ export async function createCalendarEvent(
     event = await calendar.events.insert({
       calendarId: teamCalendarId,
       ...(isInPerson ? {} : { conferenceDataVersion: 1 }),
-      sendUpdates: "none",
+      // Send Google's native "X invited you" email to the attendee on top of
+      // our Resend confirmation, so the event auto-lands on their calendar.
+      sendUpdates: "all",
       requestBody: {
         summary: `${eventLabel} — ${booking.clientName}`,
         description: `strvx ${descriptionType} with ${booking.clientName} (${booking.clientEmail}).`,
         start: { dateTime: booking.startTime.toISOString(), timeZone: TIMEZONE },
         end: { dateTime: booking.endTime.toISOString(), timeZone: TIMEZONE },
+        attendees: [
+          {
+            email: booking.clientEmail,
+            displayName: booking.clientName,
+          },
+        ],
         ...(isInPerson
           ? {}
           : {
