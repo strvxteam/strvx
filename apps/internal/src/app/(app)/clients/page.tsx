@@ -24,13 +24,17 @@ export default async function ClientsPage() {
     getUsers(),
   ]);
 
-  // Group follow-up links by engagement ID
-  const followUpLinksByEngagement: Record<string, typeof followUpLinksList> = {};
+  // Group follow-up links by engagement ID. Internal-meeting links (no engagement)
+  // are global and don't belong to any client row — skip them here.
+  type EngagementLink = (typeof followUpLinksList)[number] & { engagementId: string };
+  const followUpLinksByEngagement: Record<string, EngagementLink[]> = {};
   for (const link of followUpLinksList) {
-    if (!followUpLinksByEngagement[link.engagementId]) {
-      followUpLinksByEngagement[link.engagementId] = [];
+    if (link.engagementId === null) continue;
+    const engagementLink = link as EngagementLink;
+    if (!followUpLinksByEngagement[engagementLink.engagementId]) {
+      followUpLinksByEngagement[engagementLink.engagementId] = [];
     }
-    followUpLinksByEngagement[link.engagementId].push(link);
+    followUpLinksByEngagement[engagementLink.engagementId].push(engagementLink);
   }
 
   return (
