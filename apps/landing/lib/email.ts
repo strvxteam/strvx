@@ -169,7 +169,7 @@ export async function sendConfirmationEmail(data: ConfirmationData) {
       {
         filename: "invite.ics",
         content: Buffer.from(icsContent).toString("base64"),
-        contentType: "text/calendar; method=REQUEST",
+        contentType: "text/calendar",
       },
     ],
   });
@@ -312,7 +312,7 @@ export async function sendFollowUpConfirmation(data: FollowUpConfirmationData) {
       {
         filename: "invite.ics",
         content: Buffer.from(icsContent).toString("base64"),
-        contentType: "text/calendar; method=REQUEST",
+        contentType: "text/calendar",
       },
     ],
   });
