@@ -59,15 +59,12 @@ async function fetchEventsWithRefreshToken(
   oauth2Client.setCredentials({ refresh_token: refreshToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-  // Get all calendars this account can read
-  let calendarIds: string[] = ["primary"];
-  try {
-    const calList = await calendar.calendarList.list({ minAccessRole: "freeBusyReader" });
-    const ids = (calList.data.items ?? []).map((c) => c.id!).filter(Boolean);
-    if (ids.length > 0) calendarIds = ids;
-  } catch {
-    // fall back to primary only
-  }
+  // ONLY fetch from this user's PRIMARY calendar. Anything else (shared team
+  // calendars, secondary calendars, holiday subs) gets pulled by *every*
+  // member who has access to it, producing duplicate rows under different
+  // people in the availability view. The booking system independently
+  // queries the team calendar, so missing those events here is fine.
+  const calendarIds: string[] = ["primary"];
 
   // Fetch events from all calendars in parallel, deduplicate by iCalUID
   const seenUids = new Set<string>();
