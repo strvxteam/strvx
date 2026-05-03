@@ -255,7 +255,15 @@ export function AvailabilityClient() {
     });
   });
 
-  const allDayByDay = new Map<string, { event: MemberEvent; member: TeamMemberAvailability }[]>();
+  // Each (event, day) gets a flag: isFirstDay marks the day where we render
+  // the title; subsequent days within the visible span render as a continuation
+  // (colored bar, no text) so multi-day events read as ONE bar visually.
+  type AllDayCell = {
+    event: MemberEvent;
+    member: TeamMemberAvailability;
+    isFirstDay: boolean;
+  };
+  const allDayByDay = new Map<string, AllDayCell[]>();
   members.forEach((member) => {
     member.events.forEach((evt) => {
       if (!evt.isAllDay) return;
@@ -263,10 +271,12 @@ export function AvailabilityClient() {
       // so iterate [start, end) and add the event to each day in the span.
       const cursor = new Date(evt.start + "T00:00:00");
       const endDate = new Date(evt.end + "T00:00:00");
+      let firstDay = true;
       while (cursor < endDate) {
         const dayStr = cursor.toLocaleDateString("en-CA");
         if (!allDayByDay.has(dayStr)) allDayByDay.set(dayStr, []);
-        allDayByDay.get(dayStr)!.push({ event: evt, member });
+        allDayByDay.get(dayStr)!.push({ event: evt, member, isFirstDay: firstDay });
+        firstDay = false;
         cursor.setDate(cursor.getDate() + 1);
       }
     });
@@ -387,10 +397,11 @@ export function AvailabilityClient() {
       {/* ── Grid ── */}
       <div className="flex-1 overflow-hidden rounded-lg border border-[#e0e0e0] bg-white flex flex-col min-h-0">
         {/* Day headers */}
-        <div
-          className="flex border-b border-[#e0e0e0] bg-white shrink-0 z-10"
-          style={{ paddingLeft: TIME_COL_WIDTH }}
-        >
+        <div className="flex border-b border-[#e0e0e0] bg-white shrink-0 z-10">
+          <div
+            className="shrink-0 border-r border-[#e0e0e0]"
+            style={{ width: TIME_COL_WIDTH }}
+          />
           {days.map((day, i) => {
             const isToday = isSameDay(day, today);
             return (
@@ -429,13 +440,10 @@ export function AvailabilityClient() {
 
         {/* All-day events strip */}
         {days.some((d) => allDayByDay.has(d.toLocaleDateString("en-CA"))) && (
-          <div
-            className="flex border-b border-[#e0e0e0] bg-[#fafafa] shrink-0"
-            style={{ paddingLeft: TIME_COL_WIDTH }}
-          >
+          <div className="flex border-b border-[#e0e0e0] bg-[#fafafa] shrink-0">
             <div
-              className="flex items-center justify-end pr-2 py-1 text-[10px] text-[#bbb] font-medium shrink-0"
-              style={{ width: TIME_COL_WIDTH, marginLeft: -TIME_COL_WIDTH }}
+              className="flex items-center justify-end pr-2 py-1 text-[10px] text-[#bbb] font-medium shrink-0 border-r border-[#e0e0e0]"
+              style={{ width: TIME_COL_WIDTH }}
             >
               all-day
             </div>
@@ -456,7 +464,7 @@ export function AvailabilityClient() {
                         {mi > 0 && (
                           <div className="absolute left-0 top-0 bottom-0 border-l border-dashed border-[#f0f0f0]" />
                         )}
-                        {memberEvents.map(({ event }) => (
+                        {memberEvents.map(({ event, isFirstDay }) => (
                           <div
                             key={event.id}
                             className="rounded px-1 py-0 text-[10px] font-medium truncate mb-0.5"
@@ -467,7 +475,9 @@ export function AvailabilityClient() {
                             }}
                             title={event.title}
                           >
-                            {event.title}
+                            {/* Title only on the first day of a multi-day span;
+                                continuation days render an empty colored cell. */}
+                            {isFirstDay ? event.title : " "}
                           </div>
                         ))}
                       </div>
