@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getContacts } from "@/lib/queries";
+import { ContactRowActions } from "./contact-row-actions";
 
 export const metadata = { title: "Contacts" };
 export const dynamic = "force-dynamic";
@@ -25,11 +26,12 @@ export default async function ContactsPage() {
               <th className="px-4 py-2.5 text-left text-[11px] uppercase tracking-wide text-[#888]">
                 Role
               </th>
+              <th className="w-10 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
             {contacts.map((c) => (
-              <tr key={c.id} className="border-t border-[#f0f0f0] hover:bg-[#fafafa]">
+              <tr key={c.id} className="group border-t border-[#f0f0f0] hover:bg-[#fafafa]">
                 <td className="px-4 py-2.5">
                   <Link href={`/contacts/${c.id}`} className="text-[#1a73e8] hover:underline">
                     {c.name}
@@ -38,6 +40,11 @@ export default async function ContactsPage() {
                 <td className="px-4 py-2.5 text-[#555]">{c.email}</td>
                 <td className="px-4 py-2.5 text-[#555]">{c.companyName}</td>
                 <td className="px-4 py-2.5 text-[#555]">{c.role ?? ""}</td>
+                <td className="px-2 py-1.5 text-right">
+                  <div className="opacity-0 transition-opacity group-hover:opacity-100">
+                    <ContactRowActions contactId={c.id} contactName={c.name} />
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

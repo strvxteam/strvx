@@ -598,6 +598,33 @@ export async function deleteEngagement(engagementId: string) {
   revalidatePath("/clients");
 }
 
+// ── Delete Contact ─────────────────────────────────────
+
+export async function deleteContact(contactId: string) {
+  const user = await getCurrentUser();
+  const parsed = uuidSchema.safeParse(contactId);
+  if (!parsed.success) throw new Error("Invalid contact ID");
+
+  // engagements.primary_contact_id has onDelete: set null, so any
+  // engagements referencing this contact will be cleared automatically.
+  const result = await db
+    .delete(contacts)
+    .where(eq(contacts.id, parsed.data))
+    .returning({ id: contacts.id });
+
+  if (result.length === 0) throw new Error("Contact not found");
+
+  await logAudit({
+    userId: user.id,
+    action: "delete",
+    entityType: "contact",
+    entityId: parsed.data,
+  });
+
+  revalidatePath("/contacts");
+  revalidatePath("/clients");
+}
+
 // ── Search ────────────────────────────────────────────────
 
 export async function searchAll(query: string) {
