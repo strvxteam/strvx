@@ -458,7 +458,7 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
               key={partner.id}
               data-divided-grid
               onClick={() => router.push(`/partners/${partner.id}`)}
-              className="grid cursor-pointer grid-cols-[2fr_1fr_1fr_80px] items-center border-b border-[#e0e0e0] px-4 py-2 hover:bg-[#fafafa]"
+              className="grid cursor-pointer grid-cols-[2fr_1fr_1fr_80px] items-center border-b border-[#e0e0e0] px-4 py-3 hover:bg-[#fafafa]"
             >
               {/* Name + company */}
               <div className="min-w-0">
