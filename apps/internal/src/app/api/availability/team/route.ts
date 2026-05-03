@@ -50,28 +50,66 @@ function createOAuth2Client() {
   );
 }
 
+// Each fetched event carries a stable cross-calendar dedup key plus a flag
+// indicating whether it came from the user's primary calendar. We use both
+// to dedup the same event appearing in multiple calendars (e.g. the strvx
+// team calendar shared into Alex's account also being Nick's primary).
+type FetchedEvent = MemberEvent & { uidKey: string; fromPrimary: boolean };
+
+// Build a key that's stable for the same logical event across different
+// calendars (so the strvx team event in Alex's shared view dedupes against
+// the same event in Nick's primary view). iCalUID is RFC5545 globally
+// unique; we append the instance start so recurring-series instances stay
+// distinct (singleEvents: true expands the series, but they all share
+// iCalUID).
+function eventDedupKey(e: {
+  iCalUID?: string | null;
+  id?: string | null;
+  start?: { dateTime?: string | null; date?: string | null } | null;
+}): string {
+  const uid = e.iCalUID ?? e.id ?? "";
+  const start = e.start?.dateTime ?? e.start?.date ?? "";
+  return `${uid}|${start}`;
+}
+
 async function fetchEventsWithRefreshToken(
   refreshToken: string,
   timeMin: string,
   timeMax: string,
-): Promise<MemberEvent[]> {
+): Promise<FetchedEvent[]> {
   const oauth2Client = createOAuth2Client();
   oauth2Client.setCredentials({ refresh_token: refreshToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-  // ONLY fetch from this user's PRIMARY calendar. Anything else (shared team
-  // calendars, secondary calendars, holiday subs) gets pulled by *every*
-  // member who has access to it, producing duplicate rows under different
-  // people in the availability view. The booking system independently
-  // queries the team calendar, so missing those events here is fine.
-  const calendarIds: string[] = ["primary"];
+  // Fetch the user's primary plus every calendar they OWN. minAccessRole=owner
+  // filters out subscribed calendars (holidays, shared-read calendars, etc.)
+  // and any shared calendar where they were granted writer/reader access. A
+  // calendar shared with "owner" access still counts as owned — we rely on
+  // the global cross-user dedup below to pick a single canonical owner for
+  // such events.
+  let secondaryCalendarIds: string[] = [];
+  try {
+    const listRes = await calendar.calendarList.list({
+      minAccessRole: "owner",
+      maxResults: 100,
+    });
+    secondaryCalendarIds = (listRes.data.items ?? [])
+      .filter((c) => c.id && !c.primary)
+      .map((c) => c.id!);
+  } catch (err) {
+    console.error("[team/availability] Failed to list calendars:", err);
+  }
 
-  // Fetch events from all calendars in parallel, deduplicate by iCalUID
-  const seenUids = new Set<string>();
-  const allEvents: MemberEvent[] = [];
+  const calendarSpecs: { id: string; isPrimary: boolean }[] = [
+    { id: "primary", isPrimary: true },
+    ...secondaryCalendarIds.map((id) => ({ id, isPrimary: false })),
+  ];
 
-  await Promise.all(
-    calendarIds.map(async (calId) => {
+  // Fetch every calendar in parallel, then dedup sequentially in primary-first
+  // order so that the primary copy wins when the same event lives in both the
+  // primary and a shared secondary inside this user's view.
+  const perCalendarItems = await Promise.all(
+    calendarSpecs.map(async ({ id: calId, isPrimary }) => {
       try {
         const res = await calendar.events.list({
           calendarId: calId,
@@ -81,35 +119,42 @@ async function fetchEventsWithRefreshToken(
           orderBy: "startTime",
           maxResults: 250,
         });
-
-        for (const e of res.data.items ?? []) {
-          if (e.status === "cancelled") continue;
-
-          // Deduplicate by instance ID (not iCalUID — recurring events share iCalUID
-          // across all instances, so using iCalUID would drop Wed/Fri of a Mon/Wed/Fri series).
-          // e.id is unique per instance AND per calendar, so it correctly deduplicates
-          // the same event instance that appears in multiple of this user's calendars.
-          const uid = e.id ?? e.iCalUID ?? "";
-          if (uid && seenUids.has(uid)) continue;
-          if (uid) seenUids.add(uid);
-
-          allEvents.push({
-            id: e.id ?? crypto.randomUUID(),
-            title: e.summary ?? "(No title)",
-            start: e.start?.dateTime ?? e.start?.date ?? "",
-            end: e.end?.dateTime ?? e.end?.date ?? "",
-            isAllDay: !e.start?.dateTime,
-            meetLink:
-              e.hangoutLink ??
-              e.conferenceData?.entryPoints?.find((ep) => ep.entryPointType === "video")?.uri ??
-              null,
-          });
-        }
+        return { isPrimary, items: res.data.items ?? [] };
       } catch (err) {
         console.error(`[team/availability] Failed to fetch cal ${calId}:`, err);
+        return { isPrimary, items: [] };
       }
     }),
   );
+
+  const seenUserKeys = new Set<string>();
+  const allEvents: FetchedEvent[] = [];
+  // Two passes: primary calendars first, then secondaries.
+  for (const wantPrimary of [true, false]) {
+    for (const { isPrimary, items } of perCalendarItems) {
+      if (isPrimary !== wantPrimary) continue;
+      for (const e of items) {
+        if (e.status === "cancelled") continue;
+        const key = eventDedupKey(e);
+        if (key && seenUserKeys.has(key)) continue;
+        if (key) seenUserKeys.add(key);
+
+        allEvents.push({
+          id: e.id ?? crypto.randomUUID(),
+          title: e.summary ?? "(No title)",
+          start: e.start?.dateTime ?? e.start?.date ?? "",
+          end: e.end?.dateTime ?? e.end?.date ?? "",
+          isAllDay: !e.start?.dateTime,
+          meetLink:
+            e.hangoutLink ??
+            e.conferenceData?.entryPoints?.find((ep) => ep.entryPointType === "video")?.uri ??
+            null,
+          uidKey: key,
+          fromPrimary: isPrimary,
+        });
+      }
+    }
+  }
 
   return allEvents;
 }
@@ -156,31 +201,89 @@ export async function GET(req: NextRequest) {
   const tokenByUserId = new Map(tokenRows.map((t) => [t.userId, t.refreshToken]));
   const userByEmail = new Map(memberRows.map((r) => [r.email, r]));
 
-  // Fetch events for each team member in parallel
-  const members = await Promise.all(
+  // Fetch raw events for each team member in parallel (each fetch already
+  // includes their primary + owned secondary calendars).
+  const rawByEmail = new Map<string, FetchedEvent[]>();
+  const tokenByEmail = new Map<string, string | null>();
+  await Promise.all(
     TEAM_MEMBERS.map(async (member) => {
       const row = userByEmail.get(member.email);
       const refreshToken = row ? (tokenByUserId.get(row.id) ?? null) : null;
-
-      let events: MemberEvent[] = [];
-      if (refreshToken) {
-        try {
-          events = await fetchEventsWithRefreshToken(refreshToken, start, end);
-        } catch (err) {
-          console.error(`[team/availability] Failed for ${member.email}:`, err);
-        }
+      tokenByEmail.set(member.email, refreshToken);
+      if (!refreshToken) {
+        rawByEmail.set(member.email, []);
+        return;
       }
-
-      return {
-        id: row?.id ?? member.email,
-        name: member.name,
-        email: member.email,
-        color: member.color,
-        connected: !!refreshToken,
-        events,
-      } satisfies TeamMemberAvailability;
+      try {
+        const events = await fetchEventsWithRefreshToken(refreshToken, start, end);
+        rawByEmail.set(member.email, events);
+      } catch (err) {
+        console.error(`[team/availability] Failed for ${member.email}:`, err);
+        rawByEmail.set(member.email, []);
+      }
     }),
   );
+
+  // Global cross-user dedup with PRIMARY preference. The same event can
+  // appear in multiple users' fetches when a calendar is shared (e.g.
+  // strvxteam@strvx.com's primary is the strvx team calendar; Alex may
+  // also have it shared into his account). Pass 1 attributes every event
+  // to the first member (in TEAM_MEMBERS order) whose PRIMARY contains it.
+  // Pass 2 attributes leftover events from secondaries to the first member
+  // in whose secondary they appear. Net effect: shared team-calendar events
+  // show under Nick (primary), and Alex's tutoring (only in Alex's owned
+  // secondary) shows under Alex.
+  const claimed = new Set<string>();
+  const finalByEmail = new Map<string, MemberEvent[]>();
+  TEAM_MEMBERS.forEach((m) => finalByEmail.set(m.email, []));
+
+  for (const member of TEAM_MEMBERS) {
+    const events = rawByEmail.get(member.email) ?? [];
+    const out = finalByEmail.get(member.email)!;
+    for (const e of events) {
+      if (!e.fromPrimary) continue;
+      if (e.uidKey && claimed.has(e.uidKey)) continue;
+      if (e.uidKey) claimed.add(e.uidKey);
+      out.push({
+        id: e.id,
+        title: e.title,
+        start: e.start,
+        end: e.end,
+        isAllDay: e.isAllDay,
+        meetLink: e.meetLink,
+      });
+    }
+  }
+  for (const member of TEAM_MEMBERS) {
+    const events = rawByEmail.get(member.email) ?? [];
+    const out = finalByEmail.get(member.email)!;
+    for (const e of events) {
+      if (e.fromPrimary) continue;
+      if (e.uidKey && claimed.has(e.uidKey)) continue;
+      if (e.uidKey) claimed.add(e.uidKey);
+      out.push({
+        id: e.id,
+        title: e.title,
+        start: e.start,
+        end: e.end,
+        isAllDay: e.isAllDay,
+        meetLink: e.meetLink,
+      });
+    }
+  }
+
+  const members: TeamMemberAvailability[] = TEAM_MEMBERS.map((member) => {
+    const row = userByEmail.get(member.email);
+    const refreshToken = tokenByEmail.get(member.email) ?? null;
+    return {
+      id: row?.id ?? member.email,
+      name: member.name,
+      email: member.email,
+      color: member.color,
+      connected: !!refreshToken,
+      events: finalByEmail.get(member.email) ?? [],
+    };
+  });
 
   return NextResponse.json({ members, currentUserEmail: user.email ?? null } satisfies TeamAvailabilityResponse);
 }
