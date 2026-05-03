@@ -14,7 +14,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createInternalBookingLink } from "@/app/actions";
-import type { TeamAvailabilityResponse, MemberEvent } from "@/app/api/availability/team/route";
+import type {
+  TeamAvailabilityResponse,
+  TeamMemberAvailability,
+  MemberEvent,
+} from "@/app/api/availability/team/route";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -255,51 +259,35 @@ export function AvailabilityClient() {
     });
   });
 
-  // For the all-day strip we render ONE row per member, with each event as a
-  // single bar spanning the day-columns it covers. Multi-day events stay
-  // contiguous; events render only in their owner's row so they're never
-  // attributed to the wrong member.
-  type AllDayBar = {
+  // All-day strip layout: ONE row total. Each day is split into A | N halves.
+  // Each (event, day) renders inside the appropriate half-cell. Multi-day
+  // events have one cell per day in their owner's half; the title is shown
+  // only on the first cell, continuation days show an empty colored block.
+  type AllDayCell = {
     event: MemberEvent;
-    startIdx: number; // first visible day this event occupies (0..days.length-1)
-    spanDays: number; // number of consecutive days within the visible window
+    member: TeamMemberAvailability;
+    isFirstDay: boolean;
   };
   const dayKeys = days.map((d) => d.toLocaleDateString("en-CA"));
-  const allDayBarsByMember = new Map<string, AllDayBar[]>();
+  const allDayByDay = new Map<string, AllDayCell[]>();
   members.forEach((member) => {
-    const bars: AllDayBar[] = [];
     member.events.forEach((evt) => {
       if (!evt.isAllDay) return;
-      const startKey = evt.start; // already YYYY-MM-DD for all-day
-      // end is exclusive; subtract a day to get the last visible day key
-      const endCursor = new Date(evt.end + "T00:00:00");
-      endCursor.setDate(endCursor.getDate() - 1);
-      const endKey = endCursor.toLocaleDateString("en-CA");
-
-      // Clip to visible window
-      const startVisibleIdx = dayKeys.findIndex((k) => k >= startKey);
-      const endVisibleIdx = (() => {
-        let last = -1;
-        for (let i = dayKeys.length - 1; i >= 0; i--) {
-          if (dayKeys[i] <= endKey) {
-            last = i;
-            break;
-          }
+      const cursor = new Date(evt.start + "T00:00:00");
+      const endDate = new Date(evt.end + "T00:00:00");
+      let firstDay = true;
+      while (cursor < endDate) {
+        const dayStr = cursor.toLocaleDateString("en-CA");
+        if (dayKeys.includes(dayStr)) {
+          if (!allDayByDay.has(dayStr)) allDayByDay.set(dayStr, []);
+          allDayByDay.get(dayStr)!.push({ event: evt, member, isFirstDay: firstDay });
         }
-        return last;
-      })();
-
-      if (startVisibleIdx === -1 || endVisibleIdx === -1 || startVisibleIdx > endVisibleIdx) return;
-
-      bars.push({
-        event: evt,
-        startIdx: startVisibleIdx,
-        spanDays: endVisibleIdx - startVisibleIdx + 1,
-      });
+        firstDay = false;
+        cursor.setDate(cursor.getDate() + 1);
+      }
     });
-    allDayBarsByMember.set(member.email, bars);
   });
-  const hasAllDayEvents = members.some((m) => (allDayBarsByMember.get(m.email) ?? []).length > 0);
+  const hasAllDayEvents = allDayByDay.size > 0;
 
   // Current time indicator
   const nowHour = getCurrentPacificHour();
@@ -457,55 +445,67 @@ export function AvailabilityClient() {
           })}
         </div>
 
-        {/* All-day events — one row per member.
-            Events are absolutely-positioned bars spanning their date range
-            within the visible week. Multi-day events stay contiguous and
-            never split across day boundaries. */}
-        {hasAllDayEvents &&
-          members.map((member) => {
-            const bars = allDayBarsByMember.get(member.email) ?? [];
-            const ROW_HEIGHT = 18;
-            const VPAD = 2;
-            const stripHeight = Math.max(22, bars.length * (ROW_HEIGHT + 2) + VPAD * 2);
-            return (
-              <div
-                key={member.email}
-                className="flex border-b border-[#e0e0e0] bg-[#fafafa] shrink-0"
-                style={{ minHeight: stripHeight }}
-              >
-                <div
-                  className="flex items-center justify-end pr-2 text-[10px] font-medium shrink-0 border-r border-[#e0e0e0]"
-                  style={{ width: TIME_COL_WIDTH, color: member.color + "aa" }}
-                >
-                  {member.name}
-                </div>
-                <div className="relative flex-1 flex">
-                  {days.map((_, i) => (
-                    <div key={i} className="flex-1 border-l border-[#e0e0e0]" />
-                  ))}
-                  {bars.map((bar, idx) => (
-                    <div
-                      key={bar.event.id}
-                      className="absolute rounded px-1 text-[10px] font-medium truncate"
-                      style={{
-                        left: `calc(${(bar.startIdx / days.length) * 100}% + 2px)`,
-                        width: `calc(${(bar.spanDays / days.length) * 100}% - 4px)`,
-                        top: VPAD + idx * (ROW_HEIGHT + 2),
-                        height: ROW_HEIGHT,
-                        lineHeight: `${ROW_HEIGHT}px`,
-                        backgroundColor: member.color + "22",
-                        color: member.color,
-                        borderLeft: `2px solid ${member.color}`,
-                      }}
-                      title={bar.event.title}
-                    >
-                      {bar.event.title}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+        {/* All-day events — single row. Each day is split into A | N halves
+            (members[0] on left, members[1] on right). Multi-day events render
+            in their owner's half across each spanned day; the title is shown
+            only on the first day, continuation days show an empty colored block. */}
+        {hasAllDayEvents && (
+          <div className="flex border-b border-[#e0e0e0] bg-[#fafafa] shrink-0">
+            <div
+              className="flex items-center justify-end pr-2 text-[10px] font-medium shrink-0 border-r border-[#e0e0e0] text-[#999]"
+              style={{ width: TIME_COL_WIDTH, minHeight: 28 }}
+            >
+              all-day
+            </div>
+            <div className="flex-1 flex">
+              {days.map((day, di) => {
+                const dayKey = day.toLocaleDateString("en-CA");
+                const cells = allDayByDay.get(dayKey) ?? [];
+                return (
+                  <div
+                    key={di}
+                    className="flex-1 flex border-l border-[#e0e0e0] min-h-[28px]"
+                  >
+                    {members.map((member, mi) => {
+                      const memberCells = cells.filter(
+                        (c) => c.member.email === member.email,
+                      );
+                      return (
+                        <div
+                          key={member.email}
+                          className="flex-1 flex flex-col gap-0.5 p-0.5 min-w-0"
+                          style={{
+                            borderLeft:
+                              mi > 0 ? "1px dashed #f0f0f0" : undefined,
+                          }}
+                        >
+                          {memberCells.map((cell) => (
+                            <div
+                              key={`${cell.event.id}-${dayKey}`}
+                              className="rounded px-1 text-[10px] font-medium leading-tight truncate"
+                              style={{
+                                backgroundColor: member.color + "22",
+                                color: member.color,
+                                borderLeft: cell.isFirstDay
+                                  ? `2px solid ${member.color}`
+                                  : undefined,
+                                minHeight: 16,
+                                lineHeight: "16px",
+                              }}
+                              title={`${member.name}: ${cell.event.title}`}
+                            >
+                              {cell.isFirstDay ? cell.event.title : " "}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Scrollable timeline */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
