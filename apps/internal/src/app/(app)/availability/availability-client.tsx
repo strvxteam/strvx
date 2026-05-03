@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import { createInternalBookingLink } from "@/app/actions";
 import type {
   TeamAvailabilityResponse,
-  TeamMemberAvailability,
   MemberEvent,
 } from "@/app/api/availability/team/route";
 
@@ -259,35 +258,78 @@ export function AvailabilityClient() {
     });
   });
 
-  // All-day strip layout: ONE row total. Each day is split into A | N halves.
-  // Each (event, day) renders inside the appropriate half-cell. Multi-day
-  // events have one cell per day in their owner's half; the title is shown
-  // only on the first cell, continuation days show an empty colored block.
+  // All-day strip — single row, each visible day split into Alex | Nick halves.
+  // Lane assignment per member: each event gets a lane (vertical row) such that
+  // overlapping events get distinct lanes; the same multi-day event keeps the
+  // same lane across all spanned days, so it renders as one continuous bar.
   type AllDayCell = {
     event: MemberEvent;
-    member: TeamMemberAvailability;
     isFirstDay: boolean;
+    lane: number;
   };
   const dayKeys = days.map((d) => d.toLocaleDateString("en-CA"));
-  const allDayByDay = new Map<string, AllDayCell[]>();
+  // cellsByDayMember.get(dayKey)?.get(memberEmail) → AllDayCell[]
+  const cellsByDayMember = new Map<string, Map<string, AllDayCell[]>>();
+  let maxLane = 0;
   members.forEach((member) => {
-    member.events.forEach((evt) => {
-      if (!evt.isAllDay) return;
-      const cursor = new Date(evt.start + "T00:00:00");
-      const endDate = new Date(evt.end + "T00:00:00");
-      let firstDay = true;
-      while (cursor < endDate) {
-        const dayStr = cursor.toLocaleDateString("en-CA");
-        if (dayKeys.includes(dayStr)) {
-          if (!allDayByDay.has(dayStr)) allDayByDay.set(dayStr, []);
-          allDayByDay.get(dayStr)!.push({ event: evt, member, isFirstDay: firstDay });
+    // Collect this member's all-day events with their visible-day spans.
+    const memberEvents = member.events
+      .filter((evt) => evt.isAllDay)
+      .map((evt) => {
+        const startDate = new Date(evt.start + "T00:00:00");
+        const endDate = new Date(evt.end + "T00:00:00");
+        const visibleDays: string[] = [];
+        const cursor = new Date(startDate);
+        while (cursor < endDate) {
+          const dayStr = cursor.toLocaleDateString("en-CA");
+          if (dayKeys.includes(dayStr)) visibleDays.push(dayStr);
+          cursor.setDate(cursor.getDate() + 1);
         }
-        firstDay = false;
-        cursor.setDate(cursor.getDate() + 1);
+        return { evt, startDate, endDate, visibleDays };
+      })
+      .filter((e) => e.visibleDays.length > 0)
+      // Earlier-starting first; longer events break ties so they get low lanes.
+      .sort((a, b) => {
+        const aStart = a.startDate.getTime();
+        const bStart = b.startDate.getTime();
+        if (aStart !== bStart) return aStart - bStart;
+        return b.endDate.getTime() - a.endDate.getTime();
+      });
+
+    // laneOccupancy[dayKey] = Set of occupied lane numbers
+    const laneOccupancy = new Map<string, Set<number>>();
+    for (const { evt, visibleDays } of memberEvents) {
+      // Find the lowest lane free for ALL visible days this event spans.
+      let lane = 0;
+      while (
+        visibleDays.some((d) => laneOccupancy.get(d)?.has(lane))
+      ) {
+        lane++;
       }
-    });
+      maxLane = Math.max(maxLane, lane);
+      // Reserve the lane on every spanned day.
+      visibleDays.forEach((d) => {
+        if (!laneOccupancy.has(d)) laneOccupancy.set(d, new Set());
+        laneOccupancy.get(d)!.add(lane);
+      });
+      // Push a cell into each (day, member) bucket.
+      visibleDays.forEach((d, idx) => {
+        if (!cellsByDayMember.has(d)) cellsByDayMember.set(d, new Map());
+        const dayMap = cellsByDayMember.get(d)!;
+        if (!dayMap.has(member.email)) dayMap.set(member.email, []);
+        dayMap.get(member.email)!.push({
+          event: evt,
+          isFirstDay: idx === 0,
+          lane,
+        });
+      });
+    }
   });
-  const hasAllDayEvents = allDayByDay.size > 0;
+  const hasAllDayEvents = cellsByDayMember.size > 0;
+  const ALLDAY_LANE_HEIGHT = 18; // px per lane (16px content + 2px gap)
+  const ALLDAY_LANE_GAP = 2;
+  const allDayStripHeight =
+    Math.max(28, (maxLane + 1) * ALLDAY_LANE_HEIGHT + 4); // +4 for top/bot padding
 
   // Current time indicator
   const nowHour = getCurrentPacificHour();
@@ -445,63 +487,64 @@ export function AvailabilityClient() {
           })}
         </div>
 
-        {/* All-day events — single row. Each day is split into A | N halves
-            (members[0] on left, members[1] on right). Multi-day events render
-            in their owner's half across each spanned day; the title is shown
-            only on the first day, continuation days show an empty colored block. */}
+        {/* All-day events — single row. CSS Grid with 14 rigid columns
+            (7 days * 2 members). minmax(0, 1fr) lets cells shrink below
+            content width so a long title can never push its cell beyond its
+            half-day share. Multi-day events keep the same lane across each
+            spanned half-day cell to form a continuous bar. */}
         {hasAllDayEvents && (
           <div className="flex border-b border-[#e0e0e0] bg-[#fafafa] shrink-0">
             <div
               className="flex items-center justify-end pr-2 text-[10px] font-medium shrink-0 border-r border-[#e0e0e0] text-[#999]"
-              style={{ width: TIME_COL_WIDTH, minHeight: 28 }}
+              style={{ width: TIME_COL_WIDTH, height: allDayStripHeight }}
             >
               all-day
             </div>
-            <div className="flex-1 flex">
-              {days.map((day, di) => {
+            <div
+              className="grid flex-1"
+              style={{
+                gridTemplateColumns: `repeat(${days.length * members.length}, minmax(0, 1fr))`,
+                height: allDayStripHeight,
+              }}
+            >
+              {days.flatMap((day) => {
                 const dayKey = day.toLocaleDateString("en-CA");
-                const cells = allDayByDay.get(dayKey) ?? [];
-                return (
-                  <div
-                    key={di}
-                    className="flex-1 flex border-l border-[#e0e0e0] min-h-[28px]"
-                  >
-                    {members.map((member, mi) => {
-                      const memberCells = cells.filter(
-                        (c) => c.member.email === member.email,
-                      );
-                      return (
+                return members.map((member, mi) => {
+                  const memberCells =
+                    cellsByDayMember.get(dayKey)?.get(member.email) ?? [];
+                  return (
+                    <div
+                      key={`${dayKey}-${member.email}`}
+                      className="relative overflow-hidden"
+                      style={{
+                        borderLeft:
+                          mi === 0
+                            ? "1px solid #e0e0e0"
+                            : "1px dashed #f0f0f0",
+                      }}
+                    >
+                      {memberCells.map((cell) => (
                         <div
-                          key={member.email}
-                          className="flex-1 flex flex-col gap-0.5 p-0.5 min-w-0"
+                          key={`${cell.event.id}-${dayKey}`}
+                          className="absolute left-[2px] right-[2px] truncate rounded px-1 text-[10px] font-medium"
                           style={{
-                            borderLeft:
-                              mi > 0 ? "1px dashed #f0f0f0" : undefined,
+                            top: 2 + cell.lane * ALLDAY_LANE_HEIGHT,
+                            height: ALLDAY_LANE_HEIGHT - ALLDAY_LANE_GAP,
+                            lineHeight: `${ALLDAY_LANE_HEIGHT - ALLDAY_LANE_GAP}px`,
+                            backgroundColor: member.color + "22",
+                            color: member.color,
+                            borderLeft: cell.isFirstDay
+                              ? `2px solid ${member.color}`
+                              : undefined,
                           }}
+                          title={`${member.name}: ${cell.event.title}`}
                         >
-                          {memberCells.map((cell) => (
-                            <div
-                              key={`${cell.event.id}-${dayKey}`}
-                              className="rounded px-1 text-[10px] font-medium leading-tight truncate"
-                              style={{
-                                backgroundColor: member.color + "22",
-                                color: member.color,
-                                borderLeft: cell.isFirstDay
-                                  ? `2px solid ${member.color}`
-                                  : undefined,
-                                minHeight: 16,
-                                lineHeight: "16px",
-                              }}
-                              title={`${member.name}: ${cell.event.title}`}
-                            >
-                              {cell.isFirstDay ? cell.event.title : " "}
-                            </div>
-                          ))}
+                          {cell.isFirstDay ? cell.event.title : " "}
                         </div>
-                      );
-                    })}
-                  </div>
-                );
+                      ))}
+                    </div>
+                  );
+                });
               })}
             </div>
           </div>
