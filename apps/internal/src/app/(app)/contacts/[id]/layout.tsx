@@ -25,7 +25,6 @@ export default async function ContactLayout({
 
   return (
     <EntityShell
-      pathname={`/contacts/${id}`}
       title={data.title}
       subtitle={data.subtitle}
       engagementId={id}

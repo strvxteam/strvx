@@ -23,11 +23,8 @@ export default async function EngagementLayout({
     { key: "notes", label: "Notes", href: `/clients/${id}/notes` },
   ];
 
-  // NOTE: Breadcrumb shows /clients/<id> without the tab segment on sub-tabs.
-  // Follow-up: use middleware to pass x-pathname header, or migrate Breadcrumbs to client-side.
   return (
     <EntityShell
-      pathname={`/clients/${id}`}
       title={data.title}
       subtitle={data.subtitle}
       engagementId={id}

@@ -27,7 +27,6 @@ export default async function ProjectLayout({
 
   return (
     <EntityShell
-      pathname={`/projects/${id}`}
       title={data.title}
       subtitle={data.subtitle}
       engagementId={id}
