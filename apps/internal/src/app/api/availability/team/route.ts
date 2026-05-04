@@ -201,87 +201,84 @@ export async function GET(req: NextRequest) {
   const tokenByUserId = new Map(tokenRows.map((t) => [t.userId, t.refreshToken]));
   const userByEmail = new Map(memberRows.map((r) => [r.email, r]));
 
-  // Fetch raw events for each team member in parallel (each fetch already
-  // includes their primary + owned secondary calendars).
-  const rawByEmail = new Map<string, FetchedEvent[]>();
+  // Fetch each TEAM_MEMBER's PERSONAL events (their primary + owned secondaries
+  // like Alex's tutoring) and the SHARED strvx team calendar
+  // (strvxteam@gmail.com) in parallel. The shared calendar is fetched once via
+  // GOOGLE_TEAM_REFRESH_TOKEN — the same env var the booking system uses — and
+  // its events are merged into EVERY member's column. No cross-user dedup,
+  // because team events are supposed to appear on both Alex and Nick.
+  const memberOwnByEmail = new Map<string, FetchedEvent[]>();
   const tokenByEmail = new Map<string, string | null>();
-  await Promise.all(
-    TEAM_MEMBERS.map(async (member) => {
-      const row = userByEmail.get(member.email);
-      const refreshToken = row ? (tokenByUserId.get(row.id) ?? null) : null;
-      tokenByEmail.set(member.email, refreshToken);
-      if (!refreshToken) {
-        rawByEmail.set(member.email, []);
-        return;
-      }
-      try {
-        const events = await fetchEventsWithRefreshToken(refreshToken, start, end);
-        rawByEmail.set(member.email, events);
-      } catch (err) {
-        console.error(`[team/availability] Failed for ${member.email}:`, err);
-        rawByEmail.set(member.email, []);
-      }
-    }),
-  );
 
-  // Global cross-user dedup with PRIMARY preference. The same event can
-  // appear in multiple users' fetches when a calendar is shared (e.g.
-  // strvxteam@strvx.com's primary is the strvx team calendar; Alex may
-  // also have it shared into his account). Pass 1 attributes every event
-  // to the first member (in TEAM_MEMBERS order) whose PRIMARY contains it.
-  // Pass 2 attributes leftover events from secondaries to the first member
-  // in whose secondary they appear. Net effect: shared team-calendar events
-  // show under Nick (primary), and Alex's tutoring (only in Alex's owned
-  // secondary) shows under Alex.
-  const claimed = new Set<string>();
-  const finalByEmail = new Map<string, MemberEvent[]>();
-  TEAM_MEMBERS.forEach((m) => finalByEmail.set(m.email, []));
-
-  for (const member of TEAM_MEMBERS) {
-    const events = rawByEmail.get(member.email) ?? [];
-    const out = finalByEmail.get(member.email)!;
-    for (const e of events) {
-      if (!e.fromPrimary) continue;
-      if (e.uidKey && claimed.has(e.uidKey)) continue;
-      if (e.uidKey) claimed.add(e.uidKey);
-      out.push({
-        id: e.id,
-        title: e.title,
-        start: e.start,
-        end: e.end,
-        isAllDay: e.isAllDay,
-        meetLink: e.meetLink,
-      });
+  const memberFetches = TEAM_MEMBERS.map(async (member) => {
+    const row = userByEmail.get(member.email);
+    const refreshToken = row ? (tokenByUserId.get(row.id) ?? null) : null;
+    tokenByEmail.set(member.email, refreshToken);
+    if (!refreshToken) {
+      memberOwnByEmail.set(member.email, []);
+      return;
     }
-  }
-  for (const member of TEAM_MEMBERS) {
-    const events = rawByEmail.get(member.email) ?? [];
-    const out = finalByEmail.get(member.email)!;
-    for (const e of events) {
-      if (e.fromPrimary) continue;
-      if (e.uidKey && claimed.has(e.uidKey)) continue;
-      if (e.uidKey) claimed.add(e.uidKey);
-      out.push({
-        id: e.id,
-        title: e.title,
-        start: e.start,
-        end: e.end,
-        isAllDay: e.isAllDay,
-        meetLink: e.meetLink,
-      });
+    try {
+      const events = await fetchEventsWithRefreshToken(refreshToken, start, end);
+      memberOwnByEmail.set(member.email, events);
+    } catch (err) {
+      console.error(`[team/availability] Failed for ${member.email}:`, err);
+      memberOwnByEmail.set(member.email, []);
     }
-  }
+  });
 
+  let teamSharedEvents: FetchedEvent[] = [];
+  const teamRefreshToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN;
+  const teamFetch = (async () => {
+    if (!teamRefreshToken) {
+      console.warn(
+        "[team/availability] GOOGLE_TEAM_REFRESH_TOKEN not set — strvx team calendar events will not be shown",
+      );
+      return;
+    }
+    try {
+      teamSharedEvents = await fetchEventsWithRefreshToken(teamRefreshToken, start, end);
+    } catch (err) {
+      console.error("[team/availability] Failed to fetch strvx team calendar:", err);
+    }
+  })();
+
+  await Promise.all([...memberFetches, teamFetch]);
+
+  // Build each member's final event list: their own events FIRST, then the
+  // team-shared events. Within-member dedup keeps the personal copy when an
+  // event lives in both — e.g. Alex was invited to a strvx team meeting, so
+  // it's on his primary AND on the team calendar; the personal copy wins on
+  // his column, and Nick gets it once via the team calendar.
   const members: TeamMemberAvailability[] = TEAM_MEMBERS.map((member) => {
     const row = userByEmail.get(member.email);
     const refreshToken = tokenByEmail.get(member.email) ?? null;
+    const ownEvents = memberOwnByEmail.get(member.email) ?? [];
+
+    const seenInMember = new Set<string>();
+    const events: MemberEvent[] = [];
+    const append = (e: FetchedEvent) => {
+      if (e.uidKey && seenInMember.has(e.uidKey)) return;
+      if (e.uidKey) seenInMember.add(e.uidKey);
+      events.push({
+        id: e.id,
+        title: e.title,
+        start: e.start,
+        end: e.end,
+        isAllDay: e.isAllDay,
+        meetLink: e.meetLink,
+      });
+    };
+    ownEvents.forEach(append);
+    teamSharedEvents.forEach(append);
+
     return {
       id: row?.id ?? member.email,
       name: member.name,
       email: member.email,
       color: member.color,
       connected: !!refreshToken,
-      events: finalByEmail.get(member.email) ?? [],
+      events,
     };
   });
 
