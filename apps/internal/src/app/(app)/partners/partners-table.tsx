@@ -439,9 +439,9 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
         {/* Table header */}
         <div data-divided-grid className="grid shrink-0 grid-cols-[2fr_1fr_1fr_80px] border-b border-[#e0e0e0] px-4 py-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Name</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stage</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Tags</span>
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Engagements</span>
+          <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stage</span>
+          <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Tags</span>
+          <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Engagements</span>
         </div>
 
         {/* Rows */}
@@ -469,12 +469,12 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
               </div>
 
               {/* Stage */}
-              <div>
+              <div className="pl-3">
                 <StageBadge stage={partner.stage} />
               </div>
 
               {/* Tags */}
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 pl-3">
                 {partner.tags && partner.tags.length > 0 ? (
                   partner.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
                 ) : (
@@ -483,7 +483,7 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
               </div>
 
               {/* Engagements count */}
-              <div className="text-[13px] text-[#555]">
+              <div className="pl-3 text-[13px] text-[#555]">
                 {partner.linkedEngagementCount > 0 ? partner.linkedEngagementCount : (
                   <span className="text-[#ccc]">—</span>
                 )}
