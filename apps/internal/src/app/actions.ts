@@ -1802,7 +1802,7 @@ export async function createFollowUpLink(
   return token;
 }
 
-// ── Internal Booking Links (no engagement; for partners booking team time) ──
+// ── Internal Booking Links (no engagement; for the team to share with anyone) ──
 
 export async function createInternalBookingLink(): Promise<string> {
   const user = await getCurrentUser();
@@ -1816,6 +1816,30 @@ export async function createInternalBookingLink(): Promise<string> {
   });
 
   revalidatePath("/calendar");
+  return token;
+}
+
+// ── Partner Booking Links ──
+// Same UX as the internal booking link (booker picks 30/45/60 min and a slot)
+// but the partner gets auto-added as a calendar attendee so they're in the
+// meeting too. Also tracks attribution per partner so we can see which partner
+// drove a booking.
+export async function createPartnerBookingLink(partnerId: string): Promise<string> {
+  const user = await getCurrentUser();
+  if (!partnerId || typeof partnerId !== "string") {
+    throw new Error("partnerId is required");
+  }
+  const token = crypto.randomUUID().replace(/-/g, "");
+
+  await db.insert(followUpLinks).values({
+    token,
+    engagementId: null,
+    partnerId,
+    meetingType: "partner",
+    createdBy: user.id,
+  });
+
+  revalidatePath(`/partners/${partnerId}`);
   return token;
 }
 

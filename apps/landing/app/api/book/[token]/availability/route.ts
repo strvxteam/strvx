@@ -48,10 +48,14 @@ export async function GET(
       return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
     }
 
-    // 10-min buffer, weekdays only, 9 AM – 8 PM PT — single shared calendar.
-    // For internal meetings, the client picks duration via ?duration= query param.
+    // 10-min buffer, weekdays only, 10 AM – 8 PM PT — single shared calendar.
+    // For internal AND partner meetings, the client picks duration via
+    // ?duration= query param.
     let durationMinutes = getMeetingDuration(link.meetingType);
-    if (isInternalMeeting(link.meetingType)) {
+    if (
+      isInternalMeeting(link.meetingType) ||
+      link.meetingType === "partner"
+    ) {
       const dParam = parseInt(searchParams.get("duration") ?? "", 10);
       if (
         Number.isFinite(dParam) &&

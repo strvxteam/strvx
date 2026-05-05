@@ -9,6 +9,7 @@ import {
   users,
   engagements,
   companies,
+  partners,
 } from "@strvx/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getSharedCalendarBusyTimes, createCalendarEvent } from "@/lib/google-calendar";
@@ -16,6 +17,8 @@ import { sendFollowUpConfirmation, sendFollowUpTeamNotification } from "@/lib/em
 import {
   getMeetingDuration,
   isInternalMeeting,
+  isPartnerMeeting,
+  isDurationPickerMeeting,
   INTERNAL_DURATION_OPTIONS,
 } from "@/lib/meeting-types";
 
@@ -63,9 +66,10 @@ export async function POST(
     const slotEnd = new Date(endTime);
     const bufferMs = 10 * 60 * 1000;
 
-    // For internal meetings the client picks duration; otherwise use the type default.
+    // For internal AND partner meetings the client picks duration; otherwise
+    // use the type default.
     let durationMinutes = getMeetingDuration(link.meetingType);
-    if (isInternalMeeting(link.meetingType)) {
+    if (isDurationPickerMeeting(link.meetingType)) {
       const dParsed = typeof duration === "number" ? duration : parseInt(String(duration ?? ""), 10);
       if (
         Number.isFinite(dParsed) &&
@@ -89,7 +93,7 @@ export async function POST(
       );
     }
 
-    // Enforce booking window: weekdays only, 9 AM – 8 PM Pacific.
+    // Enforce booking window: weekdays only, 10 AM – 8 PM Pacific.
     const ptParts = (date: Date) => {
       const fmt = new Intl.DateTimeFormat("en-US", {
         timeZone: "America/Los_Angeles",
@@ -112,11 +116,11 @@ export async function POST(
     const WEEKDAYS = new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]);
     if (
       !WEEKDAYS.has(startPT.weekday) ||
-      startDecimal < 9 ||
+      startDecimal < 10 ||
       endDecimal > 20
     ) {
       return NextResponse.json(
-        { error: "Bookings must be on weekdays between 9 AM and 8 PM Pacific time." },
+        { error: "Bookings must be on weekdays between 10 AM and 8 PM Pacific time." },
         { status: 400 }
       );
     }
@@ -142,6 +146,21 @@ export async function POST(
       .from(users)
       .where(eq(users.isActive, true));
 
+    // For partner-bound links, look up the partner's email so we can add them
+    // as a calendar attendee. The partner gets a Google Calendar invite the
+    // same way the booker does.
+    let partnerAttendee: { email: string; displayName?: string } | null = null;
+    if (isPartnerMeeting(link.meetingType) && link.partnerId) {
+      const [p] = await db
+        .select({ name: partners.name, email: partners.email })
+        .from(partners)
+        .where(eq(partners.id, link.partnerId))
+        .limit(1);
+      if (p?.email) {
+        partnerAttendee = { email: p.email, displayName: p.name ?? undefined };
+      }
+    }
+
     // Create calendar event on team calendar
     const { eventId, meetLink } = await createCalendarEvent({
       clientName,
@@ -149,6 +168,7 @@ export async function POST(
       startTime: slotStart,
       endTime: slotEnd,
       serviceType: link.meetingType,
+      extraAttendees: partnerAttendee ? [partnerAttendee] : undefined,
     });
 
     // Get engagement info for the booking record (skipped for internal links with no engagement)

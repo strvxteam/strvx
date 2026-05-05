@@ -653,14 +653,17 @@ export const bookings = pgTable("bookings", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-// ── Follow-up Links (persistent booking links per engagement, or internal team-meeting links) ─
+// ── Follow-up Links (persistent booking links per engagement, or internal team-meeting links, or partner links) ─
 export const followUpLinks = pgTable("follow_up_links", {
   id: uuid("id").primaryKey().defaultRandom(),
   token: text("token").notNull().unique(),
   engagementId: uuid("engagement_id").references(() => engagements.id, {
     onDelete: "cascade",
-  }), // nullable — null for internal meeting links not tied to an engagement
-  meetingType: text("meeting_type").notNull().default("proposal"), // "proposal" | "revision" | "in_person" | "internal"
+  }), // nullable — null for internal/partner meeting links not tied to an engagement
+  partnerId: uuid("partner_id").references(() => partners.id, {
+    onDelete: "cascade",
+  }), // nullable — set for partner booking links so the partner is auto-added as a calendar attendee
+  meetingType: text("meeting_type").notNull().default("proposal"), // "proposal" | "revision" | "in_person" | "internal" | "partner"
   createdBy: uuid("created_by").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

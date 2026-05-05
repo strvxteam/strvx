@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import {
   getMeetingDuration,
   getMeetingLabel,
-  isInternalMeeting,
+  isDurationPickerMeeting,
   INTERNAL_DURATION_OPTIONS,
 } from "@/lib/meeting-types";
 
@@ -51,11 +51,12 @@ function getNextDays(count: number): Date[] {
 
 export default function FollowUpBookingWidget({ token, meetingType, prefill }: Props) {
   const typeLabel = getMeetingLabel(meetingType);
-  const internal = isInternalMeeting(meetingType);
+  // Internal AND partner meetings use the duration picker.
+  const usesDurationPicker = isDurationPickerMeeting(meetingType);
 
-  // For internal meetings, the user picks duration. Default to 30.
+  // Default to 30. State name kept for diff-clarity ("internalDuration").
   const [internalDuration, setInternalDuration] = useState<number>(30);
-  const durationMinutes = internal ? internalDuration : getMeetingDuration(meetingType);
+  const durationMinutes = usesDurationPicker ? internalDuration : getMeetingDuration(meetingType);
   const durationDisplay =
     durationMinutes >= 60 ? `${durationMinutes / 60} hr` : `${durationMinutes} min`;
   const windowDays = meetingType === "proposal" || meetingType === "revision" ? 14 : 7;
@@ -95,7 +96,7 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
       start: start.toISOString(),
       end: end.toISOString(),
     });
-    if (internal) params.set("duration", String(internalDuration));
+    if (usesDurationPicker) params.set("duration", String(internalDuration));
 
     fetch(`/api/book/${token}/availability?${params.toString()}`)
       .then((r) => r.json())
@@ -103,7 +104,7 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
       .catch(() => setError("Failed to load availability."))
       .finally(() => setLoadingSlots(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, internal, internalDuration]);
+  }, [token, usesDurationPicker, internalDuration]);
 
   const dayKey = (d: Date) =>
     d.toLocaleDateString("en-CA", { timeZone: "America/Los_Angeles" });
@@ -125,7 +126,7 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
           clientEmail: email.trim(),
           clientCompany: company.trim() || null,
           notes: notes.trim() || null,
-          duration: internal ? internalDuration : undefined,
+          duration: usesDurationPicker ? internalDuration : undefined,
         }),
       });
       const data = await res.json();
@@ -166,8 +167,8 @@ export default function FollowUpBookingWidget({ token, meetingType, prefill }: P
 
   return (
     <div className="space-y-4">
-      {/* Duration picker — internal meetings only */}
-      {internal && (
+      {/* Duration picker — internal AND partner meetings */}
+      {usesDurationPicker && (
         <div className="rounded-xl border border-white/[0.08] bg-[#0e0e0e] p-5">
           <p className="mb-4 text-[11px] tracking-[0.15em] uppercase text-[#555]">Meeting duration</p>
           <div className="grid grid-cols-3 gap-2">

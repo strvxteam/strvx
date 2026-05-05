@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { getMeetingLabel } from "./meeting-types";
 
 const TIMEZONE = "America/Los_Angeles";
-const BUSINESS_HOURS_START = 9;  // 9 AM Pacific
+const BUSINESS_HOURS_START = 10; // 10 AM Pacific — earliest bookable time
 const BUSINESS_HOURS_END = 21;   // 9 PM Pacific
 const SLOT_DURATION_MINUTES = 30;
 
@@ -243,6 +243,9 @@ type BookingDetails = {
   startTime: Date;
   endTime: Date;
   serviceType: string;
+  // Optional extra attendees added to the calendar event invite — used for
+  // partner bookings to put the partner on the meeting alongside the booker.
+  extraAttendees?: Array<{ email: string; displayName?: string }>;
 };
 
 // Creates ONE event on the shared team calendar using GOOGLE_TEAM_REFRESH_TOKEN.
@@ -289,6 +292,10 @@ export async function createCalendarEvent(
             email: booking.clientEmail,
             displayName: booking.clientName,
           },
+          ...(booking.extraAttendees ?? []).map((a) => ({
+            email: a.email,
+            ...(a.displayName ? { displayName: a.displayName } : {}),
+          })),
         ],
         ...(isInPerson
           ? {}

@@ -3,7 +3,7 @@ import { db } from "@strvx/db";
 import { followUpLinks, engagements, companies, contacts, bookings } from "@strvx/db/schema";
 import { eq, desc } from "drizzle-orm";
 import FollowUpBookingWidget from "./booking-widget";
-import { getMeetingLabel, isInternalMeeting } from "@/lib/meeting-types";
+import { getMeetingLabel, isDurationPickerMeeting } from "@/lib/meeting-types";
 
 export const dynamic = "force-dynamic";
 
@@ -75,11 +75,14 @@ export default async function FollowUpBookPage({
     );
   }
 
-  const internal = isInternalMeeting(link.meetingType);
+  // Internal AND partner meetings share the same UX: no engagement context,
+  // booker picks duration. Engagement-bound types (proposal/revision/in_person)
+  // get the named-contact prefill flow.
+  const teamMeeting = isDurationPickerMeeting(link.meetingType);
   const typeLabel = getMeetingLabel(link.meetingType);
 
   // Load engagement + primary contact for pre-fill (only for engagement-bound links)
-  const row = !internal && link.engagementId
+  const row = !teamMeeting && link.engagementId
     ? (
         await db
           .select({
@@ -102,15 +105,15 @@ export default async function FollowUpBookPage({
       <div className="max-w-3xl mx-auto px-6 pt-20 md:pt-24 pb-6 w-full">
         <p className="text-[11px] tracking-[0.2em] uppercase text-[#555] mb-3">strvx</p>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
-          {internal
+          {teamMeeting
             ? "Schedule a meeting with the strvx team."
             : `Schedule your ${typeLabel}.`}
         </h1>
-        {!internal && row?.contactName ? (
+        {!teamMeeting && row?.contactName ? (
           <p className="text-[#666] text-base">
             Hey {greetingName(row.contactName)}, pick a time that works for you.
           </p>
-        ) : internal ? (
+        ) : teamMeeting ? (
           <p className="text-[#666] text-base">
             Pick a duration and time that works for you.
           </p>

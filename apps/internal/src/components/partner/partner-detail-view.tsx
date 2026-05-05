@@ -15,6 +15,8 @@ import {
   Pencil,
   Trash2,
   ExternalLink,
+  Link2,
+  Copy,
 } from "lucide-react";
 import {
   changePartnerStage,
@@ -25,6 +27,7 @@ import {
   deletePartnerLink,
   createPartnerInteraction,
   archivePartner,
+  createPartnerBookingLink,
 } from "@/app/actions";
 import {
   PARTNER_STAGE_LABELS,
@@ -288,6 +291,38 @@ export function PartnerDetailView({
   const [showLinkProject, setShowLinkProject] = useState(false);
   const [showLogInteraction, setShowLogInteraction] = useState(false);
 
+  // Booking-link share modal
+  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  const handleGenerateBookingLink = async () => {
+    setGeneratingLink(true);
+    setLinkCopied(false);
+    try {
+      const token = await createPartnerBookingLink(partner.id);
+      const origin =
+        typeof window !== "undefined" && window.location.hostname.includes("localhost")
+          ? "http://localhost:3001"
+          : "https://strvx.com";
+      setShareLink(`${origin}/book/${token}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate booking link");
+    } finally {
+      setGeneratingLink(false);
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    if (!shareLink) return;
+    navigator.clipboard.writeText(shareLink).then(() => {
+      setLinkCopied(true);
+      toast.success("Link copied");
+      setTimeout(() => setLinkCopied(false), 2000);
+    });
+  };
+
   // ── Stage change ──
   const handleStageChange = (newStage: string) => {
     setStage(newStage);
@@ -329,6 +364,15 @@ export function PartnerDetailView({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleGenerateBookingLink}
+            disabled={generatingLink}
+            className="flex items-center gap-1.5 rounded-lg border border-[#e0e0e0] bg-white px-3 py-1.5 text-[12px] font-medium text-[#333] transition-colors hover:bg-[#f5f5f5] disabled:opacity-50"
+          >
+            <Link2 size={12} strokeWidth={2} />
+            {generatingLink ? "Generating..." : "Generate booking link"}
+          </button>
           <PartnerStageDropdown currentStage={stage} onChange={handleStageChange} />
           <DeleteConfirmDialog
             name={partner.name}
@@ -502,6 +546,57 @@ export function PartnerDetailView({
           />
         </div>
       </div>
+
+      {/* ── Share Partner Booking Link Modal ── */}
+      {shareLink && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4"
+          onClick={() => setShareLink(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-[#e0e0e0] bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between border-b border-[#f0f0f0] px-6 pt-5 pb-4">
+              <div>
+                <h2 className="text-[15px] font-semibold text-[#111]">
+                  Partner booking link
+                </h2>
+                <p className="mt-1 text-[12px] text-[#666]">
+                  Share this with {partner.name} — they pick a 30/45/60 min slot from team availability and {partner.name} is auto-added to the calendar invite.
+                </p>
+              </div>
+              <button
+                onClick={() => setShareLink(null)}
+                className="rounded p-1 text-[#999] hover:bg-[#f5f5f5] hover:text-[#333]"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-2 rounded-lg border border-[#e0e0e0] bg-[#fafafa] px-3 py-2.5">
+                <input
+                  readOnly
+                  value={shareLink}
+                  onClick={(e) => e.currentTarget.select()}
+                  className="flex-1 bg-transparent text-[12px] text-[#333] outline-none"
+                />
+                <button
+                  onClick={handleCopyShareLink}
+                  className="flex shrink-0 items-center gap-1 rounded-md bg-[#111] px-2.5 py-1 text-[12px] font-medium text-white hover:bg-[#333]"
+                >
+                  {linkCopied ? <Check size={12} /> : <Copy size={12} />}
+                  {linkCopied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <p className="mt-3 text-[11px] text-[#888]">
+                Link expires after 90 days of inactivity.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
