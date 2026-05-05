@@ -354,16 +354,16 @@ export function PartnerDetailView({
 
   return (
     <div className="pb-24">
-      {/* Page header */}
-      <div className="relative z-50 mb-6 flex items-center justify-between">
-        <div>
+      {/* Page header — wraps on narrow viewports so actions don't overflow */}
+      <div className="relative z-50 mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold">{partner.name}</h1>
           <div className="mt-0.5 text-[12px] text-muted-foreground">
             {partner.company && <span>{partner.company} · </span>}
             <span>Partner since {new Date(partner.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleGenerateBookingLink}
@@ -395,10 +395,10 @@ export function PartnerDetailView({
         </div>
       </div>
 
-      {/* Two-column layout */}
-      <div className="flex gap-6">
+      {/* Two-column layout — stacks on mobile (<lg), side-by-side from lg up */}
+      <div className="flex flex-col gap-6 lg:flex-row">
         {/* Left column */}
-        <div className="flex flex-col gap-4" style={{ flex: "1.2" }}>
+        <div className="flex min-w-0 flex-col gap-4" style={{ flex: "1.2" }}>
 
           {/* ── Header / Info card ── */}
           <div className="rounded-lg border border-border bg-white p-4">

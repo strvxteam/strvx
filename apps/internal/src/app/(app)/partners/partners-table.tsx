@@ -434,63 +434,69 @@ export function PartnersTable({ initialPartners }: PartnersTableProps) {
         </button>
       </div>
 
-      {/* Table */}
-      <div className="flex min-h-0 flex-1 flex-col rounded-[6px] border border-[#e0e0e0] bg-white">
-        {/* Table header */}
-        <div data-divided-grid className="grid shrink-0 grid-cols-[2fr_1fr_1fr_80px] border-b border-[#e0e0e0] px-4 py-2.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Name</span>
-          <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stage</span>
-          <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Tags</span>
-          <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Engagements</span>
-        </div>
-
-        {/* Rows */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
-        {filtered.length === 0 ? (
-          <div className="flex h-full items-center justify-center px-4 py-10 text-center text-[13px] text-[#aaa]">
-            {search || stageFilter !== "all" || tagFilter !== "all"
-              ? "No partners match your filters."
-              : "No partners yet. Add one to get started."}
-          </div>
-        ) : (
-          filtered.map((partner) => (
-            <div
-              key={partner.id}
-              data-divided-grid
-              onClick={() => router.push(`/partners/${partner.id}`)}
-              className="grid cursor-pointer grid-cols-[2fr_1fr_1fr_80px] items-center border-b border-[#e0e0e0] px-4 py-3 hover:bg-[#fafafa]"
-            >
-              {/* Name + company */}
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-medium leading-tight text-[#111]">{partner.name}</p>
-                {partner.company && (
-                  <p className="mt-0.5 truncate text-[11px] leading-tight text-[#888]">{partner.company}</p>
-                )}
-              </div>
-
-              {/* Stage */}
-              <div className="pl-3">
-                <StageBadge stage={partner.stage} />
-              </div>
-
-              {/* Tags */}
-              <div className="flex flex-wrap gap-1 pl-3">
-                {partner.tags && partner.tags.length > 0 ? (
-                  partner.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
-                ) : (
-                  <span className="text-[11px] text-[#ccc]">—</span>
-                )}
-              </div>
-
-              {/* Engagements count */}
-              <div className="pl-3 text-[13px] text-[#555]">
-                {partner.linkedEngagementCount > 0 ? partner.linkedEngagementCount : (
-                  <span className="text-[#ccc]">—</span>
-                )}
-              </div>
+      {/* Table — wrapped in a horizontal-scroll container so narrow screens
+          (mobile) get a swipeable table instead of squished columns. The
+          inner container has min-w to keep columns at usable widths. */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[6px] border border-[#e0e0e0] bg-white">
+        <div className="flex min-h-0 flex-1 flex-col overflow-x-auto">
+          <div className="flex min-h-0 flex-1 flex-col" style={{ minWidth: 640 }}>
+            {/* Table header */}
+            <div data-divided-grid className="grid shrink-0 grid-cols-[2fr_1fr_1fr_120px] border-b border-[#e0e0e0] px-4 py-2.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-[#888]">Name</span>
+              <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Stage</span>
+              <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Tags</span>
+              <span className="pl-3 text-[11px] font-semibold uppercase tracking-wide text-[#888]">Engagements</span>
             </div>
-          ))
-        )}
+
+            {/* Rows */}
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {filtered.length === 0 ? (
+                <div className="flex h-full items-center justify-center px-4 py-10 text-center text-[13px] text-[#aaa]">
+                  {search || stageFilter !== "all" || tagFilter !== "all"
+                    ? "No partners match your filters."
+                    : "No partners yet. Add one to get started."}
+                </div>
+              ) : (
+                filtered.map((partner) => (
+                  <div
+                    key={partner.id}
+                    data-divided-grid
+                    onClick={() => router.push(`/partners/${partner.id}`)}
+                    className="grid cursor-pointer grid-cols-[2fr_1fr_1fr_120px] items-center border-b border-[#e0e0e0] px-4 py-3 hover:bg-[#fafafa]"
+                  >
+                    {/* Name + company */}
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-medium leading-tight text-[#111]">{partner.name}</p>
+                      {partner.company && (
+                        <p className="mt-0.5 truncate text-[11px] leading-tight text-[#888]">{partner.company}</p>
+                      )}
+                    </div>
+
+                    {/* Stage */}
+                    <div className="pl-3">
+                      <StageBadge stage={partner.stage} />
+                    </div>
+
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-1 pl-3">
+                      {partner.tags && partner.tags.length > 0 ? (
+                        partner.tags.map((tag) => <TagBadge key={tag} tag={tag} />)
+                      ) : (
+                        <span className="text-[11px] text-[#ccc]">—</span>
+                      )}
+                    </div>
+
+                    {/* Engagements count */}
+                    <div className="pl-3 text-[13px] text-[#555]">
+                      {partner.linkedEngagementCount > 0 ? partner.linkedEngagementCount : (
+                        <span className="text-[#ccc]">—</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
