@@ -29,7 +29,7 @@ describe("traverse", () => {
       ro: { user: n4j.container.getUsername(), password: n4j.container.getPassword() },
     });
     sql = createPostgresClient(pg.url);
-    await client.write(async (tx) => {
+    await client.unsafeWrite(async (tx) => {
       await tx.run(`
         CREATE (p:Person {id: 'p1', type: 'Person', name: 'Ada',
           prov_source_type: 'postgres', prov_source_id: 'p1', prov_source_record_id: '1',

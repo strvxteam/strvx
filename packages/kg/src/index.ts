@@ -2,6 +2,16 @@
 export * from "./types.js";
 
 // Clients (consumers usually don't import directly; exposed for advanced use)
+/**
+ * Construct a raw Neo4j client wrapping read-write and read-only drivers.
+ *
+ * **Direct use of this factory outside `packages/kg` is forbidden** — the curated
+ * read/write functions (`getNode`, `findEntities`, `recordObservation`, etc.) are
+ * the only safe surface. The returned client exposes `unsafeWrite` and
+ * `unsafeRawSession` which BYPASS audit, auth, provenance, and conflict detection.
+ * The `kg/no-neo4j-outside-kg` ESLint rule blocks consumers from importing this
+ * factory; do not work around it.
+ */
 export { createNeo4jClient } from "./client/neo4j.js";
 export type { Neo4jClient, Neo4jClientOptions } from "./client/neo4j.js";
 export { createPostgresClient } from "./client/postgres.js";

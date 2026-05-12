@@ -30,7 +30,7 @@ describe("Neo4jClient", () => {
   });
 
   it("executes a write query via the read-write session", async () => {
-    const result = await client.write(async (tx) => {
+    const result = await client.unsafeWrite(async (tx) => {
       const r = await tx.run("CREATE (n:Test {id: 'x'}) RETURN n.id AS id");
       return r.records[0].get("id");
     });

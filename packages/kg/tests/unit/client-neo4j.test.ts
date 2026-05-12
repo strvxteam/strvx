@@ -44,11 +44,11 @@ const opts = {
 };
 
 describe("createNeo4jClient", () => {
-  it("creates a client with read/write/rawSession/close methods", () => {
+  it("creates a client with read/unsafeWrite/unsafeRawSession/close methods", () => {
     const client = createNeo4jClient(opts);
     expect(client).toHaveProperty("read");
-    expect(client).toHaveProperty("write");
-    expect(client).toHaveProperty("rawSession");
+    expect(client).toHaveProperty("unsafeWrite");
+    expect(client).toHaveProperty("unsafeRawSession");
     expect(client).toHaveProperty("close");
   });
 
@@ -60,24 +60,24 @@ describe("createNeo4jClient", () => {
     expect(mockSession.executeRead).toHaveBeenCalledOnce();
   });
 
-  it("write() calls executeWrite on the rw session", async () => {
+  it("unsafeWrite() calls executeWrite on the rw session", async () => {
     const work = vi.fn().mockResolvedValue("result");
     mockSession.executeWrite.mockImplementation((fn: unknown) => (fn as () => unknown)());
     const client = createNeo4jClient(opts);
-    await client.write(work);
+    await client.unsafeWrite(work);
     expect(mockSession.executeWrite).toHaveBeenCalledOnce();
   });
 
-  it("rawSession('read') returns a session", () => {
+  it("unsafeRawSession('read') returns a session", () => {
     const client = createNeo4jClient(opts);
-    const session = client.rawSession("read");
+    const session = client.unsafeRawSession("read");
     expect(session).toBeDefined();
     expect(mockDriver.session).toHaveBeenCalled();
   });
 
-  it("rawSession('write') returns a session", () => {
+  it("unsafeRawSession('write') returns a session", () => {
     const client = createNeo4jClient(opts);
-    const session = client.rawSession("write");
+    const session = client.unsafeRawSession("write");
     expect(session).toBeDefined();
   });
 

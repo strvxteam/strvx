@@ -9,8 +9,8 @@ export interface Neo4jClientOptions {
 
 export interface Neo4jClient {
   read<T>(work: (tx: ManagedTransaction) => Promise<T>): Promise<T>;
-  write<T>(work: (tx: ManagedTransaction) => Promise<T>): Promise<T>;
-  rawSession(mode: "read" | "write"): Session;
+  unsafeWrite<T>(work: (tx: ManagedTransaction) => Promise<T>): Promise<T>;
+  unsafeRawSession(mode: "read" | "write"): Session;
   close(): Promise<void>;
 }
 
@@ -32,12 +32,12 @@ export function createNeo4jClient(opts: Neo4jClientOptions): Neo4jClient {
     return session.executeRead(work).finally(() => session.close());
   }
 
-  function write<T>(work: (tx: ManagedTransaction) => Promise<T>): Promise<T> {
+  function unsafeWrite<T>(work: (tx: ManagedTransaction) => Promise<T>): Promise<T> {
     const session = rwDriver.session({ database, defaultAccessMode: neo4j.session.WRITE });
     return session.executeWrite(work).finally(() => session.close());
   }
 
-  function rawSession(mode: "read" | "write"): Session {
+  function unsafeRawSession(mode: "read" | "write"): Session {
     const driver = mode === "read" ? roDriver : rwDriver;
     return driver.session({
       database,
@@ -49,5 +49,5 @@ export function createNeo4jClient(opts: Neo4jClientOptions): Neo4jClient {
     await Promise.all([rwDriver.close(), roDriver.close()]);
   }
 
-  return { read, write, rawSession, close };
+  return { read, unsafeWrite, unsafeRawSession, close };
 }

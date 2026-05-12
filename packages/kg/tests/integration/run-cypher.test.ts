@@ -34,7 +34,7 @@ describe("runCypher", () => {
     });
     sql = createPostgresClient(pg.url);
     // seed a node
-    await client.write(async (tx) => {
+    await client.unsafeWrite(async (tx) => {
       await tx.run("CREATE (n:Person {id: 'p1', name: 'Ada'})");
     });
   }, 120_000);

@@ -31,7 +31,7 @@ describe("getNode / getEdge / getProvenance", () => {
       ro: { user: n4j.container.getUsername(), password: n4j.container.getPassword() },
     });
     sql = createPostgresClient(pg.url);
-    await client.write(async (tx) => {
+    await client.unsafeWrite(async (tx) => {
       await tx.run(`
         CREATE (p:Person {
           id: 'postgres:contact:1', type: 'Person', name: 'Ada',

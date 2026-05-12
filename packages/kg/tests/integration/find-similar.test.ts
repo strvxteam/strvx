@@ -40,7 +40,7 @@ describe("findSimilar", () => {
       { id: "p2", text: "Grace compiler naval officer" },
       { id: "p3", text: "Henrietta astronomer cepheid variable" },
     ]) {
-      await client.write(async (tx) => {
+      await client.unsafeWrite(async (tx) => {
         await tx.run(`
           CREATE (n:Person {id: $id, type: 'Person', snippet: $text,
             prov_source_type: 'postgres', prov_source_id: $id, prov_source_record_id: $id,

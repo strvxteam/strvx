@@ -43,7 +43,7 @@ describe("findEntities", () => {
       { id: "p3", name: "Henrietta Leavitt", snippet: "astronomer cepheid variable stars" },
     ];
     for (const s of seeds) {
-      await client.write(async (tx) => {
+      await client.unsafeWrite(async (tx) => {
         await tx.run(`
           CREATE (n:Person {
             id: $id, type: 'Person', name: $name, snippet: $snippet,
