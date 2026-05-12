@@ -34,6 +34,36 @@ describe("createOpenAIEmbeddingProvider", () => {
       model: "text-embedding-ada-002",
     });
     expect(provider.modelName).toBe("text-embedding-ada-002");
+    expect(provider.modelVersion).toBe("ada-002");
+    expect(provider.dimensions).toBe(1536);
+  });
+
+  it("returns 3072 dimensions for text-embedding-3-large", () => {
+    const provider = createOpenAIEmbeddingProvider({
+      apiKey: "sk-test",
+      model: "text-embedding-3-large",
+    });
+    expect(provider.dimensions).toBe(3072);
+    expect(provider.modelVersion).toBe("v3");
+  });
+
+  it("throws on unknown model without explicit dimensions", () => {
+    expect(() =>
+      createOpenAIEmbeddingProvider({
+        apiKey: "sk-test",
+        model: "text-embedding-future-9000",
+      }),
+    ).toThrow(/Unknown OpenAI embedding model/);
+  });
+
+  it("accepts explicit dimensions for an unknown model", () => {
+    const provider = createOpenAIEmbeddingProvider({
+      apiKey: "sk-test",
+      model: "text-embedding-future-9000",
+      dimensions: 4096,
+    });
+    expect(provider.dimensions).toBe(4096);
+    expect(provider.modelVersion).toBe("unknown");
   });
 
   it("embed() calls OpenAI and returns the embedding vector", async () => {

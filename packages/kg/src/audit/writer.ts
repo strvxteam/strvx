@@ -1,4 +1,3 @@
-import type { JSONValue } from "postgres";
 import type { PostgresClient } from "../client/postgres.js";
 
 export interface AuditEntry {
