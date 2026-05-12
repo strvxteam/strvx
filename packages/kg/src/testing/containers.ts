@@ -52,3 +52,31 @@ export async function startPostgres(): Promise<StartedPostgres> {
     },
   };
 }
+
+/**
+ * Create a `kg_test_ro` user in the Neo4j system database with the built-in
+ * `reader` role (read-only). Used by integration tests to verify that the
+ * defense-in-depth claim — "Neo4j RO user can't write even if the validator
+ * is bypassed" — holds against a real DB.
+ *
+ * Requires Neo4j Enterprise (community doesn't support multiple users).
+ */
+export async function createReadOnlyUser(
+  n4j: StartedNeo4j,
+  username = "kg_test_ro",
+  password = "kg_test_ro_password",
+): Promise<{ user: string; password: string }> {
+  const systemSession = n4j.driver.session({ database: "system" });
+  try {
+    // Drop if exists, recreate. Idempotent for re-runs.
+    await systemSession.run(`DROP USER ${username} IF EXISTS`);
+    await systemSession.run(
+      `CREATE USER ${username} SET PASSWORD $password SET PASSWORD CHANGE NOT REQUIRED`,
+      { password },
+    );
+    await systemSession.run(`GRANT ROLE reader TO ${username}`);
+  } finally {
+    await systemSession.close();
+  }
+  return { user: username, password };
+}
