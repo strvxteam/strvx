@@ -82,6 +82,8 @@ export async function findSimilar(
       const ranked: SimilarEntity[] = [];
       for (const ne of neighbors) {
         const node = byId.get(ne.node_id);
+        // pgvector `<=>` returns cosine distance ∈ [0, 2]; score = 1 - distance
+        // maps to cosine similarity ∈ [-1, 1]. See find-entities.ts for context.
         if (node) ranked.push({ node, score: 1 - Number(ne.distance) });
         if (ranked.length >= limit) break;
       }

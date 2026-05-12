@@ -135,6 +135,9 @@ async function semantic(
     const out: SearchResult[] = [];
     for (const row of rows) {
       const node = byId.get(row.node_id);
+      // pgvector `<=>` returns cosine distance ∈ [0, 2]; score = 1 - distance
+      // maps that to a value in [-1, 1] consistent with cosine similarity,
+      // where 1 = identical direction and ≤0 = orthogonal/opposite.
       if (node) out.push({ node, score: 1 - Number(row.distance) });
       if (out.length >= limit) break;
     }
