@@ -24,6 +24,7 @@
     "@types/node": "^22",
     "@testcontainers/neo4j": "^10.13.2",
     "@testcontainers/postgresql": "^10.13.2",
+    "postgres": "^3.4.8",
     "testcontainers": "^10.13.2",
     "typescript": "^5",
     "vitest": "^2.1.5"

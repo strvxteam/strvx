@@ -1,9 +1,40 @@
 import { defineConfig } from "vitest/config";
+import os from "node:os";
+import path from "node:path";
+import fs from "node:fs";
+
+// Testcontainers needs to find the Docker socket. On Colima (no /var/run/docker.sock),
+// point it at the Colima socket explicitly.
+function resolveDockerHost(): string | undefined {
+  const colimaSocket = path.join(os.homedir(), ".colima/default/docker.sock");
+  if (!process.env.DOCKER_HOST && fs.existsSync(colimaSocket)) {
+    return `unix://${colimaSocket}`;
+  }
+  return undefined;
+}
+
+const dockerHost = resolveDockerHost();
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@strvx/kg/testing": path.resolve(__dirname, "src/testing/index.ts"),
+      "@strvx/kg": path.resolve(__dirname, "src/index.ts"),
+    },
+  },
   test: {
     globals: true,
     environment: "node",
+    env: {
+      // Colima: bind /var/run/docker.sock → Colima socket; disable Ryuk (can't mount sock in Colima)
+      ...(dockerHost
+        ? {
+            DOCKER_HOST: dockerHost,
+            TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: dockerHost.replace("unix://", ""),
+            TESTCONTAINERS_RYUK_DISABLED: "true",
+          }
+        : {}),
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
