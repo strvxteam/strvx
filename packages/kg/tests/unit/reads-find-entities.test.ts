@@ -150,15 +150,47 @@ describe("findEntities — hybrid mode (default)", () => {
     expect(ids).toContain("pg:1");
   });
 
-  it("respects limit option", async () => {
-    const records = Array.from({ length: 10 }, (_, i) =>
+  it("passes limit through to the Cypher query parameters", async () => {
+    // Capture the tx.run call so we can assert the params include the limit.
+    const runSpy = vi.fn().mockResolvedValue({ records: [] });
+    const deps: FindEntitiesDeps = {
+      client: {
+        read: vi.fn(async (work: (tx: unknown) => Promise<unknown>) =>
+          work({ run: runSpy }),
+        ),
+      } as unknown as FindEntitiesDeps["client"],
+      sql: Object.assign(
+        vi.fn().mockResolvedValue([]),
+        { json: (v: unknown) => v },
+      ) as unknown as FindEntitiesDeps["sql"],
+      ctx: readerCtx,
+      embedding: {
+        modelName: "mock",
+        modelVersion: "0.0.0",
+        dimensions: 4,
+        embed: vi.fn().mockResolvedValue([]),
+        embedBatch: vi.fn().mockResolvedValue([]),
+      },
+    };
+    await findEntities(deps, "Person", { mode: "structured", limit: 3 });
+    expect(runSpy).toHaveBeenCalled();
+    const [, params] = runSpy.mock.calls[0];
+    expect(params).toMatchObject({ limit: 3 });
+  });
+
+  it("trims the result set to limit when the source returns more", async () => {
+    // Semantic path: pgvector returns 30 neighbors (3× limit per find-entities.ts),
+    // findEntities should slice to opts.limit.
+    const allIds = Array.from({ length: 30 }, (_, i) => ({ node_id: `pg:${i}`, distance: 0.1 }));
+    const allRecords = Array.from({ length: 30 }, (_, i) =>
       makeNodeRecord(`pg:${i}`, "Person", `Person ${i}`),
     );
-    const deps = makeDeps({ neoRecords: records, embedResult: [1, 0, 0, 0] });
-    const results = await findEntities(deps, "Person", { mode: "structured", limit: 3 });
-    // The neo mock always returns 10 records regardless of limit (we're mocking tx.run);
-    // but structured() passes limit to the query — our mock ignores it.
-    // Just check we get results and audit entry.
-    expect(deps.sql).toHaveBeenCalledOnce();
+    const deps = makeDeps({
+      neoRecords: allRecords,
+      sqlNeighbors: allIds,
+      embedResult: [1, 0, 0, 0],
+    });
+    const out = await findEntities(deps, "Person", { mode: "semantic", limit: 5 });
+    expect(out.length).toBeLessThanOrEqual(5);
   });
 });
