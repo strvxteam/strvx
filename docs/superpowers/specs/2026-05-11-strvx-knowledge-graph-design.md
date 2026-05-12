@@ -284,8 +284,10 @@ traverse(startId, pattern: TraversalPattern, opts?: { limit?, maxDepth? }): Trav
 getNode(id): Node | null
 getEdge(id): Edge | null
 getProvenance(id): Provenance
-getContent(id): { content: string, source: string, is_stale: boolean }
-hasContent(id): boolean
+// getContent / hasContent ship in Month 3 alongside virtual-edge resolvers.
+// Not part of the Month 1 read surface.
+getContent(id): { content: string, source: string, is_stale: boolean }   // Month 3
+hasContent(id): boolean                                                  // Month 3
 getAuditLog(id, opts?: { since?, limit? }): AuditEntry[]
 runCypher(query: string, params: Record<string, unknown>): CypherResult  // READ-ONLY
 
