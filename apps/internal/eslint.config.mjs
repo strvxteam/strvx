@@ -1,6 +1,7 @@
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import noNeo4jRule from "../../packages/kg/src/eslint/no-neo4j-outside-kg.js";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
@@ -16,6 +17,18 @@ const eslintConfig = defineConfig([
     ".gstack/**",
     ".context/**",
   ]),
+  {
+    plugins: {
+      kg: {
+        rules: {
+          "no-neo4j-outside-kg": noNeo4jRule,
+        },
+      },
+    },
+    rules: {
+      "kg/no-neo4j-outside-kg": "error",
+    },
+  },
 ]);
 
 export default eslintConfig;

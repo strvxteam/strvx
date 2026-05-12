@@ -21,9 +21,11 @@
     "openai": "^4.83.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.18.0",
     "@types/node": "^22",
     "@testcontainers/neo4j": "^10.13.2",
     "@testcontainers/postgresql": "^10.13.2",
+    "eslint": "^9.18.0",
     "postgres": "^3.4.8",
     "testcontainers": "^10.13.2",
     "typescript": "^5",
