@@ -12,8 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:integration": "vitest run tests/integration",
-    "lint": "eslint src tests"
+    "test:integration": "vitest run tests/integration"
   },
   "dependencies": {
     "@strvx/db": "workspace:*",
