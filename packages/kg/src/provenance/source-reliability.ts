@@ -1,0 +1,40 @@
+import type { SourceType, EntityType } from "../types.js";
+
+export const DEFAULT_SOURCE_RELIABILITY: Record<SourceType, number> = {
+  postgres: 1.0,
+  github: 0.9,
+  stripe: 0.95,
+  mercury: 0.95,
+  calendar: 0.85,
+  slack: 0.75,
+  gmail: 0.7,
+  obsidian: 0.6,
+  agent: 0.6,
+  system: 0.5,
+};
+
+export const DEFAULT_HALF_LIFE_DAYS: Record<EntityType, number> = {
+  Person: 36500,
+  Organization: 36500,
+  Role: 1825,
+  Engagement: 1825,
+  Interaction: 365,
+  Communication: 365,
+  Task: 365,
+  FinancialEvent: 1825,
+  Booking: 365,
+  Document: 1825,
+  Repository: 3650,
+  Commit: 3650,
+  PullRequest: 3650,
+  Issue: 1825,
+  CodeFile: 1825,
+  Note: 365,
+  Goal: 365,
+  MonitoredSite: 365,
+  Observation: 30,
+  Decision: 36500,
+  Plan: 90,
+  Pattern: 90,
+  SchemaProposal: 30,
+};
