@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { assertReadOnly, CypherWriteAttemptError } from "../../src/cypher/validate.js";
+import {
+  assertReadOnly,
+  CypherMalformedError,
+  CypherWriteAttemptError,
+} from "../../src/cypher/validate.js";
 
 describe("assertReadOnly", () => {
   const reads = [
@@ -8,6 +12,7 @@ describe("assertReadOnly", () => {
     "CALL db.indexes() YIELD name RETURN name",
     "RETURN 1 AS one",
     "MATCH (n) WHERE n.name CONTAINS 'CREATE' RETURN n",
+    "MATCH (n) WHERE n.name CONTAINS 'LOAD CSV' RETURN n",
     "// CREATE a comment\nMATCH (n) RETURN n",
     "/* CREATE */ MATCH (n) RETURN n",
   ];
@@ -20,6 +25,8 @@ describe("assertReadOnly", () => {
     "MATCH (n) DETACH DELETE n",
     "MATCH (n) REMOVE n.x",
     "CALL { MATCH (n) CREATE (m) RETURN m } RETURN 1",
+    "LOAD CSV FROM 'file:///etc/passwd' AS line RETURN line",
+    "load    csv from 'http://evil/x.csv' as line return line",
   ];
 
   for (const q of reads) {
@@ -32,4 +39,16 @@ describe("assertReadOnly", () => {
       expect(() => assertReadOnly(q)).toThrow(CypherWriteAttemptError);
     });
   }
+
+  it("throws CypherMalformedError on unterminated block comment", () => {
+    expect(() => assertReadOnly("/* CREATE never closes MATCH (n) RETURN n")).toThrow(
+      CypherMalformedError,
+    );
+  });
+
+  it("throws CypherMalformedError on unterminated string literal", () => {
+    expect(() => assertReadOnly("MATCH (n) WHERE n.x = 'oops CREATE RETURN n")).toThrow(
+      CypherMalformedError,
+    );
+  });
 });

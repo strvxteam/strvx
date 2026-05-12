@@ -18,13 +18,25 @@ export class CypherWriteAttemptError extends Error {
   }
 }
 
-const FORBIDDEN = ["CREATE", "MERGE", "SET", "DELETE", "REMOVE"] as const;
+export class CypherMalformedError extends Error {
+  constructor(reason: string) {
+    super(`Cypher input is malformed: ${reason}`);
+    this.name = "CypherMalformedError";
+  }
+}
+
+// LOAD CSV reads from URLs/files at the Neo4j host — disabled on Aura by default,
+// but explicit denylist protects against self-hosted Neo4j and reduces SSRF surface.
+const FORBIDDEN = ["CREATE", "MERGE", "SET", "DELETE", "REMOVE", "LOAD CSV"] as const;
 
 export function assertReadOnly(query: string): void {
   const stripped = stripLiteralsAndComments(query);
   const upper = stripped.toUpperCase();
   for (const kw of FORBIDDEN) {
-    const re = new RegExp(`\\b${kw}\\b`);
+    const pattern = kw.includes(" ")
+      ? kw.replace(/ /g, "\\s+") // allow any whitespace between multi-word keywords
+      : `\\b${kw}\\b`;
+    const re = new RegExp(pattern);
     if (re.test(upper)) {
       throw new CypherWriteAttemptError(kw, query);
     }
@@ -44,19 +56,40 @@ function stripLiteralsAndComments(q: string): string {
     // block comment: /* ... */
     if (c === "/" && q[i + 1] === "*") {
       i += 2;
-      while (i < q.length && !(q[i] === "*" && q[i + 1] === "/")) i++;
-      i += 2;
+      let closed = false;
+      while (i < q.length) {
+        if (q[i] === "*" && q[i + 1] === "/") {
+          i += 2;
+          closed = true;
+          break;
+        }
+        i++;
+      }
+      if (!closed) {
+        throw new CypherMalformedError("unterminated block comment");
+      }
       continue;
     }
     // string literals: '...' or "..." or `...` (back-ticked identifiers)
     if (c === "'" || c === '"' || c === "`") {
       const quote = c;
       i++;
-      while (i < q.length && q[i] !== quote) {
-        if (q[i] === "\\") i += 2;
-        else i++;
+      let closed = false;
+      while (i < q.length) {
+        if (q[i] === "\\") {
+          i += 2;
+          continue;
+        }
+        if (q[i] === quote) {
+          i++;
+          closed = true;
+          break;
+        }
+        i++;
       }
-      i++;
+      if (!closed) {
+        throw new CypherMalformedError("unterminated string literal");
+      }
       continue;
     }
     out += c;

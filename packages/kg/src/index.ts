@@ -36,7 +36,11 @@ export type { AuditEntry } from "./audit/writer.js";
 // Cypher (read-only escape)
 export { runCypher } from "./cypher/run.js";
 export type { CypherResult, RunCypherDeps } from "./cypher/run.js";
-export { assertReadOnly, CypherWriteAttemptError } from "./cypher/validate.js";
+export {
+  assertReadOnly,
+  CypherWriteAttemptError,
+  CypherMalformedError,
+} from "./cypher/validate.js";
 
 // Embedding
 export { createOpenAIEmbeddingProvider } from "./embedding/openai.js";
