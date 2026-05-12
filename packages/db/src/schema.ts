@@ -1196,3 +1196,86 @@ export const devSupabaseProjects = pgTable(
   },
   (t) => [index("dev_supabase_projects_repo_idx").on(t.devRepoId)],
 );
+
+// ── Knowledge Graph foundation tables ──────────────────────────────────────
+
+export const agentCredentials = pgTable("agent_credentials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agentName: text("agent_name").notNull().unique(),
+  apiKeyHash: text("api_key_hash").notNull(), // bcrypt/argon2
+  role: text("role").notNull(), // 'reader' | 'writer' | 'admin'
+  scopeEntityTypes: jsonb("scope_entity_types").$type<string[] | null>(),
+  scopeOperations: jsonb("scope_operations").$type<string[] | null>(),
+  rateLimitPerMinute: integer("rate_limit_per_minute").notNull().default(60),
+  enabled: boolean("enabled").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const kgCredentials = pgTable("kg_credentials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  sourceType: text("source_type").notNull(), // 'github' | 'gmail' | 'stripe' | 'mercury' | 'slack'
+  label: text("label").notNull(),
+  encryptedToken: text("encrypted_token").notNull(), // KMS-encrypted
+  scopeNotes: text("scope_notes"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const kgEmbeddings = pgTable(
+  "kg_embeddings",
+  {
+    nodeId: text("node_id").primaryKey(),
+    modelName: text("model_name").notNull(),
+    modelVersion: text("model_version").notNull(),
+    // 1536 dims for text-embedding-3-small. Stored as text in Drizzle today
+    // because pgvector typings are not first-class; raw SQL handles vector ops.
+    embedding: text("embedding").notNull(),
+    contentHash: text("content_hash").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    modelIdx: index("kg_embeddings_model_idx").on(t.modelName, t.modelVersion),
+  }),
+);
+
+export const kgResolverCache = pgTable(
+  "kg_resolver_cache",
+  {
+    nodeId: text("node_id").primaryKey(),
+    sourceType: text("source_type").notNull(),
+    contentRef: text("content_ref").notNull(),
+    content: text("content"),
+    contentHash: text("content_hash"),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    ttl: integer("ttl_seconds").notNull(),
+    isStale: boolean("is_stale").notNull().default(false),
+  },
+  (t) => ({
+    sourceIdx: index("kg_resolver_cache_source_idx").on(t.sourceType),
+    staleIdx: index("kg_resolver_cache_stale_idx").on(t.isStale),
+  }),
+);
+
+export const kgAuditLog = pgTable(
+  "kg_audit_log",
+  {
+    id: bigint("id", { mode: "bigint" }).primaryKey().generatedAlwaysAsIdentity(),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+    actorKind: text("actor_kind").notNull(),
+    actorId: text("actor_id").notNull(),
+    tool: text("tool").notNull(),
+    targetNodeId: text("target_node_id"),
+    targetEdgeId: text("target_edge_id"),
+    parameters: jsonb("parameters").$type<Record<string, unknown>>(),
+    resultSummary: jsonb("result_summary").$type<Record<string, unknown>>(),
+    latencyMs: integer("latency_ms"),
+    success: boolean("success").notNull(),
+    errorMessage: text("error_message"),
+  },
+  (t) => ({
+    occurredIdx: index("kg_audit_log_occurred_idx").on(t.occurredAt),
+    actorIdx: index("kg_audit_log_actor_idx").on(t.actorKind, t.actorId),
+    targetIdx: index("kg_audit_log_target_idx").on(t.targetNodeId),
+  }),
+);
