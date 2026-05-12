@@ -18,7 +18,7 @@ export { createPostgresClient } from "./client/postgres.js";
 export type { PostgresClient } from "./client/postgres.js";
 
 // Auth
-export { callerFromHeaders } from "./auth/context.js";
+export { buildAgentContext, callerFromHeaders } from "./auth/context.js";
 export { assertRole, assertWriteScope, KgAuthError } from "./auth/middleware.js";
 
 // Provenance

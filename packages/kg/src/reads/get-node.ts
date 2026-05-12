@@ -150,5 +150,9 @@ function toDate(v: unknown): Date {
   if (typeof v === "object" && v !== null && "toString" in v) {
     return new Date((v as { toString(): string }).toString());
   }
+  // Unrecognized shape — surface explicitly so a silent epoch (1970-01-01) does
+  // not poison age-decay calculations downstream. The dev console is acceptable
+  // for this rare branch; callers higher up audit the read.
+  console.warn(`[@strvx/kg] toDate: unrecognized value shape (typeof=${typeof v}); falling back to epoch`);
   return new Date(0);
 }
