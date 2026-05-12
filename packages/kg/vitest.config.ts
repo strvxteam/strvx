@@ -43,5 +43,11 @@ export default defineConfig({
       exclude: ["src/testing/**", "src/eslint/**"],
     },
     testTimeout: 60_000,
+    // Integration tests spin up Neo4j + Postgres containers per file. Running
+    // them in parallel exhausts Colima resources and trips testcontainers wait
+    // strategies. Force serial execution so each file gets the full VM to itself.
+    fileParallelism: false,
+    pool: "forks",
+    poolOptions: { forks: { singleFork: true } },
   },
 });
