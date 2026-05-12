@@ -12,6 +12,7 @@ import {
   pgEnum,
   index,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 // ── Enums ──────────────────────────────────────────────
@@ -1257,10 +1258,15 @@ export const kgResolverCache = pgTable(
   }),
 );
 
+// Note: physical table is partitioned by month on occurred_at (see migration
+// 0009_kg_foundation.sql). Composite primary key (id, occurred_at) reflects the
+// Postgres requirement that the partition key be part of any unique constraint.
+// Drizzle does not model PARTITION BY directly; the migration is the source of
+// truth for partitioning DDL.
 export const kgAuditLog = pgTable(
   "kg_audit_log",
   {
-    id: bigint("id", { mode: "bigint" }).primaryKey().generatedAlwaysAsIdentity(),
+    id: bigint("id", { mode: "bigint" }).generatedAlwaysAsIdentity(),
     occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
     actorKind: text("actor_kind").notNull(),
     actorId: text("actor_id").notNull(),
@@ -1274,6 +1280,7 @@ export const kgAuditLog = pgTable(
     errorMessage: text("error_message"),
   },
   (t) => ({
+    pk: primaryKey({ columns: [t.id, t.occurredAt] }),
     occurredIdx: index("kg_audit_log_occurred_idx").on(t.occurredAt),
     actorIdx: index("kg_audit_log_actor_idx").on(t.actorKind, t.actorId),
     targetIdx: index("kg_audit_log_target_idx").on(t.targetNodeId),
