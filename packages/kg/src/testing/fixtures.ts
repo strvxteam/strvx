@@ -1,9 +1,28 @@
 import type { Node, Provenance } from "../types.js";
 
-// Filled in by Task 5 once types exist; for harness self-test we don't need fixtures yet.
-export const POSTGRES_PROVENANCE_SAMPLE: Pick<Provenance, "source_type" | "extraction_method"> = {
-  source_type: "postgres",
-  extraction_method: "cdc",
-};
+export function makeProvenance(overrides: Partial<Provenance> = {}): Provenance {
+  const now = new Date();
+  return {
+    source_type: "postgres",
+    source_id: "pg:test:1",
+    source_record_id: "1",
+    extraction_method: "cdc",
+    extracted_at: now,
+    last_validated_at: now,
+    validation_count: 1,
+    confidence: 1,
+    trust_score: 1,
+    created_by: "test",
+    ...overrides,
+  };
+}
 
-export type _FixturesPlaceholderUntilTask5 = Node;
+export function makePersonNode(overrides: Partial<Node> = {}): Node {
+  return {
+    id: "postgres:contact:1",
+    type: "Person",
+    properties: { name: "Test Person", email: "t@example.com" },
+    provenance: makeProvenance(),
+    ...overrides,
+  };
+}
