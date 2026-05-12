@@ -10,7 +10,15 @@ export class KgAuthError extends Error {
 const ROLE_RANK: Record<Role, number> = { reader: 0, writer: 1, admin: 2 };
 
 export function assertRole(ctx: AgentContext, minRole: Role): void {
-  if (ROLE_RANK[ctx.role] < ROLE_RANK[minRole]) {
+  const actorRank = ROLE_RANK[ctx.role];
+  if (actorRank === undefined) {
+    // Unknown role string slipped past the type system (e.g., from external
+    // claims). Reject explicitly instead of silently treating as 'reader'.
+    throw new KgAuthError(
+      `actor ${ctx.actorId} has unknown role '${ctx.role}'`,
+    );
+  }
+  if (actorRank < ROLE_RANK[minRole]) {
     throw new KgAuthError(
       `actor ${ctx.actorId} has role '${ctx.role}', needs at least '${minRole}'`,
     );

@@ -54,7 +54,9 @@ describe("getAuditLog", () => {
   it("respects opts.limit default of 100", async () => {
     const sql = makeSql([]);
     await getAuditLog({ sql, ctx: readerCtx }, "n1");
-    expect(sql).toHaveBeenCalledOnce();
+    // Two calls expected: the SELECT for the audit query, plus the
+    // self-audit INSERT into kg_audit_log written by the audit envelope.
+    expect(sql).toHaveBeenCalledTimes(2);
   });
 
   it("accepts custom opts.limit and opts.since", async () => {
@@ -63,16 +65,22 @@ describe("getAuditLog", () => {
       limit: 10,
       since: new Date("2025-06-01"),
     });
-    expect(sql).toHaveBeenCalledOnce();
+    // Two calls expected: the SELECT for the audit query, plus the
+    // self-audit INSERT into kg_audit_log written by the audit envelope.
+    expect(sql).toHaveBeenCalledTimes(2);
   });
 
-  it("throws KgAuthError when caller is below reader", async () => {
-    const noPerms: AgentContext = { actorKind: "agent", actorId: "a0", role: "reader" };
-    // reader is the minimum for getAuditLog; override role to something lower by
-    // exploiting the rank map — we can't go below reader with the type, so instead
-    // directly test that a reader context does NOT throw:
+  it("throws KgAuthError for an unknown role string", async () => {
+    // The Role type is "reader" | "writer" | "admin". Cast through unknown to
+    // exercise the ROLE_RANK lookup miss — the function must reject anything
+    // not in the rank map, not silently allow it.
+    const bogusCtx = {
+      actorKind: "agent",
+      actorId: "a0",
+      role: "guest" as unknown as AgentContext["role"],
+    } as AgentContext;
     const sql = makeSql([]);
-    await expect(getAuditLog({ sql, ctx: noPerms }, "n1")).resolves.toEqual([]);
+    await expect(getAuditLog({ sql, ctx: bogusCtx }, "n1")).rejects.toThrow();
   });
 
   it("maps rows with null latency and null parameters", async () => {
