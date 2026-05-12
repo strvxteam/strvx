@@ -22,9 +22,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
-    "@types/node": "^22",
     "@testcontainers/neo4j": "^10.13.2",
     "@testcontainers/postgresql": "^10.13.2",
+    "@types/node": "^22",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.18.0",
     "postgres": "^3.4.8",
     "testcontainers": "^10.13.2",
