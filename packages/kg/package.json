@@ -18,7 +18,8 @@
   "dependencies": {
     "@strvx/db": "workspace:*",
     "neo4j-driver": "^5.27.0",
-    "openai": "^4.83.0"
+    "openai": "^4.83.0",
+    "postgres": "^3.4.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
@@ -27,7 +28,6 @@
     "@types/node": "^22",
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.18.0",
-    "postgres": "^3.4.8",
     "testcontainers": "^10.13.2",
     "typescript": "^5",
     "vitest": "^2.1.5"

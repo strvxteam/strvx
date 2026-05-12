@@ -47,6 +47,7 @@ export async function getEntityContext(
         MATCH (center {id: $id})
         OPTIONAL MATCH p = (center)-[*1..${depth}]-(neighbor)
         WHERE all(rel IN relationships(p) WHERE coalesce(rel.prov_trust_score, 0) >= $minTrust)
+          AND coalesce(neighbor.prov_trust_score, 0) >= $minTrust
           AND ($types IS NULL OR neighbor.type IN $types)
         WITH center, collect(DISTINCT neighbor) AS neighbors, collect(DISTINCT p) AS paths
         RETURN center, labels(center) AS centerLabels,

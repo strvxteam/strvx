@@ -111,7 +111,8 @@ describe("traverse", () => {
     const client = makeNeoClient([]);
     await expect(
       traverse({ client, sql: makeSql(), ctx: readerCtx }, "pg:1", {
-        relationshipTypes: ["WORKS_AT; DROP TABLE"],
+        // intentional injection attempt — cast through unknown since the union excludes it
+        relationshipTypes: ["WORKS_AT; DROP TABLE" as unknown as "WORKS_AT"],
       }),
     ).rejects.toThrow("invalid relationship type identifier");
   });

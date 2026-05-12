@@ -16,6 +16,7 @@ export interface FindSimilarDeps {
 export interface FindSimilarOptions {
   scope?: EntityType[];
   limit?: number;
+  minTrust?: number;
 }
 
 export interface SimilarEntity {
@@ -30,6 +31,7 @@ export async function findSimilar(
 ): Promise<SimilarEntity[]> {
   assertRole(deps.ctx, "reader");
   const limit = opts.limit ?? 10;
+  const minTrust = opts.minTrust ?? 0.3;
   const start = Date.now();
   try {
     const row = await deps.sql<Array<{ embedding: string }>>`
@@ -62,10 +64,11 @@ export async function findSimilar(
         `
         MATCH (n)
         WHERE n.id IN $ids
-          ${opts.scope && opts.scope.length > 0 ? "AND n.type IN $scope" : ""}
+          AND coalesce(n.prov_trust_score, 0) >= $minTrust
+          AND ($scope IS NULL OR n.type IN $scope)
         RETURN n, labels(n) AS labels
         `,
-        { ids, scope: opts.scope ?? null },
+        { ids, scope: opts.scope ?? null, minTrust },
       );
       const byId = new Map<string, Node>();
       for (const rec of r.records) {

@@ -18,6 +18,8 @@ export interface TraversalPattern {
   relationshipTypes?: RelationshipType[];
   direction?: "incoming" | "outgoing" | "any";
   maxDepth?: number;
+  minTrust?: number;
+  limit?: number;
 }
 
 export interface TraversalResult {
@@ -33,6 +35,8 @@ export async function traverse(
   assertRole(deps.ctx, "reader");
   const dir = pattern.direction ?? "any";
   const depth = Math.max(1, Math.min(4, pattern.maxDepth ?? 2));
+  const minTrust = pattern.minTrust ?? 0.3;
+  const limit = Math.max(1, Math.min(1000, pattern.limit ?? 100));
   const relTypes = pattern.relationshipTypes ?? [];
   // relationshipTypes is interpolated (Cypher cannot parameterize :REL_TYPE).
   // Validate types are bare identifiers to prevent injection.
@@ -44,15 +48,16 @@ export async function traverse(
   const relPart = relTypes.length > 0 ? `:${relTypes.join("|")}` : "";
   const start = Date.now();
   let cypher: string;
+  const tail = ` WHERE coalesce(n.prov_trust_score, 0) >= $minTrust AND all(rel IN r WHERE coalesce(rel.prov_trust_score, 0) >= $minTrust) RETURN r, n, labels(n) AS labels LIMIT toInteger($limit)`;
   if (dir === "outgoing")
-    cypher = `MATCH (s {id:$id})-[r${relPart}*1..${depth}]->(n) RETURN r, n, labels(n) AS labels`;
+    cypher = `MATCH (s {id:$id})-[r${relPart}*1..${depth}]->(n)${tail}`;
   else if (dir === "incoming")
-    cypher = `MATCH (s {id:$id})<-[r${relPart}*1..${depth}]-(n) RETURN r, n, labels(n) AS labels`;
+    cypher = `MATCH (s {id:$id})<-[r${relPart}*1..${depth}]-(n)${tail}`;
   else
-    cypher = `MATCH (s {id:$id})-[r${relPart}*1..${depth}]-(n) RETURN r, n, labels(n) AS labels`;
+    cypher = `MATCH (s {id:$id})-[r${relPart}*1..${depth}]-(n)${tail}`;
   try {
     const result = await deps.client.read(async (tx) => {
-      const r = await tx.run(cypher, { id: startId });
+      const r = await tx.run(cypher, { id: startId, minTrust, limit });
       const nodes = new Map<string, Node>();
       const edges = new Map<string, Edge>();
       for (const rec of r.records) {
