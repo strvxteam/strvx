@@ -36,6 +36,8 @@ import {
   Server,
   Activity,
   Database,
+  Inbox,
+  Sparkles,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -121,6 +123,13 @@ const navSections: NavSection[] = [
           { href: "/skills/agents", label: "Agents", icon: Bot },
         ],
       },
+    ],
+  },
+  {
+    label: "AI",
+    icon: Sparkles,
+    items: [
+      { href: "/agent-inbox", label: "Inbox", icon: Inbox },
     ],
   },
 ];
