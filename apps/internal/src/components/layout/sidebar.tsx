@@ -131,6 +131,7 @@ const navSections: NavSection[] = [
     icon: Sparkles,
     items: [
       { href: "/agent-inbox", label: "Inbox", icon: Inbox },
+      { href: "/agent/brief", label: "Brief", icon: Sparkles },
       { href: "/agent/drafts", label: "Drafts", icon: FileText },
       { href: "/agent/connect-mailbox", label: "Connect mailbox", icon: Mail },
     ],
