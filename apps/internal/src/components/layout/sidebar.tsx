@@ -133,6 +133,7 @@ const navSections: NavSection[] = [
       { href: "/agent-inbox", label: "Inbox", icon: Inbox },
       { href: "/agent/brief", label: "Brief", icon: Sparkles },
       { href: "/agent/drafts", label: "Drafts", icon: FileText },
+      { href: "/agent/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/agent/connect-mailbox", label: "Connect mailbox", icon: Mail },
     ],
   },

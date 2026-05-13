@@ -5,6 +5,9 @@ import { z } from "zod";
 import { db, emailDrafts, emailThreads, users } from "@strvx/db";
 import { createClient } from "@/lib/supabase/server";
 import { gmailSend } from "@/trigger/gmail-send";
+import { calendarEventCreate } from "@/trigger/calendar-event-create";
+import { calendarEventUpdate } from "@/trigger/calendar-event-update";
+import { calendarEventDelete } from "@/trigger/calendar-event-delete";
 import {
   approveScheduleAndSendImpl,
   rejectScheduleSlotsImpl,
@@ -250,15 +253,19 @@ export async function approveScheduleAndSend(
         await gmailSend.trigger({ draftId });
       },
       dispatchCalendar: async (kind, proposalId) => {
-        // TODO(chief-of-staff slice 7+): wire calendarEventCreate /
-        // calendarEventUpdate / calendarEventDelete Trigger.dev tasks
-        // here once they are ported. Until then this is a no-op so the
-        // approve-and-send flow still succeeds end-to-end on the email
-        // side.
-        console.log(
-          "[agent-inbox] calendar dispatcher not implemented yet",
-          { kind, proposalId }
-        );
+        if (kind === "new_meeting") {
+          await calendarEventCreate.trigger({
+            schedulingProposalId: proposalId,
+          });
+        } else if (kind === "reschedule") {
+          await calendarEventUpdate.trigger({
+            schedulingProposalId: proposalId,
+          });
+        } else {
+          await calendarEventDelete.trigger({
+            schedulingProposalId: proposalId,
+          });
+        }
       },
     }
   );
