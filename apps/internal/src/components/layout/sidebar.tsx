@@ -40,6 +40,7 @@ import {
   Mail,
   Sparkles,
   BellRing,
+  Settings,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -136,6 +137,7 @@ const navSections: NavSection[] = [
       { href: "/agent/drafts", label: "Drafts", icon: FileText },
       { href: "/agent/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/agent/follow-ups", label: "Follow-ups", icon: BellRing },
+      { href: "/agent/settings", label: "Settings", icon: Settings },
       { href: "/agent/connect-mailbox", label: "Connect mailbox", icon: Mail },
     ],
   },
