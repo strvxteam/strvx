@@ -1,69 +1,97 @@
-import type { Metadata } from "next";
-import { Inbox, Sparkles } from "lucide-react";
+import { ThreadListPane } from "./_components/thread-list-pane";
+import { ThreadDetailPane } from "./_components/thread-detail-pane";
+import { KeyboardShortcuts } from "./_components/keyboard-shortcuts";
+import {
+  fetchActiveMailboxes,
+  fetchThreadsForInbox,
+  fetchThreadLabels,
+  fetchTopLabels,
+  type Filter,
+  type Sort,
+} from "./_queries";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Agent Inbox" };
 
-export default function AgentInboxPage() {
+type SearchParams = Promise<{
+  thread?: string;
+  filter?: string;
+  sort?: string;
+  mailbox?: string;
+}>;
+
+const VALID_FILTERS: Filter[] = [
+  "all",
+  "unread",
+  "needs_you",
+  "drafted",
+  "stale",
+  "snoozed",
+  "archived",
+];
+const VALID_SORTS: Sort[] = ["priority", "recent"];
+
+export default async function AgentInboxPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const selectedThreadId = params.thread;
+  const filter = VALID_FILTERS.includes(params.filter as Filter)
+    ? (params.filter as Filter)
+    : "all";
+  const sort = VALID_SORTS.includes(params.sort as Sort)
+    ? (params.sort as Sort)
+    : "priority";
+
+  const mailboxes = await fetchActiveMailboxes();
+  const requestedMailboxId = params.mailbox;
+  const mailboxId =
+    requestedMailboxId && mailboxes.some((m) => m.id === requestedMailboxId)
+      ? requestedMailboxId
+      : undefined;
+
+  const threads = await fetchThreadsForInbox({ filter, sort, mailboxId });
+  const threadIds = threads.map((t) => t.id);
+
+  // For the label menu (`l` shortcut): top suggested labels + the selected
+  // thread's current labels. Both queries are cheap and run in parallel.
+  const [topLabels, selectedThreadLabels] = await Promise.all([
+    fetchTopLabels(5),
+    selectedThreadId ? fetchThreadLabels(selectedThreadId) : Promise.resolve<string[]>([]),
+  ]);
+
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111" }}>Agent Inbox</h1>
-          <p style={{ fontSize: 13, color: "#888", marginTop: 2 }}>
-            Triage, drafts, scheduling — assisted by the Chief-of-Staff agent.
-          </p>
-        </div>
-      </div>
-
-      <div
-        style={{
-          borderRadius: 10,
-          border: "1px solid #e0e0e0",
-          padding: 32,
-          background: "#fff",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          textAlign: "center",
-          gap: 12,
-        }}
+    <div
+      className="flex h-full min-h-0 w-full"
+      style={{ background: "#f8f8f8" }}
+    >
+      {/* Left: thread list */}
+      <aside
+        className="flex shrink-0 flex-col overflow-hidden border-r"
+        style={{ width: 320, borderColor: "#e0e0e0", background: "#ffffff" }}
       >
-        <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            background: "#f5f5f5",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Inbox size={20} color="#888" strokeWidth={1.5} />
-        </div>
-        <h2 style={{ fontSize: 16, fontWeight: 600, color: "#222" }}>
-          Inbox shell — wiring up
-        </h2>
-        <p style={{ fontSize: 13, color: "#888", maxWidth: 480, lineHeight: 1.5 }}>
-          The Chief-of-Staff agent's schema is live (15 tables) and the route
-          shell renders. Thread list, classifier, drafts, brief, calendar
-          coordination, follow-ups, and analytics land in subsequent slices.
-        </p>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            marginTop: 4,
-            fontSize: 12,
-            color: "#666",
-          }}
-        >
-          <Sparkles size={13} strokeWidth={1.5} />
-          Next: connect a mailbox, then port the ingest pipeline.
-        </div>
-      </div>
+        <ThreadListPane
+          threads={threads}
+          filter={filter}
+          sort={sort}
+          selectedThreadId={selectedThreadId}
+          mailboxes={mailboxes}
+          activeMailboxId={mailboxId}
+        />
+      </aside>
+
+      {/* Right: thread detail */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <ThreadDetailPane threadId={selectedThreadId} />
+      </main>
+
+      <KeyboardShortcuts
+        threadIds={threadIds}
+        topLabels={topLabels}
+        selectedThreadLabels={selectedThreadLabels}
+        selectedThreadId={selectedThreadId}
+      />
     </div>
   );
 }
