@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { CommandPalette } from "@/components/agent/command-palette";
+import { fetchDisconnectedMailboxes } from "../_disconnect-check";
+import { DisconnectBanner } from "../_disconnect-banner";
 
 /**
  * Admin gate for /agent/* pages. Restricts to authenticated @strvx.com.
  * Inherits sidebar/topbar from the parent (app) layout.
- *
- * Note: the source repo also renders a CommandPalette + DisconnectBanner here.
- * Those depend on components not yet ported to apps/internal — they'll be
- * added in a later slice when the agent inbox UI lands.
  */
 export default async function AgentLayout({
   children,
@@ -23,5 +22,13 @@ export default async function AgentLayout({
     redirect("/login");
   }
 
-  return <>{children}</>;
+  const disconnected = await fetchDisconnectedMailboxes();
+
+  return (
+    <>
+      <DisconnectBanner mailboxes={disconnected} />
+      {children}
+      <CommandPalette />
+    </>
+  );
 }
