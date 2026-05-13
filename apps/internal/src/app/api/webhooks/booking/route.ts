@@ -11,6 +11,8 @@ import {
   users,
 } from "@/lib/db/schema";
 import { eq, ilike } from "drizzle-orm";
+import { agentSchedulingFollowup } from "@/trigger/agent-scheduling-followup";
+import { schedulePostMeetingWatcher } from "@/lib/agent/follow-up/schedule-post-meeting";
 
 // ── Payload validation ────────────────────────────────────
 const bookingPayloadSchema = z.object({
@@ -89,6 +91,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 5. Create records inside a transaction
+  let createdEngagementId: string | null = null;
   try {
     await db.transaction(async (tx) => {
       // --- Company: find or create ---
@@ -155,6 +158,7 @@ export async function POST(request: NextRequest) {
           source: "booking_webhook",
         })
         .returning();
+      createdEngagementId = engagement.id;
 
       // --- Stage history ---
       await tx.insert(stageHistory).values({
@@ -172,6 +176,48 @@ export async function POST(request: NextRequest) {
         scheduledAt: new Date(payload.startTime),
       });
     });
+
+    // 6. Agent extension (gated by AGENT_INGEST_ENABLED). Failures here must
+    //    never fail the webhook — the booking record is already persisted.
+    if (
+      createdEngagementId &&
+      process.env.AGENT_INGEST_ENABLED === "true"
+    ) {
+      const engagementId = createdEngagementId;
+      try {
+        await agentSchedulingFollowup.trigger(
+          {
+            engagementId,
+            contactEmail: payload.clientEmail,
+            startTime: payload.startTime,
+            endTime: payload.endTime,
+            meetLink: payload.meetLink,
+            bookingId: payload.bookingId,
+          },
+          { idempotencyKey: `booking-${payload.bookingId}` }
+        );
+      } catch (extErr) {
+        console.error(
+          "[booking-webhook] agent.scheduling.followup enqueue failed",
+          extErr instanceof Error ? extErr.message : extErr
+        );
+      }
+
+      try {
+        await schedulePostMeetingWatcher({
+          db,
+          calendarEventId: `booking:${payload.bookingId}`,
+          engagementId,
+          threadId: null,
+          eventEndAt: payload.endTime,
+        });
+      } catch (watcherErr) {
+        console.error(
+          "[booking-webhook] schedulePostMeetingWatcher failed",
+          watcherErr instanceof Error ? watcherErr.message : watcherErr
+        );
+      }
+    }
 
     return Response.json({ ok: true }, { status: 200 });
   } catch (err: unknown) {
