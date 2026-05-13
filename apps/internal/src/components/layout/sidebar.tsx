@@ -41,6 +41,7 @@ import {
   Sparkles,
   BellRing,
   Settings,
+  BarChart3,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -138,6 +139,7 @@ const navSections: NavSection[] = [
       { href: "/agent/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/agent/follow-ups", label: "Follow-ups", icon: BellRing },
       { href: "/agent/settings", label: "Settings", icon: Settings },
+      { href: "/agent/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/agent/connect-mailbox", label: "Connect mailbox", icon: Mail },
     ],
   },
