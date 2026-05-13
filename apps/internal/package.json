@@ -9,6 +9,10 @@
     "lint": "eslint",
     "db:seed": "tsx scripts/seed.ts",
     "db:rls": "tsx scripts/apply-rls.ts",
+    "agent:seed": "tsx --env-file-if-exists=.env.local scripts/seed-agent-demo.ts",
+    "agent:smoke": "tsx --env-file-if-exists=.env.local scripts/agent-smoke.ts",
+    "agent:backfill-links": "tsx --env-file-if-exists=.env.local scripts/backfill-engagement-links.ts",
+    "agent:test-rls": "tsx --env-file-if-exists=.env.local scripts/test-rls.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
