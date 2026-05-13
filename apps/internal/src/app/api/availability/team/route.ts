@@ -56,6 +56,11 @@ const TEAM_ALIASES = new Set<string>([
 
 const ALEX_SUMMARY_PATTERNS = ["alex"];
 const NICK_SUMMARY_PATTERNS = ["nick", "nicolas"];
+// Calendars owned/named for the team (e.g. "Strvx Bookings"). Events appear
+// on BOTH members' columns. We deliberately do NOT include generic words like
+// "team" — calendars unrelated to strvx (e.g. "Team USA basketball") would
+// match and pollute both columns.
+const TEAM_SUMMARY_PATTERNS = ["strvx"];
 
 export const TEAM_MEMBERS = [
   { email: "alex@strvx.com", name: "Alex", color: "#1a73e8" },
@@ -93,13 +98,18 @@ export type TeamAvailabilityResponse = {
   members: TeamMemberAvailability[];
   currentUserEmail: string | null;
   // Server diagnostic — list of visible calendars and how each was classified.
-  // Useful for adding new side calendars to the env alias lists.
-  calendars?: { id: string; summary: string; primary: boolean; accessRole: string; owner: MemberKey | "team" }[];
+  // Useful for adding new side calendars to the env alias lists. "skip" =
+  // calendar visible to strvxteam but not attributed to anyone (holidays etc.).
+  calendars?: { id: string; summary: string; primary: boolean; accessRole: string; owner: MemberKey | "team" | "skip" }[];
 };
 
 // ── Calendar classification ───────────────────────────────────────────────────
 
-type CalendarOwner = MemberKey | "team";
+// "skip" = the strvxteam account has this calendar in its list but it's not
+// owned/shared by anyone on the team (holiday subs, weather, sports, random
+// third-party shares). These get filtered out so they DON'T double-render
+// across both members' columns.
+type CalendarOwner = MemberKey | "team" | "skip";
 
 function classifyCalendar(cal: {
   id?: string | null;
@@ -110,27 +120,33 @@ function classifyCalendar(cal: {
   const id = (cal.id ?? "").toLowerCase();
   const summary = (cal.summary ?? "").toLowerCase();
   const summaryOverride = (cal.summaryOverride ?? "").toLowerCase();
+  const effectiveName = summaryOverride || summary;
 
   // 1. Calendar id alias match (handles shared primaries where id === owner's email)
   if (id && ALEX_ALIASES.has(id)) return "alex";
   if (id && NICK_ALIASES.has(id)) return "nick";
+  if (id && TEAM_ALIASES.has(id)) return "team";
 
   // 2. Strvxteam's own primary calendar — events that live on it are SHARED.
   if (cal.primary === true) return "team";
-  if (id && TEAM_ALIASES.has(id)) return "team";
 
   // 3. Summary name match (for side calendars with hash IDs).
   // Check summaryOverride first since the team account might have renamed it locally.
-  const effectiveName = summaryOverride || summary;
   for (const p of ALEX_SUMMARY_PATTERNS) {
     if (effectiveName.includes(p)) return "alex";
   }
   for (const p of NICK_SUMMARY_PATTERNS) {
     if (effectiveName.includes(p)) return "nick";
   }
+  for (const p of TEAM_SUMMARY_PATTERNS) {
+    if (effectiveName.includes(p)) return "team";
+  }
 
-  // 4. Default — visible to both
-  return "team";
+  // 4. Default — SKIP. Unclassified calendars (holidays, birthdays, weather,
+  // sports subscriptions, random 3rd-party shares) would otherwise appear on
+  // BOTH columns under a "team" fallback. Add an explicit alias via
+  // AVAILABILITY_{ALEX,NICK,TEAM}_CALENDAR_IDS to opt one in.
+  return "skip";
 }
 
 // ── Google Calendar fetch ─────────────────────────────────────────────────────
@@ -213,25 +229,29 @@ async function fetchAllVisibleEvents(
         .join("\n"),
   );
 
-  // Fetch events from each calendar in parallel.
+  // Fetch events ONLY from calendars classified as alex/nick/team. Skipping
+  // unclassified calendars (e.g. holiday subscriptions) avoids both wasted
+  // API calls AND the "appears on both columns" doubling bug.
   const perCalendar = await Promise.all(
-    classifiedCals.map(async (cal) => {
-      try {
-        const res = await calendar.events.list({
-          calendarId: cal.id,
-          timeMin,
-          timeMax,
-          singleEvents: true,
-          orderBy: "startTime",
-          maxResults: 250,
-        });
-        const items = res.data.items ?? [];
-        return { cal, items };
-      } catch (err) {
-        console.error(`[team/availability] events.list failed for ${cal.id}:`, err);
-        return { cal, items: [] };
-      }
-    }),
+    classifiedCals
+      .filter((cal) => cal.owner !== "skip")
+      .map(async (cal) => {
+        try {
+          const res = await calendar.events.list({
+            calendarId: cal.id,
+            timeMin,
+            timeMax,
+            singleEvents: true,
+            orderBy: "startTime",
+            maxResults: 250,
+          });
+          const items = res.data.items ?? [];
+          return { cal, items };
+        } catch (err) {
+          console.error(`[team/availability] events.list failed for ${cal.id}:`, err);
+          return { cal, items: [] };
+        }
+      }),
   );
 
   // Flatten into ClassifiedEvent[]. We DO NOT dedup here — a single Google
@@ -321,6 +341,9 @@ export async function GET(req: NextRequest) {
   }
 
   // Split events by owner. Team-classified events go on BOTH columns.
+  // "skip" events should already be filtered out at fetch time, but we guard
+  // again here so a future refactor that drops the fetch-time filter doesn't
+  // accidentally re-introduce the doubling bug.
   const alexEvents: ClassifiedEvent[] = [];
   const nickEvents: ClassifiedEvent[] = [];
   for (const evt of fetched.events) {
@@ -328,11 +351,11 @@ export async function GET(req: NextRequest) {
       alexEvents.push(evt);
     } else if (evt.owner === "nick") {
       nickEvents.push(evt);
-    } else {
-      // team-shared — visible to both
+    } else if (evt.owner === "team") {
       alexEvents.push(evt);
       nickEvents.push(evt);
     }
+    // owner === "skip" → ignored
   }
 
   // Per-member dedup by uidKey (handles the case where the same event appears
