@@ -4,7 +4,7 @@ import { estimateCostUsd } from "../classify/classify";
 import { getOpenAI, MODELS } from "../openai-client";
 import { assembleBriefInputs, todayInPT } from "./inputs";
 import { buildBriefPrompt } from "./prompt";
-// TODO(slice-4): wire Sentry breadcrumb when apps/internal/src/trigger/_sentry.ts lands.
+import { recordCosRunFailedBreadcrumb } from "@/trigger/_sentry";
 
 export type GenerateDailyBriefInput = {
   db: typeof DbType;
@@ -70,7 +70,7 @@ export async function generateDailyBrief(
     runStatus = "failed";
     errorMessage = err instanceof Error ? err.message : String(err);
     const completedAt = new Date();
-    await db
+    const [failedRun] = await db
       .insert(cosRuns)
       .values({
         kind: "brief",
@@ -86,7 +86,11 @@ export async function generateDailyBrief(
         metadata: { date },
       })
       .returning({ id: cosRuns.id });
-    // TODO(slice-4): wire Sentry breadcrumb here once trigger/_sentry.ts lands.
+    recordCosRunFailedBreadcrumb({
+      taskId: "agent.brief.generate",
+      cosRunId: failedRun.id,
+      reason: errorMessage,
+    });
     throw err;
   }
 

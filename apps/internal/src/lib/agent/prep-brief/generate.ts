@@ -12,7 +12,7 @@ import {
 import { estimateCostUsd } from "../classify/classify";
 import { getOpenAI, MODELS } from "../openai-client";
 import type { PrepEvent } from "./select-events";
-// TODO(slice-4): wire Sentry breadcrumb when apps/internal/src/trigger/_sentry.ts lands.
+import { recordCosRunFailedBreadcrumb } from "@/trigger/_sentry";
 
 export type GeneratePrepBriefInput = {
   db: typeof DbType;
@@ -92,7 +92,7 @@ export async function generatePrepBriefForEvent(
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const completedAt = new Date();
-    await db
+    const [failedRun] = await db
       .insert(cosRuns)
       .values({
         kind: "prep_brief",
@@ -110,7 +110,12 @@ export async function generatePrepBriefForEvent(
         metadata: { calendarEventId },
       })
       .returning({ id: cosRuns.id });
-    // TODO(slice-4): wire Sentry breadcrumb here once trigger/_sentry.ts lands.
+    recordCosRunFailedBreadcrumb({
+      taskId: "agent.prep-brief.generate",
+      cosRunId: failedRun.id,
+      mailboxId,
+      reason: errorMessage,
+    });
     throw err;
   }
 

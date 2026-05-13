@@ -16,7 +16,7 @@ import {
 } from "./schema";
 import { buildClassificationPrompt } from "./prompt";
 import { detectStageAdvancementSignal } from "../stage-advancement/detect";
-// TODO(slice-4): wire Sentry breadcrumb when apps/internal/src/trigger/_sentry.ts lands.
+import { recordCosRunFailedBreadcrumb } from "@/trigger/_sentry";
 
 /**
  * OpenAI strict JSON-schema mode requires additionalProperties:false on every
@@ -187,7 +187,7 @@ export async function classifyMessage(
     errorMessage = err instanceof Error ? err.message : String(err);
     // Re-throw after recording the failed cos_run.
     const completedAt = new Date();
-    await db
+    const [failedRun] = await db
       .insert(cosRuns)
       .values({
         kind: "classify",
@@ -206,7 +206,13 @@ export async function classifyMessage(
         metadata: { rawOutput },
       })
       .returning({ id: cosRuns.id });
-    // TODO(slice-4): wire Sentry breadcrumb here once trigger/_sentry.ts lands.
+    recordCosRunFailedBreadcrumb({
+      taskId: "agent.classify.message",
+      cosRunId: failedRun.id,
+      mailboxId: thread.mailboxId,
+      threadId: thread.id,
+      reason: errorMessage,
+    });
     throw err;
   }
 

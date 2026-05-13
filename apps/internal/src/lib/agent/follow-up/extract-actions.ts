@@ -10,7 +10,7 @@ import {
 } from "@strvx/db";
 import { estimateCostUsd, makeStrict } from "../classify/classify";
 import { getOpenAI, MODELS } from "../openai-client";
-// TODO(slice-4): wire Sentry breadcrumb when apps/internal/src/trigger/_sentry.ts lands.
+import { recordCosRunFailedBreadcrumb } from "@/trigger/_sentry";
 
 export const extractedActionSchema = z.object({
   description: z.string().min(1).max(500),
@@ -153,7 +153,7 @@ export async function extractActionsFromNotes(
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const completedAt = new Date();
-    await db
+    const [failedRun] = await db
       .insert(cosRuns)
       .values({
         kind: "extract_actions",
@@ -174,7 +174,12 @@ export async function extractActionsFromNotes(
         },
       })
       .returning({ id: cosRuns.id });
-    // TODO(slice-4): wire Sentry breadcrumb here once trigger/_sentry.ts lands.
+    recordCosRunFailedBreadcrumb({
+      taskId: "agent.follow-up.extract-actions",
+      cosRunId: failedRun.id,
+      mailboxId: input.mailboxId ?? undefined,
+      reason: errorMessage,
+    });
     throw err;
   }
 
