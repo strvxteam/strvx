@@ -7,6 +7,7 @@ import {
 import { classifyMessage } from "@/lib/agent/classify/classify";
 import { eq } from "drizzle-orm";
 import { reportTaskError } from "./_sentry";
+import { agentPlanThread } from "./agent-plan-thread";
 
 export const agentClassifyMessage = task({
   id: "agent.classify.message",
@@ -57,13 +58,11 @@ export const agentClassifyMessage = task({
           .where(eq(emailMessages.id, payload.messageId))
           .limit(1);
         if (msg) {
-          // TODO(slice-5): trigger agentPlanThread once plan-thread.ts is
-          // ported (see apps/internal/src/lib/agent/reasoning/PLAN_THREAD_TODO.md).
-          // For now we just record that the planner would have fired.
-          logger.info("Would enqueue planner (deferred to slice 5)", {
+          logger.info("Enqueuing planner", {
             messageId: payload.messageId,
             threadId: msg.threadId,
           });
+          await agentPlanThread.trigger({ threadId: msg.threadId });
         }
       }
 
