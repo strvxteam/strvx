@@ -1,39 +1,11 @@
+import type { ParsedMessage } from "../gmail/fetch-message";
+
 /**
- * Local copy of the subset of ParsedMessage fields this prompt builder consumes.
- * The Gmail fetch helper that produces the full ParsedMessage type is wired in
- * a later slice; until then we keep the shape co-located here so callsites
- * (classify.ts) can construct it directly from email_messages rows.
+ * Re-export the canonical ParsedMessage type under the historical alias so
+ * existing callsites continue to compile. The Gmail fetch helper that
+ * produces this shape lives in `../gmail/fetch-message`.
  */
-export type ClassificationParsedMessage = {
-  gmailMessageId: string;
-  gmailHistoryId?: string;
-  gmailThreadId: string;
-  messageIdHeader?: string;
-  inReplyToHeader?: string;
-  referencesHeader?: string;
-  fromEmail: string;
-  fromName?: string;
-  toEmails: string[];
-  ccEmails: string[];
-  bccEmails: string[];
-  subject?: string;
-  bodyText?: string;
-  bodyHtml?: string;
-  snippet?: string;
-  direction: "inbound" | "outbound";
-  sentAt: Date;
-  labels: string[];
-  isUnread: boolean;
-  isStarred: boolean;
-  hasAttachments: boolean;
-  rawSize?: number;
-  attachments: Array<{
-    gmailAttachmentId: string;
-    filename: string;
-    mimeType?: string;
-    sizeBytes?: number;
-  }>;
-};
+export type ClassificationParsedMessage = ParsedMessage;
 
 export type ClassificationPromptInput = {
   message: ClassificationParsedMessage;
