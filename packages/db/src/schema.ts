@@ -1226,3 +1226,498 @@ export const devSupabaseProjects = pgTable(
   },
   (t) => [index("dev_supabase_projects_repo_idx").on(t.devRepoId)],
 );
+// ────────────────────────────────────────────────────────
+// Chief-of-Staff agent — enums
+// ────────────────────────────────────────────────────────
+// Note: this is a separate agent system from the Skills & Agents
+// system (migration 008). The Chief-of-Staff agent operates over
+// Gmail + Calendar to triage threads, draft replies, schedule
+// meetings, and surface follow-ups. To avoid colliding with the
+// existing `agent_runs` table, the run audit table is named
+// `cos_runs` and its enums are prefixed `cos_*`.
+
+export const cosRunKindEnum = pgEnum("cos_run_kind", [
+  "classify", "plan", "draft", "scheduling", "brief",
+  "follow_up", "prep_brief", "extract_actions",
+]);
+
+export const cosRunStatusEnum = pgEnum("cos_run_status", [
+  "running", "succeeded", "failed", "partial",
+]);
+
+export const agentCategoryEnum = pgEnum("agent_category", [
+  "lead_inquiry", "client_active", "client_followup", "vendor",
+  "personal", "newsletter", "spam", "calendar_invite",
+  "scheduling_request", "other",
+]);
+
+export const agentUrgencyEnum = pgEnum("agent_urgency", [
+  "urgent", "normal", "low",
+]);
+
+export const agentIntentEnum = pgEnum("agent_intent", [
+  "reply_needed", "schedule", "reschedule", "cancel", "fyi",
+  "introduction", "proposal_review", "invoice_question", "other",
+]);
+
+export const agentConfidenceEnum = pgEnum("agent_confidence", [
+  "high", "medium", "low",
+]);
+
+export const emailMessageDirectionEnum = pgEnum("email_message_direction", [
+  "inbound", "outbound",
+]);
+
+export const emailDraftStatusEnum = pgEnum("email_draft_status", [
+  "pending_review", "approved", "sent", "rejected", "superseded", "shadow",
+]);
+
+export const schedulingProposalKindEnum = pgEnum("scheduling_proposal_kind", [
+  "new_meeting", "reschedule", "cancel",
+]);
+
+export const schedulingProposalStatusEnum = pgEnum(
+  "scheduling_proposal_status",
+  ["pending", "confirmed", "event_created", "cancelled", "created", "rejected", "error"]
+);
+
+export const followUpKindEnum = pgEnum("follow_up_kind", [
+  "stale_thread", "stale_pipeline", "no_show", "post_meeting_followup",
+]);
+
+export const followUpStatusEnum = pgEnum("follow_up_status", [
+  "pending", "fired", "cancelled", "suppressed",
+]);
+
+export const emailThreadAgentStateEnum = pgEnum(
+  "email_thread_agent_state",
+  ["pending", "classified", "planned", "drafted", "resolved", "snoozed", "archived"]
+);
+
+export const crmHygieneFlagKindEnum = pgEnum("crm_hygiene_flag_kind", [
+  "domain_mismatch",
+  "stale_engagement",
+  "duplicate_company",
+  "stage_advancement_suggested",
+]);
+
+export const crmHygieneFlagStatusEnum = pgEnum("crm_hygiene_flag_status", [
+  "open",
+  "dismissed",
+  "resolved",
+]);
+
+export const mailboxOauthTokens = pgTable(
+  "mailbox_oauth_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull().unique(),
+    displayName: text("display_name"),
+    accessTokenEncrypted: text("access_token_encrypted").notNull(),
+    refreshTokenEncrypted: text("refresh_token_encrypted").notNull(),
+    expiryDate: bigint("expiry_date", { mode: "number" }).notNull(),
+    scopes: text("scopes").array().notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    isActive: boolean("is_active").notNull().default(true),
+    connectedByUserId: uuid("connected_by_user_id").references(() => users.id),
+    // Migration 016 — token refresh failure tracking. Populated by
+    // getAuthedMailboxClient's error path: transient refresh failures
+    // increment the count; definitive ones (invalid_grant / revoked)
+    // flip is_active to false and stamp last_refresh_error.
+    lastRefreshError: text("last_refresh_error"),
+    lastRefreshErrorAt: timestamp("last_refresh_error_at", {
+      withTimezone: true,
+    }),
+    refreshFailureCount: integer("refresh_failure_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    emailIdx: index("mailbox_oauth_tokens_email_idx").on(table.email),
+    activeIdx: index("mailbox_oauth_tokens_active_idx").on(table.isActive),
+  })
+);
+
+export const mailboxWatches = pgTable("mailbox_watches", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mailboxId: uuid("mailbox_id")
+    .notNull()
+    .references(() => mailboxOauthTokens.id, { onDelete: "cascade" }),
+  historyId: text("history_id").notNull(),
+  expiration: timestamp("expiration", { withTimezone: true }).notNull(),
+  topicName: text("topic_name").notNull(),
+  lastRenewedAt: timestamp("last_renewed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ────────────────────────────────────────────────────────
+// Agent — email storage
+// ────────────────────────────────────────────────────────
+
+export const emailThreads = pgTable(
+  "email_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mailboxId: uuid("mailbox_id")
+      .notNull()
+      .references(() => mailboxOauthTokens.id, { onDelete: "cascade" }),
+    // Nullable: pre-message threads (e.g. agent-authored booking
+    // confirmation drafts) may exist before Gmail has assigned a real
+    // threadId. The corresponding DB-level UNIQUE is a partial index
+    // (WHERE gmail_thread_id IS NOT NULL) — Drizzle's uniqueIndex
+    // doesn't support partial predicates, so we keep this as a plain
+    // index here and let migration 015's partial unique enforce.
+    gmailThreadId: text("gmail_thread_id"),
+    subject: text("subject"),
+    participants: jsonb("participants").notNull().default([]),
+    messageCount: integer("message_count").notNull().default(0),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull(),
+    lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
+    lastOutboundAt: timestamp("last_outbound_at", { withTimezone: true }),
+    engagementId: uuid("engagement_id").references(() => engagements.id),
+    contactId: uuid("contact_id").references(() => contacts.id),
+    companyId: uuid("company_id").references(() => companies.id),
+    agentState: emailThreadAgentStateEnum("agent_state").notNull().default("pending"),
+    agentUrgency: agentUrgencyEnum("agent_urgency"),
+    agentCategory: agentCategoryEnum("agent_category"),
+    requiresHuman: boolean("requires_human").notNull().default(false),
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    labels: text("labels").array().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    // NOTE: the live DB has a partial UNIQUE INDEX
+    //   (mailbox_id, gmail_thread_id) WHERE gmail_thread_id IS NOT NULL
+    // (see migration 015). Drizzle can't express WHERE on
+    // uniqueIndex, so we declare a plain index here and rely on the
+    // DB-level partial unique. Schema drift documented intentionally.
+    mailboxGmailThreadIdx: index("email_threads_mailbox_gmail_unique").on(
+      table.mailboxId, table.gmailThreadId
+    ),
+    mailboxLastMessageIdx: index("email_threads_mailbox_last_message_idx").on(
+      table.mailboxId, table.lastMessageAt
+    ),
+    engagementIdx: index("email_threads_engagement_idx").on(table.engagementId),
+    agentStateIdx: index("email_threads_agent_state_idx").on(table.agentState),
+    lastInboundIdx: index("email_threads_last_inbound_idx").on(table.lastInboundAt),
+  })
+);
+
+export const emailMessages = pgTable(
+  "email_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => emailThreads.id, { onDelete: "cascade" }),
+    mailboxId: uuid("mailbox_id")
+      .notNull()
+      .references(() => mailboxOauthTokens.id, { onDelete: "cascade" }),
+    gmailMessageId: text("gmail_message_id").notNull(),
+    gmailHistoryId: text("gmail_history_id"),
+    inReplyToMessageId: text("in_reply_to_message_id"),
+    messageIdHeader: text("message_id_header"),
+    fromEmail: text("from_email").notNull(),
+    fromName: text("from_name"),
+    toEmails: text("to_emails").array().notNull().default([]),
+    ccEmails: text("cc_emails").array().notNull().default([]),
+    bccEmails: text("bcc_emails").array().notNull().default([]),
+    subject: text("subject"),
+    bodyText: text("body_text"),
+    bodyHtml: text("body_html"),
+    snippet: text("snippet"),
+    direction: emailMessageDirectionEnum("direction").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull(),
+    labels: text("labels").array().notNull().default([]),
+    isUnread: boolean("is_unread").notNull().default(true),
+    isStarred: boolean("is_starred").notNull().default(false),
+    hasAttachments: boolean("has_attachments").notNull().default(false),
+    rawSize: integer("raw_size"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    mailboxGmailMessageUnique: uniqueIndex("email_messages_mailbox_gmail_unique").on(
+      table.mailboxId, table.gmailMessageId
+    ),
+    threadSentAtIdx: index("email_messages_thread_sent_idx").on(
+      table.threadId, table.sentAt
+    ),
+  })
+);
+
+export const emailAttachments = pgTable("email_attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  messageId: uuid("message_id")
+    .notNull()
+    .references(() => emailMessages.id, { onDelete: "cascade" }),
+  gmailAttachmentId: text("gmail_attachment_id"),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type"),
+  sizeBytes: integer("size_bytes"),
+  storagePath: text("storage_path"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ────────────────────────────────────────────────────────
+// Agent — runtime state
+// ────────────────────────────────────────────────────────
+
+export const cosRuns = pgTable(
+  "cos_runs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: cosRunKindEnum("kind").notNull(),
+    status: cosRunStatusEnum("status").notNull(),
+    mailboxId: uuid("mailbox_id").references(() => mailboxOauthTokens.id),
+    threadId: uuid("thread_id").references(() => emailThreads.id),
+    messageId: uuid("message_id").references(() => emailMessages.id),
+    engagementId: uuid("engagement_id").references(() => engagements.id),
+    triggerRunId: text("trigger_run_id"),
+    model: text("model"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    costUsd: numeric("cost_usd", { precision: 10, scale: 6 }).notNull().default("0"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    durationMs: integer("duration_ms"),
+    errorMessage: text("error_message"),
+    metadata: jsonb("metadata").notNull().default({}),
+  },
+  (table) => ({
+    kindStartedIdx: index("cos_runs_kind_started_idx").on(
+      table.kind, table.startedAt
+    ),
+    threadIdx: index("cos_runs_thread_idx").on(table.threadId),
+    triggerRunIdIdx: index("cos_runs_trigger_run_id_idx").on(table.triggerRunId),
+  })
+);
+
+export const agentClassifications = pgTable("agent_classifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  messageId: uuid("message_id")
+    .notNull()
+    .unique()
+    .references(() => emailMessages.id, { onDelete: "cascade" }),
+  threadId: uuid("thread_id")
+    .notNull()
+    .references(() => emailThreads.id, { onDelete: "cascade" }),
+  cosRunId: uuid("cos_run_id").references(() => cosRuns.id),
+  category: agentCategoryEnum("category").notNull(),
+  urgency: agentUrgencyEnum("urgency").notNull(),
+  intent: agentIntentEnum("intent").notNull(),
+  requiresReply: boolean("requires_reply").notNull(),
+  suggestedWorkflow: text("suggested_workflow"),
+  relatedEngagementId: uuid("related_engagement_id").references(() => engagements.id),
+  relatedEngagementConfidence: agentConfidenceEnum("related_engagement_confidence"),
+  relatedContactId: uuid("related_contact_id").references(() => contacts.id),
+  reasoning: text("reasoning"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const schedulingProposals = pgTable("scheduling_proposals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  threadId: uuid("thread_id")
+    .notNull()
+    .references(() => emailThreads.id, { onDelete: "cascade" }),
+  mailboxId: uuid("mailbox_id")
+    .notNull()
+    .references(() => mailboxOauthTokens.id, { onDelete: "cascade" }),
+  engagementId: uuid("engagement_id").references(() => engagements.id),
+  cosRunId: uuid("cos_run_id").references(() => cosRuns.id),
+  kind: schedulingProposalKindEnum("kind").notNull(),
+  existingCalendarEventId: text("existing_calendar_event_id"),
+  durationMinutes: integer("duration_minutes").notNull(),
+  meetingTitle: text("meeting_title").notNull(),
+  meetingDescription: text("meeting_description"),
+  proposedSlots: jsonb("proposed_slots").notNull(),
+  chosenSlot: jsonb("chosen_slot"),
+  attendees: jsonb("attendees").notNull(),
+  location: text("location").notNull().default("Google Meet"),
+  meetLink: text("meet_link"),
+  createdGoogleEventId: text("created_google_event_id"),
+  status: schedulingProposalStatusEnum("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const emailDrafts = pgTable(
+  "email_drafts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => emailThreads.id, { onDelete: "cascade" }),
+    mailboxId: uuid("mailbox_id")
+      .notNull()
+      .references(() => mailboxOauthTokens.id, { onDelete: "cascade" }),
+    inReplyToMessageId: uuid("in_reply_to_message_id").references(
+      () => emailMessages.id
+    ),
+    cosRunId: uuid("cos_run_id").references(() => cosRuns.id),
+    status: emailDraftStatusEnum("status").notNull().default("pending_review"),
+    toEmails: text("to_emails").array().notNull(),
+    ccEmails: text("cc_emails").array().notNull().default([]),
+    bccEmails: text("bcc_emails").array().notNull().default([]),
+    subject: text("subject").notNull(),
+    bodyText: text("body_text").notNull(),
+    bodyHtml: text("body_html"),
+    attachments: jsonb("attachments").notNull().default([]),
+    schedulingProposalId: uuid("scheduling_proposal_id").references(
+      () => schedulingProposals.id
+    ),
+    reviewerNotes: text("reviewer_notes"),
+    confidence: agentConfidenceEnum("confidence"),
+    humanEdited: boolean("human_edited").notNull().default(false),
+    approvedByUserId: uuid("approved_by_user_id").references(() => users.id),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    sentGmailMessageId: text("sent_gmail_message_id"),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectedByUserId: uuid("rejected_by_user_id").references(() => users.id),
+    rejectionReason: text("rejection_reason"),
+    // Free-form correlation bag. Background jobs (booking webhook,
+    // follow-up generators) attach deterministic keys like
+    // { bookingId } for idempotency lookups — preferred over stuffing
+    // identifiers into reviewer_notes.
+    metadata: jsonb("metadata").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusIdx: index("email_drafts_status_idx").on(table.status),
+    threadIdx: index("email_drafts_thread_idx").on(table.threadId),
+  })
+);
+
+export const followUpWatchers = pgTable(
+  "follow_up_watchers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: followUpKindEnum("kind").notNull(),
+    threadId: uuid("thread_id").references(() => emailThreads.id),
+    engagementId: uuid("engagement_id").references(() => engagements.id),
+    calendarEventId: text("calendar_event_id"),
+    triggerAfter: timestamp("trigger_after", { withTimezone: true }).notNull(),
+    ruleConfig: jsonb("rule_config").notNull().default({}),
+    status: followUpStatusEnum("status").notNull().default("pending"),
+    firedAt: timestamp("fired_at", { withTimezone: true }),
+    resultingDraftId: uuid("resulting_draft_id").references(() => emailDrafts.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pendingTriggerIdx: index("follow_up_watchers_pending_trigger_idx").on(
+      table.status, table.triggerAfter
+    ),
+  })
+);
+
+// ────────────────────────────────────────────────────────
+// Agent — generated artifacts
+// ────────────────────────────────────────────────────────
+
+export const dailyBriefs = pgTable("daily_briefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  date: date("date").notNull().unique(),
+  contentMarkdown: text("content_markdown").notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+  dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+  cosRunId: uuid("cos_run_id").references(() => cosRuns.id),
+});
+
+export const meetingPrepBriefs = pgTable("meeting_prep_briefs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  calendarEventId: text("calendar_event_id").notNull().unique(),
+  engagementId: uuid("engagement_id").references(() => engagements.id),
+  contentMarkdown: text("content_markdown").notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+  cosRunId: uuid("cos_run_id").references(() => cosRuns.id),
+});
+
+// ────────────────────────────────────────────────────────
+// Agent — CRM hygiene flags
+// ────────────────────────────────────────────────────────
+
+export const crmHygieneFlags = pgTable(
+  "crm_hygiene_flags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: crmHygieneFlagKindEnum("kind").notNull(),
+    entityKind: text("entity_kind").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    relatedEntityId: uuid("related_entity_id"),
+    status: crmHygieneFlagStatusEnum("status").notNull().default("open"),
+    details: jsonb("details").notNull().default({}),
+    dismissedBy: uuid("dismissed_by").references(() => users.id),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    statusCreatedIdx: index("crm_hygiene_flags_status_idx").on(
+      table.status,
+      table.createdAt
+    ),
+    uniqFlag: uniqueIndex("crm_hygiene_flags_unique").on(
+      table.kind,
+      table.entityKind,
+      table.entityId,
+      table.relatedEntityId
+    ),
+  })
+);
+
+// ────────────────────────────────────────────────────────
+// Agent — per-mailbox scheduling settings
+// ────────────────────────────────────────────────────────
+
+// ────────────────────────────────────────────────────────
+// Agent — voice samples (canonical outbound emails for tone matching)
+// ────────────────────────────────────────────────────────
+
+export const agentVoiceSamples = pgTable(
+  "agent_voice_samples",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    mailboxId: uuid("mailbox_id")
+      .notNull()
+      .references(() => mailboxOauthTokens.id, { onDelete: "cascade" }),
+    emailMessageId: uuid("email_message_id")
+      .notNull()
+      .references(() => emailMessages.id, { onDelete: "cascade" }),
+    note: text("note"),
+    starred: boolean("starred").notNull().default(true),
+    addedBy: uuid("added_by").references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    mailboxCreatedIdx: index("agent_voice_samples_mailbox_idx").on(
+      table.mailboxId,
+      table.createdAt
+    ),
+    uniqueMailboxMessage: uniqueIndex("agent_voice_samples_unique").on(
+      table.mailboxId,
+      table.emailMessageId
+    ),
+  })
+);
+
+export const agentSettings = pgTable("agent_settings", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  mailboxId: uuid("mailbox_id")
+    .notNull()
+    .unique()
+    .references(() => mailboxOauthTokens.id, { onDelete: "cascade" }),
+  workingStartHour: integer("working_start_hour").notNull().default(9),
+  workingEndHour: integer("working_end_hour").notNull().default(17),
+  workingDays: integer("working_days").array().notNull().default([1, 2, 3, 4, 5]),
+  bufferMinutes: integer("buffer_minutes").notNull().default(15),
+  maxBackToBack: integer("max_back_to_back").notNull().default(3),
+  timezone: text("timezone").notNull().default("America/Los_Angeles"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
