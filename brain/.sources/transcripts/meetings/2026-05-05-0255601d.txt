@@ -1,0 +1,6 @@
+# Meeting transcript — internal
+Client: QA Test 3
+When: 2026-05-05 01:00:00+00
+
+## Notes
+QA test #3 for Google Calendar attendee invite (full email + invite flow)

@@ -1,0 +1,15 @@
+# Email thread — Looking for AI consulting help
+
+---
+2026-05-11 21:19:07.24+00  [inbound]  from Pat Acme <founder@acmedemo.com>
+
+Hi team,
+
+This is the first message in the lead1 thread — a synthetic demo seed. Please ignore.
+
+— Pat Acme
+
+---
+2026-05-12 21:19:07.24+00  [inbound]  from Pat Acme <founder@acmedemo.com>
+
+Following up — could you confirm next steps for lead1?

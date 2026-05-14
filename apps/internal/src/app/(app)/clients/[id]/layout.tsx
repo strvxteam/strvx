@@ -30,6 +30,7 @@ export default async function EngagementLayout({
       engagementId={id}
       tabs={tabs}
       rightRail={data.rightRail}
+      kgEntityId={`postgres:engagements:${id}`}
     >
       {children}
     </EntityShell>

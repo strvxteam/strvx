@@ -1,0 +1,20 @@
+# Email thread — Question about MVP scope
+
+---
+2026-05-11 20:19:07.624+00  [inbound]  from Beta PM <pm@betatestco.io>
+
+Hi team,
+
+This is the first message in the active1 thread — a synthetic demo seed. Please ignore.
+
+— Beta PM
+
+---
+2026-05-11 23:19:07.624+00  [outbound]  from Demo Team <demo-team@strvx.com>
+
+Thanks for reaching out, Beta PM! Replying shortly with details.
+
+---
+2026-05-12 20:19:07.624+00  [inbound]  from Beta PM <pm@betatestco.io>
+
+Following up — could you confirm next steps for active1?

@@ -1,0 +1,15 @@
+# Email thread — Find a time next week?
+
+---
+2026-05-11 18:19:08.413+00  [inbound]  from Beta Scheduler <scheduling@betatestco.io>
+
+Hi team,
+
+This is the first message in the schedule thread — a synthetic demo seed. Please ignore.
+
+— Beta Scheduler
+
+---
+2026-05-12 18:19:08.413+00  [inbound]  from Beta Scheduler <scheduling@betatestco.io>
+
+Following up — could you confirm next steps for schedule?

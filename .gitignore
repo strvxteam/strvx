@@ -11,3 +11,8 @@ dist
 .DS_Store
 *.tsbuildinfo
 next-env.d.ts
+
+# GBrain — markdown in brain/ is source of truth, but PGLite index + vendor clone are rebuildable.
+brain/.gbrain/
+.snapshots/
+.vendor/

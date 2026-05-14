@@ -1,0 +1,20 @@
+# Email thread — Can you escalate this with engineering?
+
+---
+2026-05-10 23:19:07.775+00  [outbound]  from Demo Team <demo-team@strvx.com>
+
+Thanks for reaching out, Beta Ops! Replying shortly with details.
+
+---
+2026-05-11 19:19:07.775+00  [inbound]  from Beta Ops <ops@betatestco.io>
+
+Hi team,
+
+This is the first message in the active2 thread — a synthetic demo seed. Please ignore.
+
+— Beta Ops
+
+---
+2026-05-12 19:19:07.775+00  [inbound]  from Beta Ops <ops@betatestco.io>
+
+Following up — could you confirm next steps for active2?

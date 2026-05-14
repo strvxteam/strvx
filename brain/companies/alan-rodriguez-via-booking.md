@@ -1,0 +1,24 @@
+---
+slug: companies/alan-rodriguez-via-booking
+type: company
+company_kind: placeholder
+source_id: a368f153-5bd2-42f0-94ef-5d3236bb8012
+source_table: companies
+source_updated_at: "2026-04-18 19:47:40.215737+00"
+synced_at: "2026-05-14T04:30:05.069Z"
+name: Alan Rodriguez (via Booking)
+---
+
+# Alan Rodriguez (via Booking)
+_Auto-created from a booking with no matched company row._
+## State
+- Source: `public.companies` (a368f153-5bd2-42f0-94ef-5d3236bb8012)
+
+---
+
+## Timeline
+
+### 2026-04-18 — added to CRM
+
+Imported from `public.companies` (id a368f153-5bd2-42f0-94ef-5d3236bb8012).
+

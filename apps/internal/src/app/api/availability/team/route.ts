@@ -4,16 +4,70 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { googleTokens } from "@/lib/google-calendar";
 import { google } from "googleapis";
 import { inArray } from "drizzle-orm";
 
 // ── Team member config ────────────────────────────────────────────────────────
+//
+// The availability view is read entirely through ONE OAuth account:
+// strvxteam@gmail.com (GOOGLE_TEAM_REFRESH_TOKEN). Alex and Nick have shared
+// their primary + side calendars with that account, so we list everything
+// visible to it and classify each calendar back to its owner.
+//
+// Classification rules (first match wins):
+//   1. calendar.id matches an alias in alex/nick/team aliases list → that member
+//   2. calendar.summary contains a member's name pattern → that member
+//   3. calendar.primary === true OR calendar.id is the team alias → "team"
+//   4. fallback → "team" (visible to BOTH members)
+//
+// To attribute a side calendar correctly, add its calendar id (the email-ish
+// string Google assigns when shared) to AVAILABILITY_ALEX_CALENDAR_IDS or
+// AVAILABILITY_NICK_CALENDAR_IDS in Vercel. The server logs every visible
+// calendar's id + summary on each request to make this easy to wire up.
+
+function parseCsv(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+const ALEX_ALIASES_ENV = parseCsv(process.env.AVAILABILITY_ALEX_CALENDAR_IDS);
+const NICK_ALIASES_ENV = parseCsv(process.env.AVAILABILITY_NICK_CALENDAR_IDS);
+const TEAM_ALIASES_ENV = parseCsv(process.env.AVAILABILITY_TEAM_CALENDAR_IDS);
+
+// Reasonable defaults — same values can be overridden via env without code change.
+const ALEX_ALIASES = new Set<string>([
+  ...ALEX_ALIASES_ENV,
+  "alex@strvx.com",
+  "alex.battikha@gmail.com",
+]);
+
+const NICK_ALIASES = new Set<string>([
+  ...NICK_ALIASES_ENV,
+  "nick@strvx.com",
+]);
+
+const TEAM_ALIASES = new Set<string>([
+  ...TEAM_ALIASES_ENV,
+  "strvxteam@gmail.com",
+  "strvxteam@strvx.com",
+]);
+
+const ALEX_SUMMARY_PATTERNS = ["alex"];
+const NICK_SUMMARY_PATTERNS = ["nick", "nicolas"];
 
 export const TEAM_MEMBERS = [
   { email: "alex@strvx.com", name: "Alex", color: "#1a73e8" },
   { email: "strvxteam@strvx.com", name: "Nick", color: "#0f9d58" },
 ] as const;
+
+type MemberKey = "alex" | "nick";
+
+const MEMBER_BY_KEY: Record<MemberKey, (typeof TEAM_MEMBERS)[number]> = {
+  alex: TEAM_MEMBERS[0],
+  nick: TEAM_MEMBERS[1],
+};
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -38,9 +92,48 @@ export type TeamMemberAvailability = {
 export type TeamAvailabilityResponse = {
   members: TeamMemberAvailability[];
   currentUserEmail: string | null;
+  // Server diagnostic — list of visible calendars and how each was classified.
+  // Useful for adding new side calendars to the env alias lists.
+  calendars?: { id: string; summary: string; primary: boolean; accessRole: string; owner: MemberKey | "team" }[];
 };
 
-// ── Google Calendar fetch (all calendars, deduplicated) ───────────────────────
+// ── Calendar classification ───────────────────────────────────────────────────
+
+type CalendarOwner = MemberKey | "team";
+
+function classifyCalendar(cal: {
+  id?: string | null;
+  summary?: string | null;
+  summaryOverride?: string | null;
+  primary?: boolean | null;
+}): CalendarOwner {
+  const id = (cal.id ?? "").toLowerCase();
+  const summary = (cal.summary ?? "").toLowerCase();
+  const summaryOverride = (cal.summaryOverride ?? "").toLowerCase();
+
+  // 1. Calendar id alias match (handles shared primaries where id === owner's email)
+  if (id && ALEX_ALIASES.has(id)) return "alex";
+  if (id && NICK_ALIASES.has(id)) return "nick";
+
+  // 2. Strvxteam's own primary calendar — events that live on it are SHARED.
+  if (cal.primary === true) return "team";
+  if (id && TEAM_ALIASES.has(id)) return "team";
+
+  // 3. Summary name match (for side calendars with hash IDs).
+  // Check summaryOverride first since the team account might have renamed it locally.
+  const effectiveName = summaryOverride || summary;
+  for (const p of ALEX_SUMMARY_PATTERNS) {
+    if (effectiveName.includes(p)) return "alex";
+  }
+  for (const p of NICK_SUMMARY_PATTERNS) {
+    if (effectiveName.includes(p)) return "nick";
+  }
+
+  // 4. Default — visible to both
+  return "team";
+}
+
+// ── Google Calendar fetch ─────────────────────────────────────────────────────
 
 function createOAuth2Client() {
   return new google.auth.OAuth2(
@@ -50,18 +143,10 @@ function createOAuth2Client() {
   );
 }
 
-// Each fetched event carries a stable cross-calendar dedup key plus a flag
-// indicating whether it came from the user's primary calendar. We use both
-// to dedup the same event appearing in multiple calendars (e.g. the strvx
-// team calendar shared into Alex's account also being Nick's primary).
-type FetchedEvent = MemberEvent & { uidKey: string; fromPrimary: boolean };
-
-// Build a key that's stable for the same logical event across different
-// calendars (so the strvx team event in Alex's shared view dedupes against
-// the same event in Nick's primary view). iCalUID is RFC5545 globally
-// unique; we append the instance start so recurring-series instances stay
-// distinct (singleEvents: true expands the series, but they all share
-// iCalUID).
+// Stable dedup key for the same logical event across calendars.
+// iCalUID is RFC5545-global; we append the instance start so expanded recurring
+// instances stay distinct (singleEvents: true gives every instance the same
+// iCalUID by design).
 function eventDedupKey(e: {
   iCalUID?: string | null;
   id?: string | null;
@@ -72,91 +157,111 @@ function eventDedupKey(e: {
   return `${uid}|${start}`;
 }
 
-async function fetchEventsWithRefreshToken(
+type ClassifiedEvent = MemberEvent & { uidKey: string; owner: CalendarOwner };
+
+async function fetchAllVisibleEvents(
   refreshToken: string,
   timeMin: string,
   timeMax: string,
-): Promise<FetchedEvent[]> {
+): Promise<{
+  events: ClassifiedEvent[];
+  calendars: { id: string; summary: string; primary: boolean; accessRole: string; owner: CalendarOwner }[];
+}> {
   const oauth2Client = createOAuth2Client();
   oauth2Client.setCredentials({ refresh_token: refreshToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-  // Fetch the user's primary plus every calendar they OWN. minAccessRole=owner
-  // filters out subscribed calendars (holidays, shared-read calendars, etc.)
-  // and any shared calendar where they were granted writer/reader access. A
-  // calendar shared with "owner" access still counts as owned — we rely on
-  // the global cross-user dedup below to pick a single canonical owner for
-  // such events.
-  let secondaryCalendarIds: string[] = [];
+  // List EVERY calendar the team account can read (its own + everything shared
+  // with it). freeBusyReader is the lowest meaningful access level — includes
+  // shared "reader" / "writer" / "owner" too.
+  let calendarItems: {
+    id?: string | null;
+    summary?: string | null;
+    summaryOverride?: string | null;
+    primary?: boolean | null;
+    accessRole?: string | null;
+  }[] = [];
   try {
     const listRes = await calendar.calendarList.list({
-      minAccessRole: "owner",
-      maxResults: 100,
+      minAccessRole: "freeBusyReader",
+      maxResults: 250,
     });
-    secondaryCalendarIds = (listRes.data.items ?? [])
-      .filter((c) => c.id && !c.primary)
-      .map((c) => c.id!);
+    calendarItems = listRes.data.items ?? [];
   } catch (err) {
-    console.error("[team/availability] Failed to list calendars:", err);
+    console.error("[team/availability] calendarList.list failed:", err);
+    throw new Error("Could not list calendars from strvxteam@gmail.com");
   }
 
-  const calendarSpecs: { id: string; isPrimary: boolean }[] = [
-    { id: "primary", isPrimary: true },
-    ...secondaryCalendarIds.map((id) => ({ id, isPrimary: false })),
-  ];
+  // Classify each calendar.
+  const classifiedCals = calendarItems
+    .filter((c) => c.id)
+    .map((c) => ({
+      id: c.id!,
+      summary: c.summary ?? c.summaryOverride ?? "(no name)",
+      primary: c.primary === true,
+      accessRole: c.accessRole ?? "unknown",
+      owner: classifyCalendar(c),
+    }));
 
-  // Fetch every calendar in parallel, then dedup sequentially in primary-first
-  // order so that the primary copy wins when the same event lives in both the
-  // primary and a shared secondary inside this user's view.
-  const perCalendarItems = await Promise.all(
-    calendarSpecs.map(async ({ id: calId, isPrimary }) => {
+  console.log(
+    `[team/availability] strvxteam sees ${classifiedCals.length} calendar(s):\n` +
+      classifiedCals
+        .map(
+          (c) =>
+            `  - [${c.owner}] ${c.id} "${c.summary}" (primary=${c.primary}, role=${c.accessRole})`,
+        )
+        .join("\n"),
+  );
+
+  // Fetch events from each calendar in parallel.
+  const perCalendar = await Promise.all(
+    classifiedCals.map(async (cal) => {
       try {
         const res = await calendar.events.list({
-          calendarId: calId,
+          calendarId: cal.id,
           timeMin,
           timeMax,
           singleEvents: true,
           orderBy: "startTime",
           maxResults: 250,
         });
-        return { isPrimary, items: res.data.items ?? [] };
+        const items = res.data.items ?? [];
+        return { cal, items };
       } catch (err) {
-        console.error(`[team/availability] Failed to fetch cal ${calId}:`, err);
-        return { isPrimary, items: [] };
+        console.error(`[team/availability] events.list failed for ${cal.id}:`, err);
+        return { cal, items: [] };
       }
     }),
   );
 
-  const seenUserKeys = new Set<string>();
-  const allEvents: FetchedEvent[] = [];
-  // Two passes: primary calendars first, then secondaries.
-  for (const wantPrimary of [true, false]) {
-    for (const { isPrimary, items } of perCalendarItems) {
-      if (isPrimary !== wantPrimary) continue;
-      for (const e of items) {
-        if (e.status === "cancelled") continue;
-        const key = eventDedupKey(e);
-        if (key && seenUserKeys.has(key)) continue;
-        if (key) seenUserKeys.add(key);
-
-        allEvents.push({
-          id: e.id ?? crypto.randomUUID(),
-          title: e.summary ?? "(No title)",
-          start: e.start?.dateTime ?? e.start?.date ?? "",
-          end: e.end?.dateTime ?? e.end?.date ?? "",
-          isAllDay: !e.start?.dateTime,
-          meetLink:
-            e.hangoutLink ??
-            e.conferenceData?.entryPoints?.find((ep) => ep.entryPointType === "video")?.uri ??
-            null,
-          uidKey: key,
-          fromPrimary: isPrimary,
-        });
-      }
+  // Flatten into ClassifiedEvent[]. We DO NOT dedup here — a single Google
+  // event in two calendars (e.g. strvxteam's primary + Alex's shared primary)
+  // legitimately represents both an event Alex has AND a team event, and we
+  // dedup per-member later when assembling each member's column.
+  const events: ClassifiedEvent[] = [];
+  for (const { cal, items } of perCalendar) {
+    for (const e of items) {
+      if (e.status === "cancelled") continue;
+      const start = e.start?.dateTime ?? e.start?.date ?? "";
+      const end = e.end?.dateTime ?? e.end?.date ?? "";
+      if (!start || !end) continue;
+      events.push({
+        id: e.id ?? crypto.randomUUID(),
+        title: e.summary ?? "(No title)",
+        start,
+        end,
+        isAllDay: !e.start?.dateTime,
+        meetLink:
+          e.hangoutLink ??
+          e.conferenceData?.entryPoints?.find((ep) => ep.entryPointType === "video")?.uri ??
+          null,
+        uidKey: eventDedupKey(e),
+        owner: cal.owner,
+      });
     }
   }
 
-  return allEvents;
+  return { events, calendars: classifiedCals };
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
@@ -179,88 +284,66 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "start and end are required" }, { status: 400 });
   }
 
-  // Look up DB users for the team
+  const teamRefreshToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN;
+  if (!teamRefreshToken) {
+    return NextResponse.json(
+      {
+        error:
+          "GOOGLE_TEAM_REFRESH_TOKEN is not set — strvxteam@gmail.com calendar account is not connected.",
+      },
+      { status: 503 },
+    );
+  }
+
+  // Look up DB user ids for the team — used for the `id` field in the response,
+  // which the client uses as a stable member key for the link.
   const emails = TEAM_MEMBERS.map((m) => m.email);
   const memberRows = await db
     .select({ id: users.id, email: users.email })
     .from(users)
     .where(inArray(users.email, emails));
-
-  // Only use google_tokens (personal calendar tokens set via internal OAuth).
-  // Do NOT fall back to users.google_refresh_token — that column stores the shared
-  // team calendar token for all members and causes events to appear under wrong names.
-  const userIds = memberRows.map((r) => r.id);
-  const tokenRows =
-    userIds.length > 0
-      ? await db
-          .select({ userId: googleTokens.userId, refreshToken: googleTokens.refreshToken })
-          .from(googleTokens)
-          .where(inArray(googleTokens.userId, userIds))
-      : [];
-
-  const tokenByUserId = new Map(tokenRows.map((t) => [t.userId, t.refreshToken]));
   const userByEmail = new Map(memberRows.map((r) => [r.email, r]));
 
-  // Fetch each TEAM_MEMBER's PERSONAL events (their primary + owned secondaries
-  // like Alex's tutoring) and the SHARED strvx team calendar
-  // (strvxteam@gmail.com) in parallel. The shared calendar is fetched once via
-  // GOOGLE_TEAM_REFRESH_TOKEN — the same env var the booking system uses — and
-  // its events are merged into EVERY member's column. No cross-user dedup,
-  // because team events are supposed to appear on both Alex and Nick.
-  const memberOwnByEmail = new Map<string, FetchedEvent[]>();
-  const tokenByEmail = new Map<string, string | null>();
+  let fetched: Awaited<ReturnType<typeof fetchAllVisibleEvents>>;
+  try {
+    fetched = await fetchAllVisibleEvents(teamRefreshToken, start, end);
+  } catch (err) {
+    console.error("[team/availability] failed to fetch events:", err);
+    return NextResponse.json(
+      {
+        error:
+          err instanceof Error
+            ? err.message
+            : "Failed to fetch events from strvxteam@gmail.com",
+      },
+      { status: 502 },
+    );
+  }
 
-  const memberFetches = TEAM_MEMBERS.map(async (member) => {
-    const row = userByEmail.get(member.email);
-    const refreshToken = row ? (tokenByUserId.get(row.id) ?? null) : null;
-    tokenByEmail.set(member.email, refreshToken);
-    if (!refreshToken) {
-      memberOwnByEmail.set(member.email, []);
-      return;
+  // Split events by owner. Team-classified events go on BOTH columns.
+  const alexEvents: ClassifiedEvent[] = [];
+  const nickEvents: ClassifiedEvent[] = [];
+  for (const evt of fetched.events) {
+    if (evt.owner === "alex") {
+      alexEvents.push(evt);
+    } else if (evt.owner === "nick") {
+      nickEvents.push(evt);
+    } else {
+      // team-shared — visible to both
+      alexEvents.push(evt);
+      nickEvents.push(evt);
     }
-    try {
-      const events = await fetchEventsWithRefreshToken(refreshToken, start, end);
-      memberOwnByEmail.set(member.email, events);
-    } catch (err) {
-      console.error(`[team/availability] Failed for ${member.email}:`, err);
-      memberOwnByEmail.set(member.email, []);
-    }
-  });
+  }
 
-  let teamSharedEvents: FetchedEvent[] = [];
-  const teamRefreshToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN;
-  const teamFetch = (async () => {
-    if (!teamRefreshToken) {
-      console.warn(
-        "[team/availability] GOOGLE_TEAM_REFRESH_TOKEN not set — strvx team calendar events will not be shown",
-      );
-      return;
-    }
-    try {
-      teamSharedEvents = await fetchEventsWithRefreshToken(teamRefreshToken, start, end);
-    } catch (err) {
-      console.error("[team/availability] Failed to fetch strvx team calendar:", err);
-    }
-  })();
-
-  await Promise.all([...memberFetches, teamFetch]);
-
-  // Build each member's final event list: their own events FIRST, then the
-  // team-shared events. Within-member dedup keeps the personal copy when an
-  // event lives in both — e.g. Alex was invited to a strvx team meeting, so
-  // it's on his primary AND on the team calendar; the personal copy wins on
-  // his column, and Nick gets it once via the team calendar.
-  const members: TeamMemberAvailability[] = TEAM_MEMBERS.map((member) => {
-    const row = userByEmail.get(member.email);
-    const refreshToken = tokenByEmail.get(member.email) ?? null;
-    const ownEvents = memberOwnByEmail.get(member.email) ?? [];
-
-    const seenInMember = new Set<string>();
-    const events: MemberEvent[] = [];
-    const append = (e: FetchedEvent) => {
-      if (e.uidKey && seenInMember.has(e.uidKey)) return;
-      if (e.uidKey) seenInMember.add(e.uidKey);
-      events.push({
+  // Per-member dedup by uidKey (handles the case where the same event appears
+  // on both a member's shared primary AND strvxteam's own primary).
+  function dedup(events: ClassifiedEvent[]): MemberEvent[] {
+    const seen = new Set<string>();
+    const out: MemberEvent[] = [];
+    for (const e of events) {
+      if (e.uidKey && seen.has(e.uidKey)) continue;
+      if (e.uidKey) seen.add(e.uidKey);
+      out.push({
         id: e.id,
         title: e.title,
         start: e.start,
@@ -268,19 +351,33 @@ export async function GET(req: NextRequest) {
         isAllDay: e.isAllDay,
         meetLink: e.meetLink,
       });
-    };
-    ownEvents.forEach(append);
-    teamSharedEvents.forEach(append);
+    }
+    return out;
+  }
 
+  const eventsByMember: Record<MemberKey, MemberEvent[]> = {
+    alex: dedup(alexEvents),
+    nick: dedup(nickEvents),
+  };
+
+  const members: TeamMemberAvailability[] = (
+    Object.keys(MEMBER_BY_KEY) as MemberKey[]
+  ).map((key) => {
+    const cfg = MEMBER_BY_KEY[key];
+    const row = userByEmail.get(cfg.email);
     return {
-      id: row?.id ?? member.email,
-      name: member.name,
-      email: member.email,
-      color: member.color,
-      connected: !!refreshToken,
-      events,
+      id: row?.id ?? cfg.email,
+      name: cfg.name,
+      email: cfg.email,
+      color: cfg.color,
+      connected: true, // the team token is connected for everyone, or the whole API errors
+      events: eventsByMember[key],
     };
   });
 
-  return NextResponse.json({ members, currentUserEmail: user.email ?? null } satisfies TeamAvailabilityResponse);
+  return NextResponse.json({
+    members,
+    currentUserEmail: user.email ?? null,
+    calendars: fetched.calendars,
+  } satisfies TeamAvailabilityResponse);
 }

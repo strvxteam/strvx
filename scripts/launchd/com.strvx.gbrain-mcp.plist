@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.strvx.gbrain-mcp — launchd unit for gbrain's HTTP MCP server.
+
+  Install:
+    1. Edit OPENAI_API_KEY below with the real key from apps/internal/.env.local.
+    2. cp scripts/launchd/com.strvx.gbrain-mcp.plist ~/Library/LaunchAgents/
+    3. launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.strvx.gbrain-mcp.plist
+    4. tail -f /tmp/strvx-gbrain.{out,err}.log
+
+  Uninstall:
+    launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.strvx.gbrain-mcp.plist
+
+  We deliberately do NOT export DATABASE_URL into this process — that would
+  route gbrain to remote Postgres instead of the local PGLite at
+  /Users/nicolasdossantos/strvx-kg-into-sit/brain/.gbrain/brain.pglite.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.strvx.gbrain-mcp</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/nicolasdossantos/.bun/bin/gbrain</string>
+        <string>serve</string>
+        <string>--http</string>
+        <string>--port</string>
+        <string>3131</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/nicolasdossantos/.bun/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/nicolasdossantos</string>
+        <key>GBRAIN_HOME</key>
+        <string>/Users/nicolasdossantos/strvx-kg-into-sit/brain</string>
+        <key>OPENAI_API_KEY</key>
+        <string>REPLACE_WITH_KEY_FROM_ENV_LOCAL</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/nicolasdossantos/strvx-kg-into-sit</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>/tmp/strvx-gbrain.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/strvx-gbrain.err.log</string>
+</dict>
+</plist>

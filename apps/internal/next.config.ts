@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   // stray ~/package-lock.json files and panicking.
   turbopack: {
     root: path.join(__dirname, "..", ".."),
+    resolveExtensions: [".tsx", ".ts", ".mts", ".jsx", ".js", ".mjs", ".json"],
   },
   async redirects() {
     return [

@@ -1,0 +1,6 @@
+# Meeting transcript — discovery
+Client: CRM Pipeline Test
+When: 2026-04-14 21:00:00+00
+
+## Notes
+Testing that bookings create CRM entries
