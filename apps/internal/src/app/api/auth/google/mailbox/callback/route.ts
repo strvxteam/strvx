@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const error = request.nextUrl.searchParams.get("error");
   if (error) {
     return Response.redirect(
-      `${request.nextUrl.origin}/agent/connect-mailbox?error=${encodeURIComponent(error)}`,
+      `${request.nextUrl.origin}/agent/settings?tab=mailboxes&error=${encodeURIComponent(error)}`,
       302
     );
   }
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error("[mailbox-oauth-callback] Token exchange failed", err);
     return Response.redirect(
-      `${request.nextUrl.origin}/agent/connect-mailbox?error=token_exchange_failed`,
+      `${request.nextUrl.origin}/agent/settings?tab=mailboxes&error=token_exchange_failed`,
       302
     );
   }
@@ -108,10 +108,11 @@ export async function GET(request: NextRequest) {
   const returnCookie = request.cookies.get("mailbox_oauth_return_to")?.value;
   const returnTo = returnCookie
     ? decodeURIComponent(returnCookie)
-    : "/agent/connect-mailbox";
+    : "/agent/settings?tab=mailboxes";
 
+  const separator = returnTo.includes("?") ? "&" : "?";
   const response = Response.redirect(
-    `${request.nextUrl.origin}${returnTo}?connected=${encodeURIComponent(mailboxEmail)}`,
+    `${request.nextUrl.origin}${returnTo}${separator}connected=${encodeURIComponent(mailboxEmail)}`,
     302
   );
   response.headers.append(

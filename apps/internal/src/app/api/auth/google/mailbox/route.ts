@@ -51,7 +51,8 @@ export async function GET(request: NextRequest) {
   });
 
   const returnTo =
-    request.nextUrl.searchParams.get("return_to") ?? "/agent/connect-mailbox";
+    request.nextUrl.searchParams.get("return_to") ??
+    "/agent/settings?tab=mailboxes";
   const response = Response.redirect(url, 302);
   response.headers.append(
     "Set-Cookie",

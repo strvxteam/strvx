@@ -37,7 +37,6 @@ import {
   Activity,
   Database,
   Inbox,
-  Mail,
   Sparkles,
   BellRing,
   Settings,
@@ -140,7 +139,6 @@ const navSections: NavSection[] = [
       { href: "/agent/follow-ups", label: "Follow-ups", icon: BellRing },
       { href: "/agent/settings", label: "Settings", icon: Settings },
       { href: "/agent/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/agent/connect-mailbox", label: "Connect mailbox", icon: Mail },
     ],
   },
 ];

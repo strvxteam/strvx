@@ -34,7 +34,7 @@ const STATIC_COMMANDS: StaticCommand[] = [
   {
     id: "connect-mailbox",
     label: "Connect mailbox",
-    href: "/agent/connect-mailbox",
+    href: "/agent/settings?tab=mailboxes",
   },
 ];
 
@@ -129,11 +129,18 @@ export function CommandPalette() {
   }, [query, open]);
 
   // Close on outside / Esc; open on Cmd+K.
+  //
+  // We listen on `document` in the CAPTURE phase so this palette pre-empts
+  // any global CommandPalette mounted by an ancestor layout (e.g. the
+  // parent `(app)/layout.tsx` mounts a different CommandPalette that also
+  // binds Cmd+K). `stopImmediatePropagation` ensures only one palette opens
+  // per keystroke on /agent/* and /agent-inbox/*.
   useEffect(() => {
     if (!shouldMount) return;
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        e.stopImmediatePropagation();
         setOpen((v) => !v);
         setQuery("");
         setActiveIdx(0);
@@ -142,6 +149,7 @@ export function CommandPalette() {
       if (!open) return;
       if (e.key === "Escape") {
         e.preventDefault();
+        e.stopImmediatePropagation();
         setOpen(false);
         return;
       }
@@ -179,8 +187,9 @@ export function CommandPalette() {
         setOpen(false);
       }
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, { capture: true });
+    return () =>
+      document.removeEventListener("keydown", onKey, { capture: true });
   }, [shouldMount, open, flatResults, filteredCommands.length, threadHits.length, activeIdx, router]);
 
   // Focus the input when opening.
@@ -207,16 +216,26 @@ export function CommandPalette() {
 
   if (!shouldMount || !open) return null;
 
+  const listboxId = "agent-cmdk-listbox";
+  const activeOptionId =
+    flatResults[activeIdx]
+      ? `agent-cmdk-option-${activeIdx}`
+      : undefined;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh]"
       style={{ background: "rgba(0,0,0,0.4)" }}
       onClick={() => setOpen(false)}
+      role="presentation"
     >
       <div
         className="rounded-md border w-[560px] max-h-[60vh] flex flex-col overflow-hidden"
         style={{ background: "#ffffff", borderColor: "#e0e0e0" }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
       >
         <input
           ref={inputRef}
@@ -229,9 +248,18 @@ export function CommandPalette() {
           placeholder="Type a command or search threads…"
           className="px-4 py-3 text-[14px] outline-none border-b"
           style={{ borderColor: "#f0f0f0", fontFamily: "inherit" }}
+          role="combobox"
+          aria-expanded="true"
+          aria-controls={listboxId}
+          aria-autocomplete="list"
+          aria-activedescendant={activeOptionId}
         />
 
-        <div className="flex-1 overflow-y-auto py-1">
+        <div
+          className="flex-1 overflow-y-auto py-1"
+          role="listbox"
+          id={listboxId}
+        >
           {filteredCommands.length === 0 && threadHits.length === 0 && (
             <div
               className="px-4 py-6 text-center text-[13px]"
@@ -248,6 +276,7 @@ export function CommandPalette() {
                 return (
                   <PaletteRow
                     key={cmd.id}
+                    id={`agent-cmdk-option-${idx}`}
                     label={cmd.label}
                     selected={idx === activeIdx}
                     onMouseEnter={() => setActiveIdx(idx)}
@@ -265,6 +294,7 @@ export function CommandPalette() {
                 return (
                   <PaletteRow
                     key={hit.threadId}
+                    id={`agent-cmdk-option-${idx}`}
                     label={hit.subject || "(no subject)"}
                     sublabel={`${hit.fromEmail} · ${hit.snippet ?? ""}`}
                     selected={idx === activeIdx}
@@ -302,12 +332,14 @@ function PaletteGroup({
 }
 
 function PaletteRow({
+  id,
   label,
   sublabel,
   selected,
   onClick,
   onMouseEnter,
 }: {
+  id?: string;
   label: string;
   sublabel?: string;
   selected: boolean;
@@ -317,6 +349,9 @@ function PaletteRow({
   return (
     <button
       type="button"
+      id={id}
+      role="option"
+      aria-selected={selected}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
       className="w-full text-left px-4 py-1.5 block"
