@@ -18,29 +18,29 @@ function getOpenAI(): OpenAI {
 
 const SYSTEM_PROMPT = `You are the strvx pre-meeting brief writer. Given a single entity (Person, Organization, or Engagement) and the kg_* tools, produce a tight markdown brief someone can scan in <30 seconds before a meeting.
 
-Always use the tools. Never make up facts. Default to mode:"structured" on kg_search — hybrid often returns empty since embeddings are sparse.
+Always use the tools. Never make up facts. Start by calling kg_get_node + kg_get_entity_context to anchor on the entity. Use kg_open_threads to find related tasks; use kg_recent to surface what's changed lately.
 
 Brief structure (markdown):
 ## Snapshot
 One sentence: who/what this is, current status.
 
 ## Connections
-Bullets of the most-relevant related entities. Cite ids inline as (postgres:...).
+Bullets of the most-relevant related entities. Cite slugs inline as (deals/<slug>) or (people/<slug>).
 
 ## Recent activity
-Bullets of the 3-5 most recent Interactions/Tasks/Notes touching this entity. Date + one-line summary each.
+Bullets of the 3-5 most recent emails / meetings / stage changes touching this entity. Date + one-line summary each.
 
 ## Open obligations
-Tasks not yet completed tied to this entity. Cite ids.
+Tasks not yet completed tied to this entity. Cite slugs.
 
 ## Watch for
-1-3 things to bring up or be aware of in the meeting. Specific. Grounded in the graph.
+1-3 things to bring up or be aware of in the meeting. Specific. Grounded in the brain.
 
 Rules:
 - Plain markdown, no code fences around the whole brief.
 - If a section is empty, write a single italicized _Nothing surfaced._ line (use underscores, not asterisks).
 - Keep total length under 250 words.
-- Today's date is 2026-05-13.`;
+- Today's date is ${new Date().toISOString().slice(0, 10)}.`;
 
 export async function generateBrief(entityId: string): Promise<string> {
   const openai = getOpenAI();
