@@ -357,7 +357,6 @@ function CollapsibleSection({
     >
       <Link
         href={expanded ? collapseHref : expandHref}
-        role="button"
         aria-expanded={expanded}
         aria-controls={bodyId}
         className="flex items-center justify-between"
@@ -418,7 +417,7 @@ function KindFilterChips({
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       <Link
-        href="/agent/follow-ups"
+        href="/agent/follow-ups?show=watchers"
         className="px-2 py-1 rounded text-[12px]"
         style={{
           background: active === null ? "#111" : "#f0f0f0",
@@ -430,7 +429,7 @@ function KindFilterChips({
       {kinds.map((k) => (
         <Link
           key={k}
-          href={`/agent/follow-ups?kind=${k}`}
+          href={`/agent/follow-ups?show=watchers&kind=${k}`}
           className="px-2 py-1 rounded text-[12px]"
           style={{
             background: active === k ? "#111" : "#f0f0f0",

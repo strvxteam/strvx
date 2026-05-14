@@ -106,8 +106,15 @@ export async function GET(request: NextRequest) {
   }
 
   const returnCookie = request.cookies.get("mailbox_oauth_return_to")?.value;
-  const returnTo = returnCookie
+  const decoded = returnCookie
     ? decodeURIComponent(returnCookie)
+    : "/agent/settings?tab=mailboxes";
+  // Sanitize: only allow a same-origin relative path. Anything else falls
+  // back to the default — protects against an open-redirect where a planted
+  // cookie like `//evil.com/path` or `\\evil.com` would otherwise send the
+  // user off-domain after a successful OAuth round-trip.
+  const returnTo = isSafeRelativePath(decoded)
+    ? decoded
     : "/agent/settings?tab=mailboxes";
 
   const separator = returnTo.includes("?") ? "&" : "?";
@@ -124,4 +131,23 @@ export async function GET(request: NextRequest) {
     "mailbox_oauth_initiated_by=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
   );
   return response;
+}
+
+/**
+ * Accept only relative paths that start with exactly one `/`, contain no
+ * scheme, no authority component, and no backslash. Rejects `//host/x`,
+ * `/\\host`, `https://host`, and `javascript:` payloads.
+ */
+function isSafeRelativePath(value: string): boolean {
+  if (typeof value !== "string" || value.length === 0) return false;
+  if (!value.startsWith("/")) return false;
+  if (value.startsWith("//") || value.startsWith("/\\")) return false;
+  if (value.includes("\\")) return false;
+  // Anything that parses as an absolute URL is rejected.
+  try {
+    new URL(value);
+    return false;
+  } catch {
+    return true;
+  }
 }

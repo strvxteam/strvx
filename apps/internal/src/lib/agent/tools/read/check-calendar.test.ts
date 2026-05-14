@@ -109,7 +109,7 @@ describe("fetchCalendarEvents", () => {
     expect(out.error).toBe("calendar_scope_missing");
     expect(out.events).toEqual([]);
     expect(out.message).toContain("team@strvx.com");
-    expect(out.message).toContain("/agent/connect-mailbox");
+    expect(out.message).toContain("/agent/settings?tab=mailboxes");
   });
 
   it("rethrows non-403 errors", async () => {

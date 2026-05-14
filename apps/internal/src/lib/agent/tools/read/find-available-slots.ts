@@ -476,7 +476,7 @@ export const findAvailableSlotsTool: ToolDefinition<
         return {
           slots: [],
           error: "calendar_scope_missing",
-          message: `Mailbox ${email} hasn't granted calendar access yet — reconnect via /agent/connect-mailbox.`,
+          message: `Mailbox ${email} hasn't granted calendar access yet — reconnect via /agent/settings?tab=mailboxes.`,
           range: {
             start: earliestStart.toISOString(),
             end: rangeEnd.toISOString(),
@@ -488,13 +488,14 @@ export const findAvailableSlotsTool: ToolDefinition<
       throw err;
     }
 
-    // Count events per PT day from busy intervals (only primary calendar's
-    // events count — but freebusy doesn't distinguish. As a reasonable proxy,
-    // we count busy blocks on the primary calendar via a separate events.list.
-    // To keep this self-contained and the per-day cap conservative, count
-    // distinct busy blocks per day from the merged busy set.
+    // Count events per PT day for the max-back-to-back cap. Counting raw
+    // busy intervals would double-count any meeting that appears on both the
+    // primary calendar and an attendee's calendar — a single 2-attendee
+    // meeting would be 3 events. Merge concurrent/overlapping blocks first
+    // (without buffer) so each real meeting counts once.
+    const dedupedForCount = expandAndMergeBusy(busy, 0);
     const eventCountByPtDay: Record<string, number> = {};
-    for (const b of busy) {
+    for (const b of dedupedForCount) {
       const key = ptDayKey(b.start);
       eventCountByPtDay[key] = (eventCountByPtDay[key] ?? 0) + 1;
     }

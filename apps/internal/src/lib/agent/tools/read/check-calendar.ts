@@ -90,7 +90,7 @@ export async function fetchCalendarEvents(args: {
       return {
         events: [],
         error: "calendar_scope_missing",
-        message: `Mailbox ${email} hasn't granted calendar access yet — reconnect via /agent/connect-mailbox.`,
+        message: `Mailbox ${email} hasn't granted calendar access yet — reconnect via /agent/settings?tab=mailboxes.`,
         range: { start, end },
       };
     }
