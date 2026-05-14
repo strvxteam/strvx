@@ -135,7 +135,6 @@ const navSections: NavSection[] = [
       { href: "/agent-inbox", label: "Inbox", icon: Inbox },
       { href: "/agent/brief", label: "Brief", icon: Sparkles },
       { href: "/agent/drafts", label: "Drafts", icon: FileText },
-      { href: "/agent/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/agent/follow-ups", label: "Follow-ups", icon: BellRing },
       { href: "/agent/settings", label: "Settings", icon: Settings },
       { href: "/agent/analytics", label: "Analytics", icon: BarChart3 },

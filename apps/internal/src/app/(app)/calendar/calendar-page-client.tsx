@@ -12,6 +12,8 @@ import {
   ExternalLink,
   Pencil,
   Trash2,
+  Sparkles,
+  Briefcase,
 } from "lucide-react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -75,12 +77,20 @@ function calendarEventToFC(evt: CalendarEvent) {
 function renderEventContent(arg: EventContentArg) {
   const timeText = arg.timeText;
   const title = arg.event.title;
+  const evt = arg.event.extendedProps.calendarEvent as CalendarEvent | undefined;
+  const engagementName = evt?.engagementName ?? null;
+  const hasPrepBrief = evt?.hasPrepBrief ?? false;
 
   if (arg.view.type === "dayGridMonth") {
     return (
       <div className="flex flex-col gap-0.5 py-0.5 px-1 overflow-hidden">
-        <span className="text-[10px] opacity-70 font-medium">{timeText}</span>
-        <span className="text-[11px] font-medium leading-tight">{title}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] opacity-70 font-medium truncate">{timeText}</span>
+          {hasPrepBrief && (
+            <Sparkles size={9} strokeWidth={2.5} className="shrink-0 opacity-80" />
+          )}
+        </div>
+        <span className="text-[11px] font-medium leading-tight truncate">{title}</span>
       </div>
     );
   }
@@ -88,8 +98,19 @@ function renderEventContent(arg: EventContentArg) {
   // Week/day views
   return (
     <div className="flex flex-col gap-0.5 py-1 px-1.5 overflow-hidden h-full">
-      <span className="text-[10px] opacity-80 font-medium">{timeText}</span>
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] opacity-80 font-medium">{timeText}</span>
+        {hasPrepBrief && (
+          <Sparkles size={10} strokeWidth={2.5} className="shrink-0 opacity-90" />
+        )}
+      </div>
       <span className="text-[12px] font-semibold leading-tight">{title}</span>
+      {engagementName && (
+        <span className="flex items-center gap-1 text-[10px] opacity-80 truncate">
+          <Briefcase size={9} strokeWidth={2} className="shrink-0" />
+          {engagementName}
+        </span>
+      )}
     </div>
   );
 }
@@ -146,12 +167,16 @@ export function CalendarPageClient({
       const newEvents: CalendarEvent[] = (data.events ?? [])
         .filter((ge: { isAllDay: boolean; start: string }) => !ge.isAllDay)
         .map((ge: {
-          id: string;
+          googleEventId?: string;
+          id?: string;
           start: string;
           end: string;
           title: string;
           meetLink: string;
           isAllDay: boolean;
+          engagementId?: string | null;
+          engagementName?: string | null;
+          hasPrepBrief?: boolean;
         }) => {
           const start = new Date(ge.start);
           const end = new Date(ge.end);
@@ -160,8 +185,9 @@ export function CalendarPageClient({
           const date = `${localStart.getFullYear()}-${String(localStart.getMonth() + 1).padStart(2, "0")}-${String(localStart.getDate()).padStart(2, "0")}`;
           const startHour = localStart.getHours() + localStart.getMinutes() / 60;
           const durationHours = Math.min((localEnd.getTime() - localStart.getTime()) / (1000 * 60 * 60), 8);
+          const gid = ge.googleEventId ?? ge.id ?? "";
           return {
-            id: `gcal-${ge.id}`,
+            id: `gcal-${gid}`,
             title: ge.title,
             type: "client_call" as CalendarEvent["type"],
             date,
@@ -170,6 +196,9 @@ export function CalendarPageClient({
             client: null,
             zoomLink: ge.meetLink || null,
             projectId: null,
+            engagementId: ge.engagementId ?? null,
+            engagementName: ge.engagementName ?? null,
+            hasPrepBrief: ge.hasPrepBrief ?? false,
           };
         });
 
@@ -437,6 +466,31 @@ export function CalendarPageClient({
                         Join Zoom Meeting
                         <ExternalLink size={12} strokeWidth={2} />
                       </a>
+                    </div>
+                  )}
+
+                  {selectedEvent.engagementName && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f5f5f5]">
+                        <Briefcase size={15} strokeWidth={1.5} className="text-[#888]" />
+                      </div>
+                      <div>
+                        <p className="text-[13px] font-medium text-[#222]">
+                          {selectedEvent.engagementName}
+                        </p>
+                        <p className="text-[12px] text-[#999]">Engagement</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedEvent.hasPrepBrief && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#f5f5f5]">
+                        <Sparkles size={15} strokeWidth={1.5} className="text-[#1a73e8]" />
+                      </div>
+                      <p className="text-[13px] font-medium text-[#222]">
+                        Prep brief available
+                      </p>
                     </div>
                   )}
 

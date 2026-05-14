@@ -5,6 +5,7 @@ import { getCalendarEvents, getCompanies, getUserByEmail } from "@/lib/queries";
 import { getTeamCalendarEvents, getPersonalCalendarEvents } from "@/lib/google-calendar";
 import { createClient } from "@/lib/supabase/server";
 import { type CalendarEvent } from "@/lib/mock-calendar";
+import { loadCalendarAgentOverlays } from "@/lib/calendar-agent-overlays";
 import { CalendarPageClient } from "./calendar-page-client";
 
 export const metadata: Metadata = { title: "Calendar" };
@@ -97,5 +98,22 @@ export default async function CalendarPage() {
   });
   const events: CalendarEvent[] = [...converted, ...uniqueGoogleEvents];
 
-  return <CalendarPageClient initialEvents={events} initialCompanies={companiesList} />;
+  const overlays = await loadCalendarAgentOverlays(events.map((e) => e.id));
+  const enriched = events.map((e) => {
+    const o = overlays.get(e.id);
+    if (!o) return e;
+    return {
+      ...e,
+      engagementId: o.engagementId,
+      engagementName: o.engagementName,
+      hasPrepBrief: o.hasPrepBrief,
+    };
+  });
+
+  return (
+    <CalendarPageClient
+      initialEvents={enriched}
+      initialCompanies={companiesList}
+    />
+  );
 }

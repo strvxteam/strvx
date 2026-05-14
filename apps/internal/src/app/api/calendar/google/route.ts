@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getTeamCalendarEvents, getPersonalCalendarEvents } from "@/lib/google-calendar";
 import { createClient } from "@/lib/supabase/server";
 import { getUserByEmail } from "@/lib/queries";
+import { loadCalendarAgentOverlays } from "@/lib/calendar-agent-overlays";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -29,7 +30,22 @@ export async function GET(request: NextRequest) {
       events = await getPersonalCalendarEvents(dbUser.googleRefreshToken, timeMin, timeMax);
     }
 
-    return NextResponse.json({ events });
+    const overlays = await loadCalendarAgentOverlays(
+      events.map((e) => `gcal-${e.googleEventId}`)
+    );
+    const enriched = events.map((e) => {
+      const o = overlays.get(`gcal-${e.googleEventId}`);
+      return o
+        ? {
+            ...e,
+            engagementId: o.engagementId,
+            engagementName: o.engagementName,
+            hasPrepBrief: o.hasPrepBrief,
+          }
+        : e;
+    });
+
+    return NextResponse.json({ events: enriched });
   } catch (err) {
     console.error("[Google Calendar API] Error:", err);
     return NextResponse.json({ error: "Failed to fetch events" }, { status: 500 });

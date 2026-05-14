@@ -10,6 +10,10 @@ export interface CalendarEvent {
   client: string | null;
   zoomLink: string | null;
   projectId: string | null;
+  /** Agent overlays — populated when the event maps to a strvx engagement. */
+  engagementId?: string | null;
+  engagementName?: string | null;
+  hasPrepBrief?: boolean;
 }
 
 export const EVENT_TYPE_COLORS: Record<EventType, { bg: string; border: string; text: string }> = {

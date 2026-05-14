@@ -50,7 +50,7 @@ const GOTO_MAP: Record<string, string> = {
   i: "/agent-inbox",
   b: "/agent/brief",
   d: "/agent/drafts",
-  c: "/agent/calendar",
+  c: "/calendar",
   f: "/agent/follow-ups",
   s: "/agent/settings",
 };
@@ -600,6 +600,7 @@ export function KeyboardShortcuts({
               <ShortcutRow keys="g f" label="Go to Follow-ups" />
               <ShortcutRow keys="g s" label="Go to Settings" />
               <ShortcutRow keys="/" label="Focus search" />
+              <ShortcutRow keys="⌘ K" label="Open command palette" />
             </ShortcutGroup>
 
             <ShortcutGroup label="Triage">

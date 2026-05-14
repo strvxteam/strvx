@@ -23,7 +23,7 @@ const STATIC_COMMANDS: StaticCommand[] = [
   { id: "goto-inbox", label: "Go to Inbox", href: "/agent-inbox" },
   { id: "goto-brief", label: "Go to Brief", href: "/agent/brief" },
   { id: "goto-drafts", label: "Go to Drafts", href: "/agent/drafts" },
-  { id: "goto-calendar", label: "Go to Calendar", href: "/agent/calendar" },
+  { id: "goto-calendar", label: "Go to Calendar", href: "/calendar" },
   {
     id: "goto-follow-ups",
     label: "Go to Follow-ups",
