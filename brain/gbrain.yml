@@ -1,0 +1,49 @@
+# gbrain.yml — canonical config for the strvx brain.
+#
+# gbrain reads this file from the brain repo root for storage tiering,
+# allow-lists, and skill behavior. The configured retrieval index lives
+# at .gbrain/ next to this file (PGLite).
+#
+# Generated and maintained by apps/brain-sync. Edit by hand only for
+# config that doesn't live in frontmatter (e.g. archive-crawler scan
+# paths). The MECE directory layout is documented in RESOLVER.md.
+
+owner:
+  id: strvx-team
+  name: Strvx Team
+
+# Pages whose body should stay in the database only (not synced to the
+# markdown repo). Empty for now — every entity is human-readable markdown
+# by design. The .raw/ sidecar convention from gbrain's reference schema
+# isn't used: we don't keep raw Supabase row payloads.
+storage:
+  db_tracked: []
+  db_only: []
+
+# archive-crawler is the skill that ingests file archives (Dropbox /
+# Gmail-takeout). It refuses to run without an explicit allow-list, which
+# is the safe default. Leave empty until we actually want to point it
+# at something.
+archive-crawler:
+  scan_paths: []
+  deny_paths:
+    - "/Users/nicolasdossantos/.ssh"
+    - "/Users/nicolasdossantos/Library/Keychains"
+
+# Dream-cycle source directories. These get re-staged on every
+# `./scripts/refresh-brain.sh` run from public.bookings.notes and
+# public.email_messages.body_text. The synthesize phase enriches entity
+# pages from these transcripts. Activate the cycle via:
+#   gbrain dream --dir <repo>/brain --phase synthesize
+dream:
+  synthesize:
+    # Already set via `gbrain config set dream.synthesize.session_corpus_dir`
+    # — repeated here for documentation. The PGLite-stored config wins.
+    session_corpus_dir: ./.sources/transcripts/emails
+    meeting_transcripts_dir: ./.sources/transcripts/meetings
+
+# Retrieval shape — also set via `gbrain config set search.mode balanced`.
+# Documented here so a fresh clone knows the cost tradeoff (~$300/mo at
+# 10K queries with Sonnet downstream).
+search:
+  mode: balanced
