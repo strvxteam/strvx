@@ -5,7 +5,7 @@ person_kind: contact
 source_id: 9977221c-fb83-4faf-b07c-e9cf447a8b1b
 source_table: contacts
 source_updated_at: "2026-04-17 07:38:36.493605+00"
-synced_at: "2026-05-14T00:33:50.654Z"
+synced_at: "2026-05-14T00:47:10.905Z"
 name: Seth Martin
 email: founders@paydax.io
 company_slug: paydax

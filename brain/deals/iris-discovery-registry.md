@@ -4,7 +4,7 @@ type: deal
 source_id: 685dcb6c-fe26-4fc0-a87c-a27be30075d6
 source_table: engagements
 source_updated_at: "2026-04-28 22:49:16.971+00"
-synced_at: "2026-05-14T00:33:51.732Z"
+synced_at: "2026-05-14T00:47:11.654Z"
 name: Discovery — Registry
 stage: build
 company_slug: iris

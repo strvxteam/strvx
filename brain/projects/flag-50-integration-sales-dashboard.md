@@ -4,7 +4,7 @@ type: project
 source_id: 848ab8e8-3fd0-4c83-9e36-a067ae36000a
 source_table: projects
 source_updated_at: "2026-05-06 22:04:23.091961+00"
-synced_at: "2026-05-14T00:33:51.862Z"
+synced_at: "2026-05-14T00:47:11.727Z"
 name: Flag 50 Integration/Sales Dashboard
 status: scoping
 ---

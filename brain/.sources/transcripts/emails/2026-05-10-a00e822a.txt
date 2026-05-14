@@ -1,0 +1,15 @@
+# Email thread — Snoozed — revisit later
+
+---
+2026-05-10 23:19:08.748+00  [inbound]  from Gamma Sometimes <sometimes@gammatrials.co>
+
+Hi team,
+
+This is the first message in the snoozed thread — a synthetic demo seed. Please ignore.
+
+— Gamma Sometimes
+
+---
+2026-05-11 23:19:08.748+00  [inbound]  from Gamma Sometimes <sometimes@gammatrials.co>
+
+Following up — could you confirm next steps for snoozed?

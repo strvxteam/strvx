@@ -5,7 +5,7 @@ company_kind: client
 source_id: 52a53103-ddb2-425b-a7be-b0ba572e6644
 source_table: companies
 source_updated_at: "2026-05-12 23:19:06.763218+00"
-synced_at: "2026-05-14T00:33:50.488Z"
+synced_at: "2026-05-14T00:47:10.688Z"
 name: Acme Demo Inc
 industry: AI Consulting
 website: acmedemo.com

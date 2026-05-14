@@ -51,6 +51,18 @@ interface EmailThreadRow {
   agent_category: string | null;
 }
 
+interface EmailMessageRow {
+  id: string;
+  thread_id: string;
+  from_email: string | null;
+  from_name: string | null;
+  subject: string | null;
+  body_text: string | null;
+  snippet: string | null;
+  direction: string | null;
+  sent_at: string | null;
+}
+
 interface TaskRow {
   id: string;
   title: string;
@@ -106,7 +118,7 @@ export async function renderDeals(
   if (engagementIds.length === 0) return new Map();
 
   // Load every supporting feed in parallel.
-  const [stages, interactions, threads, tasks, nextActions] = await Promise.all([
+  const [stages, interactions, threads, tasks, nextActions, messages] = await Promise.all([
     sql<StageRow[]>`
       SELECT engagement_id, stage::text AS stage,
              entered_at::text AS entered_at,
@@ -154,6 +166,19 @@ export async function renderDeals(
         AND archived_at IS NULL
       ORDER BY created_at
     `,
+    // Pull the bodies of every message in any thread tied to an in-scope
+    // engagement so we can fold real content into the deal timeline.
+    sql<EmailMessageRow[]>`
+      SELECT m.id, m.thread_id, m.from_email, m.from_name, m.subject,
+             m.body_text, m.snippet, m.direction::text AS direction,
+             m.sent_at::text AS sent_at
+      FROM public.email_messages m
+      JOIN public.email_threads t ON t.id = m.thread_id
+      WHERE t.engagement_id = ANY(${engagementIds})
+        AND t.archived_at IS NULL
+        AND m.archived_at IS NULL
+      ORDER BY m.sent_at
+    `,
   ]);
 
   // Bucket feeds by engagement_id for O(1) lookup per page.
@@ -162,6 +187,7 @@ export async function renderDeals(
   const threadsByEng = bucket(threads, (t) => t.engagement_id ?? "");
   const tasksByEng = bucket(tasks, (t) => t.engagement_id ?? "");
   const nextActionsByEng = bucket(nextActions, (n) => n.engagement_id ?? "");
+  const messagesByThread = bucket(messages, (m) => m.thread_id);
 
   const slugByEng = new Map<string, string>();
   const usedSlugs = new Set<string>();
@@ -273,16 +299,49 @@ export async function renderDeals(
     }
     for (const t of threadsByEng.get(e.id) ?? []) {
       const subject = t.subject ?? "(no subject)";
-      const date = (t.last_message_at ?? "").slice(0, 10) || e.created_at.slice(0, 10);
       const contactLink = t.contact_id
         ? peopleSlugByContactId.get(t.contact_id)
         : undefined;
       const companyLink = t.company_id ? companies.get(t.company_id) : undefined;
-      const bits: string[] = [`**${subject}** — ${t.message_count ?? "?"} messages.`];
-      if (contactLink) bits.push(`with [[people/${contactLink}]]`);
-      if (companyLink) bits.push(`at [[companies/${companyLink.slug}]]`);
-      if (t.agent_urgency) bits.push(`(urgency: ${t.agent_urgency})`);
-      timeline.push({ date, kind: "email thread", body: bits.join(" ") });
+      const threadMessages = messagesByThread.get(t.id) ?? [];
+
+      // Header entry for the thread, dated by the most recent message.
+      const headerDate =
+        (t.last_message_at ?? "").slice(0, 10) || e.created_at.slice(0, 10);
+      const headerBits: string[] = [
+        `**${subject}** — ${threadMessages.length || t.message_count || 0} messages.`,
+      ];
+      if (contactLink) headerBits.push(`with [[people/${contactLink}]]`);
+      if (companyLink) headerBits.push(`at [[companies/${companyLink.slug}]]`);
+      if (t.agent_urgency) headerBits.push(`(urgency: ${t.agent_urgency})`);
+      timeline.push({
+        date: headerDate,
+        kind: "email thread",
+        body: headerBits.join(" "),
+      });
+
+      // One timeline entry per individual message, body included. Cap each
+      // body at 800 chars so a 50-message thread doesn't dominate the page.
+      for (const m of threadMessages) {
+        const date = (m.sent_at ?? "").slice(0, 10) || headerDate;
+        const fromLabel = m.from_name
+          ? `${m.from_name} <${m.from_email ?? ""}>`
+          : m.from_email ?? "(unknown sender)";
+        const dir = m.direction ? `[${m.direction}]` : "";
+        const body = (m.body_text ?? m.snippet ?? "").trim();
+        const snippet = body ? trim(body, 800) : "_(empty body)_";
+        timeline.push({
+          date,
+          kind: "email message",
+          body: [
+            `${dir} **${m.subject ?? subject}** from ${fromLabel}`,
+            "",
+            snippet,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+        });
+      }
     }
     for (const t of tasksByEng.get(e.id) ?? []) {
       if (!t.completed_at) continue;

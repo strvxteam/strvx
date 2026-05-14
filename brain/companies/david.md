@@ -4,7 +4,7 @@ type: company
 company_kind: partner
 source_id: eb3a776b-ad79-4c89-8365-5dc8ed523ede
 source_table: partners
-synced_at: "2026-05-14T00:33:50.492Z"
+synced_at: "2026-05-14T00:47:10.692Z"
 name: David
 partnership_stage: active
 ---

@@ -4,7 +4,7 @@ type: deal
 source_id: e1b0baac-3b4c-41f3-a56d-c2a75e5fe1d6
 source_table: engagements
 source_updated_at: "2026-05-12 01:27:34.582+00"
-synced_at: "2026-05-14T00:33:51.730Z"
+synced_at: "2026-05-14T00:47:11.653Z"
 name: Discovery — Jeran Fraser
 stage: discovery
 company_slug: jeran-fraser-via-booking

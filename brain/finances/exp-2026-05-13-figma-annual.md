@@ -4,7 +4,7 @@ type: expense
 source_id: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 source_table: expenses
 source_updated_at: 2026-05-13
-synced_at: "2026-05-14T00:33:52.216Z"
+synced_at: "2026-05-14T00:47:12.103Z"
 description: Figma annual
 amount: 200
 category: software

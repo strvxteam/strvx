@@ -4,7 +4,7 @@ type: deal
 source_id: 7019a13f-7668-4e22-a00f-4b6d9c54b539
 source_table: engagements
 source_updated_at: "2026-04-02 21:55:27.065+00"
-synced_at: "2026-05-14T00:33:51.733Z"
+synced_at: "2026-05-14T00:47:11.654Z"
 name: Dr Bob Nelson Leads Dashboard
 stage: build
 company_slug: dr-bob-nelson

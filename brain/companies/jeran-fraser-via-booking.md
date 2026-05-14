@@ -5,7 +5,7 @@ company_kind: client
 source_id: a640ab4a-78a2-4cba-acd8-da44cf1294f2
 source_table: companies
 source_updated_at: "2026-05-06 04:08:41.493138+00"
-synced_at: "2026-05-14T00:33:50.491Z"
+synced_at: "2026-05-14T00:47:10.691Z"
 name: Jeran Fraser (via Booking)
 ---
 

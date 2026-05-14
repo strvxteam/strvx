@@ -4,7 +4,7 @@ type: deal
 source_id: aa377e00-bdd9-4a81-8384-9e5931bfbac4
 source_table: engagements
 source_updated_at: "2026-05-06 17:40:59.11+00"
-synced_at: "2026-05-14T00:33:51.732Z"
+synced_at: "2026-05-14T00:47:11.654Z"
 name: Partner
 stage: discovery
 company_slug: olivia-tian

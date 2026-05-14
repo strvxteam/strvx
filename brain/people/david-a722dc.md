@@ -5,7 +5,7 @@ person_kind: contact
 source_id: a722dc22-b616-4c5b-a5af-a4838a9f6ecd
 source_table: contacts
 source_updated_at: "2026-05-05 05:44:03.272807+00"
-synced_at: "2026-05-14T00:33:50.652Z"
+synced_at: "2026-05-14T00:47:10.902Z"
 name: David
 email: david@reztek.pro
 company_slug: david-cj

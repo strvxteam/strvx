@@ -5,7 +5,7 @@ company_kind: client
 source_id: 5c9f7299-9c99-4393-84cd-2f9f62c24ce0
 source_table: companies
 source_updated_at: "2026-05-03 03:29:50.346619+00"
-synced_at: "2026-05-14T00:33:50.490Z"
+synced_at: "2026-05-14T00:47:10.690Z"
 name: David Resilien (via Booking)
 ---
 

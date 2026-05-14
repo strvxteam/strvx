@@ -1,0 +1,20 @@
+# Email thread — Following up on the proposal
+
+---
+2026-05-01 23:19:08.588+00  [inbound]  from Gamma VP <vp@gammatrials.co>
+
+Hi team,
+
+This is the first message in the stale thread — a synthetic demo seed. Please ignore.
+
+— Gamma VP
+
+---
+2026-05-02 23:19:08.588+00  [inbound]  from Gamma VP <vp@gammatrials.co>
+
+Following up — could you confirm next steps for stale?
+
+---
+2026-05-07 23:19:08.588+00  [outbound]  from Demo Team <demo-team@strvx.com>
+
+Thanks for reaching out, Gamma VP! Replying shortly with details.

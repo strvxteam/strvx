@@ -5,7 +5,7 @@ person_kind: contact
 source_id: 6873571b-23b3-41f8-8c06-105f58f52855
 source_table: contacts
 source_updated_at: "2026-04-01 07:31:29.870751+00"
-synced_at: "2026-05-14T00:33:50.652Z"
+synced_at: "2026-05-14T00:47:10.902Z"
 name: Dr Bob Nelson
 email: ""
 company_slug: dr-bob-nelson

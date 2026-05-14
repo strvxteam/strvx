@@ -4,7 +4,7 @@ type: meeting
 source_id: b0abee25-167d-460e-85fd-d64e113c8356
 source_table: bookings
 source_updated_at: "2026-04-16 20:00:00+00"
-synced_at: "2026-05-14T00:33:52.059Z"
+synced_at: "2026-05-14T00:47:11.954Z"
 title: discovery
 client_name: Adriel Schumann
 start_time: "2026-04-16 20:00:00+00"

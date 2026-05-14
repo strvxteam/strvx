@@ -119,19 +119,47 @@ export async function gbrainSearch(
 ): Promise<GbrainSearchHit[] | null> {
   if (!isGbrainConfigured()) return null;
   try {
-    const out = await callTool("search", { query, limit });
-    if (!Array.isArray(out)) return null;
-    return out.map((row) => {
-      const r = row as Record<string, unknown>;
-      return {
-        slug: String(r.slug ?? ""),
-        type: typeof r.type === "string" ? r.type : null,
-        chunk_text:
-          typeof r.chunk_text === "string" ? r.chunk_text : null,
-        score: typeof r.score === "number" ? r.score : null,
-      };
-    });
+    // Prefer `query` (RRF + vector + keyword) over `search` (tsvector-only).
+    // gbrain's `query` op takes a top-level `query` argument and returns a
+    // `{ chunks: [...], … }` envelope rather than a bare array. Fall back to
+    // `search` if `query` errors (older gbrain builds may diverge on shape).
+    const queryOut = (await callTool("query", { query, limit })) as
+      | { chunks?: unknown[] }
+      | unknown[]
+      | null;
+    const rows = Array.isArray(queryOut)
+      ? queryOut
+      : Array.isArray(queryOut?.chunks)
+        ? queryOut!.chunks
+        : null;
+    if (rows && rows.length > 0) return rows.map(toHit);
+
+    // Either query returned nothing or shape was unexpected — fall back to
+    // the lexical-only `search` op so we still get something useful.
+    const searchOut = await callTool("search", { query, limit });
+    if (!Array.isArray(searchOut)) return null;
+    return searchOut.map(toHit);
   } catch {
     return null;
   }
+}
+
+function toHit(row: unknown): GbrainSearchHit {
+  const r = row as Record<string, unknown>;
+  return {
+    slug: String(r.slug ?? ""),
+    type: typeof r.type === "string" ? r.type : null,
+    chunk_text:
+      typeof r.chunk_text === "string"
+        ? r.chunk_text
+        : typeof r.text === "string"
+          ? r.text
+          : null,
+    score:
+      typeof r.score === "number"
+        ? r.score
+        : typeof r.rrf_score === "number"
+          ? r.rrf_score
+          : null,
+  };
 }

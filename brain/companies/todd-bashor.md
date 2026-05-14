@@ -4,7 +4,7 @@ type: company
 company_kind: partner
 source_id: c15f7d37-cbc2-41a1-82d8-bcc134642947
 source_table: partners
-synced_at: "2026-05-14T00:33:50.493Z"
+synced_at: "2026-05-14T00:47:10.693Z"
 name: Todd Bashor
 partnership_stage: on_hold
 ---

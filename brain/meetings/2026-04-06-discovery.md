@@ -4,7 +4,7 @@ type: meeting
 source_id: dba37f3a-17c7-4699-8919-78e3e75cfe46
 source_table: bookings
 source_updated_at: "2026-04-06 21:00:00+00"
-synced_at: "2026-05-14T00:33:52.061Z"
+synced_at: "2026-05-14T00:47:11.956Z"
 title: discovery
 client_name: Bernard Mizelle
 start_time: "2026-04-06 21:00:00+00"

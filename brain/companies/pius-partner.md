@@ -4,7 +4,7 @@ type: company
 company_kind: partner
 source_id: 1bf19e6e-5792-4d19-ab90-332cac7e350e
 source_table: partners
-synced_at: "2026-05-14T00:33:50.492Z"
+synced_at: "2026-05-14T00:47:10.692Z"
 name: Pius
 partnership_stage: prospective
 ---

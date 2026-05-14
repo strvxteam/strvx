@@ -4,7 +4,7 @@ type: invoice
 source_id: aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa
 source_table: invoices
 source_updated_at: "2026-05-14 00:13:29.061937+00"
-synced_at: "2026-05-14T00:33:52.215Z"
+synced_at: "2026-05-14T00:47:12.102Z"
 invoice_number: INV-002
 client: Acme
 amount: 8000

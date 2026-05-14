@@ -5,7 +5,7 @@ person_kind: contact
 source_id: 22222222-2222-2222-2222-222222222222
 source_table: contacts
 source_updated_at: "2026-05-13 23:35:14.415736+00"
-synced_at: "2026-05-14T00:33:50.653Z"
+synced_at: "2026-05-14T00:47:10.903Z"
 name: Jane Doe
 email: jane@acme.com
 company_slug: acme-111111

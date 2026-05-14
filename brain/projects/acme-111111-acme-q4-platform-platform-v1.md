@@ -4,7 +4,7 @@ type: project
 source_id: 66666666-6666-6666-6666-666666666666
 source_table: projects
 source_updated_at: "2026-05-13 23:35:14.936924+00"
-synced_at: "2026-05-14T00:33:51.862Z"
+synced_at: "2026-05-14T00:47:11.727Z"
 name: Platform v1
 status: scoping
 deal_slug: acme-111111-acme-q4-platform

@@ -5,7 +5,7 @@ company_kind: client
 source_id: 644e6d9d-e82b-4978-82b4-ea5f5d58d582
 source_table: companies
 source_updated_at: "2026-04-02 21:59:56.013585+00"
-synced_at: "2026-05-14T00:33:50.491Z"
+synced_at: "2026-05-14T00:47:10.691Z"
 name: Nicolas Gomes Dos Santos (via Booking)
 ---
 

@@ -4,7 +4,7 @@ type: deal
 source_id: 79067ce0-b45c-4e46-a69a-57689908e534
 source_table: engagements
 source_updated_at: "2026-05-06 17:40:41.119+00"
-synced_at: "2026-05-14T00:33:51.731Z"
+synced_at: "2026-05-14T00:47:11.653Z"
 name: CREW Method
 stage: building_mvp
 company_slug: david-cj

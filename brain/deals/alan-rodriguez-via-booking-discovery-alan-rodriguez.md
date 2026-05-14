@@ -4,7 +4,7 @@ type: deal
 source_id: d3bbbe41-efc1-4c93-87d4-2c262f518f9e
 source_table: engagements
 source_updated_at: "2026-04-27 03:10:33.027+00"
-synced_at: "2026-05-14T00:33:51.732Z"
+synced_at: "2026-05-14T00:47:11.654Z"
 name: Discovery — Alan Rodriguez
 stage: proposal
 company_slug: alan-rodriguez-via-booking

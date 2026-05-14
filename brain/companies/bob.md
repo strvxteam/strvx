@@ -5,7 +5,7 @@ company_kind: client
 source_id: f834ba76-7988-47d7-a894-c31683f21b20
 source_table: companies
 source_updated_at: "2026-04-02 00:21:50.134515+00"
-synced_at: "2026-05-14T00:33:50.489Z"
+synced_at: "2026-05-14T00:47:10.689Z"
 name: Bob
 ---
 

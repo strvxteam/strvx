@@ -5,7 +5,7 @@ company_kind: client
 source_id: 11111111-1111-4111-8111-111111111111
 source_table: companies
 source_updated_at: "2026-05-14 00:13:27.865742+00"
-synced_at: "2026-05-14T00:33:50.483Z"
+synced_at: "2026-05-14T00:47:10.683Z"
 name: Acme
 industry: technology
 ---

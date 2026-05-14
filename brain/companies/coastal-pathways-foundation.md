@@ -5,7 +5,7 @@ company_kind: client
 source_id: 2d40ead7-6f4a-4073-9bec-ef333dfd3e2e
 source_table: companies
 source_updated_at: "2026-04-04 21:03:02.550409+00"
-synced_at: "2026-05-14T00:33:50.490Z"
+synced_at: "2026-05-14T00:47:10.690Z"
 name: Coastal Pathways Foundation
 industry: Non-Profit
 ---

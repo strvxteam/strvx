@@ -5,7 +5,7 @@ company_kind: client
 source_id: bb584e4d-ae9f-4175-921c-acadb3aa6e8c
 source_table: companies
 source_updated_at: "2026-04-30 02:23:25.008207+00"
-synced_at: "2026-05-14T00:33:50.489Z"
+synced_at: "2026-05-14T00:47:10.689Z"
 name: Axen
 ---
 

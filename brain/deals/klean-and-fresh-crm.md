@@ -4,7 +4,7 @@ type: deal
 source_id: 41b7239f-4c38-4650-a5fe-124c987ee33a
 source_table: engagements
 source_updated_at: "2026-04-21 22:55:04.316328+00"
-synced_at: "2026-05-14T00:33:51.731Z"
+synced_at: "2026-05-14T00:47:11.654Z"
 name: CRM
 stage: discovery
 company_slug: klean-and-fresh

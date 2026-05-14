@@ -1,0 +1,15 @@
+# Email thread — Intro from referral — quick chat?
+
+---
+2026-05-11 17:19:07.437+00  [inbound]  from Sam Referral <intro@acmedemo.com>
+
+Hi team,
+
+This is the first message in the lead2 thread — a synthetic demo seed. Please ignore.
+
+— Sam Referral
+
+---
+2026-05-12 17:19:07.437+00  [inbound]  from Sam Referral <intro@acmedemo.com>
+
+Following up — could you confirm next steps for lead2?

@@ -9,6 +9,7 @@ import { renderDeals } from "../render/deal.ts";
 import { renderProjects } from "../render/project.ts";
 import { renderMeetings } from "../render/meeting.ts";
 import { renderFinances } from "../render/finance.ts";
+import { stageTranscripts } from "../render/transcripts.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -49,6 +50,10 @@ async function main() {
     console.log("rendering finances…");
     await renderFinances(sql, brainDir, deals);
     console.log(`  finances done`);
+
+    console.log("staging transcripts for dream cycle…");
+    const tx = await stageTranscripts(sql, brainDir);
+    console.log(`  ${tx.meetings} meeting transcripts, ${tx.threads} email threads`);
 
     console.log("done.");
   } finally {

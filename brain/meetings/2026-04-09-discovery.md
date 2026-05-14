@@ -4,7 +4,7 @@ type: meeting
 source_id: d51e2e85-58b5-4267-9142-d701d2b2be0b
 source_table: bookings
 source_updated_at: "2026-04-09 16:30:00+00"
-synced_at: "2026-05-14T00:33:52.061Z"
+synced_at: "2026-05-14T00:47:11.956Z"
 title: discovery
 client_name: Alex A Battikha
 start_time: "2026-04-09 16:30:00+00"
