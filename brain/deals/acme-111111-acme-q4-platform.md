@@ -4,7 +4,7 @@ type: deal
 source_id: 33333333-3333-3333-3333-333333333333
 source_table: engagements
 source_updated_at: "2026-05-13 23:35:14.567008+00"
-synced_at: "2026-05-14T00:47:11.652Z"
+synced_at: "2026-05-14T04:30:05.988Z"
 name: Acme Q4 platform
 stage: lead
 company_slug: acme-111111

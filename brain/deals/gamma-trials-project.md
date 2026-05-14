@@ -4,7 +4,7 @@ type: deal
 source_id: a8c1893a-4302-4ce3-a0d5-b497f06593f9
 source_table: engagements
 source_updated_at: "2026-05-12 23:19:06.91215+00"
-synced_at: "2026-05-14T00:47:11.653Z"
+synced_at: "2026-05-14T04:30:05.988Z"
 name: Gamma Trials Project
 stage: proposal
 deal_value: 120000

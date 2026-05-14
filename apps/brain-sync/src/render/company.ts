@@ -63,12 +63,20 @@ export async function renderCompanies(
     let slug = companySlug(c.name);
     if (usedSlugs.has(slug)) slug = `${slug}-${c.id.slice(0, 6)}`;
     usedSlugs.add(slug);
+    // Bookings without a matched company create rows whose name ends "(via
+    // Booking)". Keep them in the lookup so wikilinks resolve, but flag
+    // them so /kg/browse and listBrainByType can filter them out.
+    const isPlaceholder = /\(via booking\)\s*$/i.test(c.name);
     lookup.set(c.id, { id: c.id, slug, name: c.name, kind: "company" });
 
     const compiled = [
       `# ${c.name}`,
       "",
-      c.industry ? `Operating in **${c.industry}**.` : "",
+      isPlaceholder
+        ? "_Auto-created from a booking with no matched company row._"
+        : c.industry
+          ? `Operating in **${c.industry}**.`
+          : "",
       "",
       "## State",
       c.industry ? `- Industry: ${c.industry}` : null,
@@ -91,7 +99,7 @@ export async function renderCompanies(
       frontmatter: {
         slug: `companies/${slug}`,
         type: "company",
-        company_kind: "client",
+        company_kind: isPlaceholder ? "placeholder" : "client",
         source_id: c.id,
         source_table: "companies",
         source_updated_at: c.created_at,

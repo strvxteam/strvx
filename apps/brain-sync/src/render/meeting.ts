@@ -81,29 +81,34 @@ export async function renderMeetings(
     const dealSlug = b.engagement_id
       ? dealSlugByEngagementId.get(b.engagement_id)
       : undefined;
-    const brief =
-      b.engagement_id && briefByEngagement.get(b.engagement_id);
+    const brief = b.engagement_id
+      ? briefByEngagement.get(b.engagement_id)
+      : undefined;
 
-    const compiled: string[] = [
-      `# ${title}`,
-      "",
-      b.client_name ? `Meeting with **${b.client_name}**${
-        b.client_company ? ` from ${b.client_company}` : ""
-      }.` : "",
-      "",
-      "## State",
-      b.start_time ? `- Start: ${b.start_time}` : null,
-      b.end_time ? `- End: ${b.end_time}` : null,
-      b.duration_minutes ? `- Duration: ${b.duration_minutes} min` : null,
-      b.meeting_type ? `- Type: ${b.meeting_type}` : null,
-      b.service_type ? `- Service: ${b.service_type}` : null,
-      b.status ? `- Status: ${b.status}` : null,
-      b.meet_link ? `- Meet link: ${b.meet_link}` : null,
-      b.client_email ? `- Attendee email: ${b.client_email}` : null,
-      dealSlug ? `- Deal: [[deals/${dealSlug}]]` : null,
-      "",
-    ]
-      .filter((s) => s !== null && s !== "")
+    const compiled: string = (
+      [
+        `# ${title}`,
+        "",
+        b.client_name
+          ? `Meeting with **${b.client_name}**${
+              b.client_company ? ` from ${b.client_company}` : ""
+            }.`
+          : "",
+        "",
+        "## State",
+        b.start_time ? `- Start: ${b.start_time}` : null,
+        b.end_time ? `- End: ${b.end_time}` : null,
+        b.duration_minutes ? `- Duration: ${b.duration_minutes} min` : null,
+        b.meeting_type ? `- Type: ${b.meeting_type}` : null,
+        b.service_type ? `- Service: ${b.service_type}` : null,
+        b.status ? `- Status: ${b.status}` : null,
+        b.meet_link ? `- Meet link: ${b.meet_link}` : null,
+        b.client_email ? `- Attendee email: ${b.client_email}` : null,
+        dealSlug ? `- Deal: [[deals/${dealSlug}]]` : null,
+        "",
+      ] as Array<string | null>
+    )
+      .filter((s): s is string => s !== null && s !== "")
       .join("\n");
 
     const timeline: TimelineEntry[] = [];

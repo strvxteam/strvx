@@ -4,6 +4,8 @@ import {
   getBrainContext,
   searchBrain,
   listBrainByType,
+  listRecentBrainNodes,
+  listBrainOpenThreads,
   type BrainNode,
 } from "./brain-reader";
 
@@ -82,6 +84,38 @@ export const TOOLS: ToolDef[] = [
         clampInt(args.depth, 1, 4, 2),
         clampInt(args.limit, 1, 200, 50),
       );
+    },
+  },
+  {
+    name: "kg_recent",
+    description:
+      "Pages whose source data changed in the last N days (default 7), newest first. Use this for 'what's happened lately' or 'where is activity right now'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        days: { type: "integer", minimum: 1, maximum: 365, default: 7 },
+        limit: { type: "integer", minimum: 1, maximum: 200, default: 30 },
+      },
+    },
+    async invoke(_deps, args): Promise<BrainNode[]> {
+      return listRecentBrainNodes(
+        clampInt(args.days, 1, 365, 7),
+        clampInt(args.limit, 1, 200, 30),
+      );
+    },
+  },
+  {
+    name: "kg_open_threads",
+    description:
+      "Every uncompleted task / next-action across every deal + project. Returns `{slug, owner_name, text}` per item — the agent uses this to answer 'what's outstanding?'.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", minimum: 1, maximum: 500, default: 100 },
+      },
+    },
+    async invoke(_deps, args) {
+      return listBrainOpenThreads(clampInt(args.limit, 1, 500, 100));
     },
   },
   {

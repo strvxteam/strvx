@@ -5,7 +5,7 @@ company_kind: client
 source_id: 5ebb4362-3328-451c-914e-aa9a84c01ff4
 source_table: companies
 source_updated_at: "2026-04-21 22:55:04.316328+00"
-synced_at: "2026-05-14T00:47:10.691Z"
+synced_at: "2026-05-14T04:30:05.073Z"
 name: Klean and Fresh
 ---
 

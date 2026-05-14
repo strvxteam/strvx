@@ -4,7 +4,7 @@ type: meeting
 source_id: adc83915-ff57-4239-a13b-517e4c3f1688
 source_table: bookings
 source_updated_at: "2026-04-14 21:00:00+00"
-synced_at: "2026-05-14T00:47:11.955Z"
+synced_at: "2026-05-14T04:30:06.210Z"
 title: discovery
 client_name: test
 start_time: "2026-04-14 21:00:00+00"

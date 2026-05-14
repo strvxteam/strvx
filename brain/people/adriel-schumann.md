@@ -5,7 +5,7 @@ person_kind: contact
 source_id: eea5c284-1955-40ea-9795-5f3deec461e7
 source_table: contacts
 source_updated_at: "2026-04-30 02:23:25.008207+00"
-synced_at: "2026-05-14T00:47:10.900Z"
+synced_at: "2026-05-14T04:30:05.220Z"
 name: Adriel Schumann
 email: aschumann6396@sdsu.edu
 company_slug: axen

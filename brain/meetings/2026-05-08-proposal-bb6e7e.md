@@ -4,7 +4,7 @@ type: meeting
 source_id: bb6e7e9a-4204-492c-83c9-47e4b7d4995a
 source_table: bookings
 source_updated_at: "2026-05-08 19:30:00+00"
-synced_at: "2026-05-14T00:47:11.951Z"
+synced_at: "2026-05-14T04:30:06.206Z"
 title: proposal
 client_name: Alan Rodriguez
 client_company: Alan Rodriguez (via Booking)

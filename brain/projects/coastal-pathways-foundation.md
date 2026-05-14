@@ -4,7 +4,7 @@ type: project
 source_id: b658e1e2-b7e2-4aec-816b-dac9470f3c78
 source_table: projects
 source_updated_at: "2026-04-02 22:10:44.34854+00"
-synced_at: "2026-05-14T00:47:11.728Z"
+synced_at: "2026-05-14T04:30:06.063Z"
 name: Coastal Pathways Foundation
 status: completed
 github_repo: strvxteam/coastal-pathways

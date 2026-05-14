@@ -4,7 +4,7 @@ type: meeting
 source_id: 06b85c6e-f82e-4380-9274-d121ebdb49b1
 source_table: bookings
 source_updated_at: "2026-04-19 21:30:00+00"
-synced_at: "2026-05-14T00:47:11.954Z"
+synced_at: "2026-05-14T04:30:06.209Z"
 title: discovery
 client_name: Alan Rodriguez
 start_time: "2026-04-19 21:30:00+00"

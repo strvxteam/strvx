@@ -5,7 +5,7 @@ company_kind: client
 source_id: 0c26e172-35af-45bc-8600-9060f3a5e4ba
 source_table: companies
 source_updated_at: "2026-04-03 04:20:02.931703+00"
-synced_at: "2026-05-14T00:47:10.690Z"
+synced_at: "2026-05-14T04:30:05.072Z"
 name: David and CJ
 ---
 

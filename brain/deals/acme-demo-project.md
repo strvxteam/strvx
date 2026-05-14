@@ -4,7 +4,7 @@ type: deal
 source_id: 1cd16f5e-937c-4e6f-a974-9faa9245f665
 source_table: engagements
 source_updated_at: "2026-05-12 23:19:06.91215+00"
-synced_at: "2026-05-14T00:47:11.653Z"
+synced_at: "2026-05-14T04:30:05.989Z"
 name: Acme Demo Project
 stage: lead
 deal_value: 25000

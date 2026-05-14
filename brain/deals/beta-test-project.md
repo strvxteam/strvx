@@ -4,7 +4,7 @@ type: deal
 source_id: 2cb532c8-3c14-43c3-8ca8-ad12493e7813
 source_table: engagements
 source_updated_at: "2026-05-12 23:19:06.91215+00"
-synced_at: "2026-05-14T00:47:11.653Z"
+synced_at: "2026-05-14T04:30:05.989Z"
 name: Beta Test Project
 stage: discovery
 deal_value: 50000

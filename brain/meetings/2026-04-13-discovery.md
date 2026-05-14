@@ -4,7 +4,7 @@ type: meeting
 source_id: bf2d0f6a-aec5-494d-86fe-9dca3acb4c44
 source_table: bookings
 source_updated_at: "2026-04-13 21:00:00+00"
-synced_at: "2026-05-14T00:47:11.955Z"
+synced_at: "2026-05-14T04:30:06.210Z"
 title: discovery
 client_name: Seth Martin
 client_company: Paydax

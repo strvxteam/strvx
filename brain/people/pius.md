@@ -5,7 +5,7 @@ person_kind: contact
 source_id: d4dd787a-6c8c-4dfb-8168-0c86eedacba0
 source_table: contacts
 source_updated_at: "2026-04-01 07:33:06.04994+00"
-synced_at: "2026-05-14T00:47:10.904Z"
+synced_at: "2026-05-14T04:30:05.224Z"
 name: Pius
 email: ""
 company_slug: pius

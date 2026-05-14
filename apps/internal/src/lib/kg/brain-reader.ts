@@ -268,26 +268,41 @@ export async function searchBrain(query: string, limit = 20): Promise<Array<{ no
   return out.slice(0, limit);
 }
 
-export async function listBrainByType(type: string, limit = 100): Promise<BrainNode[]> {
+function isPlaceholderNode(n: BrainNode): boolean {
+  return (n.properties as Record<string, unknown>).company_kind === "placeholder";
+}
+
+export async function listBrainByType(
+  type: string,
+  limit = 100,
+  opts: { includePlaceholders?: boolean } = {},
+): Promise<BrainNode[]> {
   await buildSlugIndex();
   const out: BrainNode[] = [];
   for (const slug of SLUG_INDEX) {
     if (inferTypeFromSlug(slug) !== type) continue;
     const page = await loadPageBySlug(slug);
     if (!page) continue;
-    out.push(pageToNode(page));
+    const node = pageToNode(page);
+    if (!opts.includePlaceholders && isPlaceholderNode(node)) continue;
+    out.push(node);
     if (out.length >= limit) break;
   }
   return out;
 }
 
-export async function listBrainNodes(limit = 1000): Promise<BrainNode[]> {
+export async function listBrainNodes(
+  limit = 1000,
+  opts: { includePlaceholders?: boolean } = {},
+): Promise<BrainNode[]> {
   await buildSlugIndex();
   const out: BrainNode[] = [];
   for (const slug of SLUG_INDEX) {
     const page = await loadPageBySlug(slug);
     if (!page) continue;
-    out.push(pageToNode(page));
+    const node = pageToNode(page);
+    if (!opts.includePlaceholders && isPlaceholderNode(node)) continue;
+    out.push(node);
     if (out.length >= limit) break;
   }
   return out;
@@ -301,4 +316,89 @@ export async function listBrainLabelCounts(): Promise<Array<{ label: string; cou
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   return [...counts.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Pages whose source row changed in the last `days` days, sorted newest first.
+ * Uses frontmatter.source_updated_at (set by brain-sync from
+ * stage_entered_at / created_at / etc). When that's missing, falls back to
+ * the provenance last_validated_at (which marks when we re-synced).
+ */
+export async function listRecentBrainNodes(
+  days = 7,
+  limit = 30,
+): Promise<BrainNode[]> {
+  await buildSlugIndex();
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+  const candidates: Array<{ node: BrainNode; when: string }> = [];
+  for (const slug of SLUG_INDEX) {
+    const page = await loadPageBySlug(slug);
+    if (!page) continue;
+    const fm = page.frontmatter;
+    const raw =
+      (typeof fm.source_updated_at === "string" ? fm.source_updated_at : null) ??
+      (typeof fm.synced_at === "string" ? fm.synced_at : null);
+    if (!raw) continue;
+    const when = String(raw).slice(0, 10);
+    if (when < cutoff) continue;
+    candidates.push({ node: pageToNode(page), when });
+  }
+  candidates.sort((a, b) => (a.when < b.when ? 1 : -1));
+  return candidates.slice(0, limit).map((c) => c.node);
+}
+
+/**
+ * Every "- [ ] …" line under an `## Open Threads` heading, surfaced with
+ * the slug of the page it lives on. The agent uses this to answer
+ * "what's outstanding across all engagements?".
+ */
+export interface OpenThread {
+  /** Owning page slug, e.g. "deals/beta-test-project". */
+  slug: string;
+  /** Owning page name from frontmatter. */
+  owner_name: string;
+  /** The bullet body, with the "[ ]" marker stripped. */
+  text: string;
+}
+
+export async function listBrainOpenThreads(limit = 100): Promise<OpenThread[]> {
+  await buildSlugIndex();
+  const out: OpenThread[] = [];
+  for (const slug of SLUG_INDEX) {
+    const page = await loadPageBySlug(slug);
+    if (!page) continue;
+    const section = extractSection(page.compiled, "Open Threads");
+    if (!section) continue;
+    for (const line of section.split("\n")) {
+      const m = line.match(/^\s*-\s*\[\s*\]\s*(.+)$/);
+      if (!m) continue;
+      const ownerName =
+        typeof page.frontmatter.name === "string"
+          ? page.frontmatter.name
+          : slug;
+      out.push({ slug, owner_name: ownerName, text: m[1].trim() });
+      if (out.length >= limit) return out;
+    }
+  }
+  return out;
+}
+
+function extractSection(text: string, heading: string): string | null {
+  const lines = text.split("\n");
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^##\s+/.test(lines[i]) && lines[i].toLowerCase().includes(heading.toLowerCase())) {
+      start = i + 1;
+      break;
+    }
+  }
+  if (start < 0) return null;
+  const out: string[] = [];
+  for (let i = start; i < lines.length; i++) {
+    if (/^##\s+/.test(lines[i])) break;
+    out.push(lines[i]);
+  }
+  return out.join("\n");
 }

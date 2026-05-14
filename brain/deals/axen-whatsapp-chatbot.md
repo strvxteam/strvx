@@ -4,7 +4,7 @@ type: deal
 source_id: 3053ee3d-1c6e-4ee5-8669-066325a3dfd0
 source_table: engagements
 source_updated_at: "2026-05-03 09:42:26.052+00"
-synced_at: "2026-05-14T00:47:11.653Z"
+synced_at: "2026-05-14T04:30:05.990Z"
 name: WhatsApp Chatbot
 stage: building_mvp
 company_slug: axen

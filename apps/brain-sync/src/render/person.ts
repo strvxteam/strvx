@@ -95,7 +95,7 @@ export async function renderPeople(
         person_kind: "contact",
         source_id: c.id,
         source_table: "contacts",
-        source_updated_at: c.updated_at ?? c.created_at,
+        source_updated_at: c.created_at,
         synced_at: new Date().toISOString(),
         name,
         email: c.email,

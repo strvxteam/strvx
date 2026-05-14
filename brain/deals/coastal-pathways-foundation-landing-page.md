@@ -4,7 +4,7 @@ type: deal
 source_id: ca261335-f682-405c-906b-751fe117079a
 source_table: engagements
 source_updated_at: "2026-04-28 22:32:46.849+00"
-synced_at: "2026-05-14T00:47:11.654Z"
+synced_at: "2026-05-14T04:30:05.991Z"
 name: "Landing Page "
 stage: maintain
 deal_value: 750

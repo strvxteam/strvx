@@ -4,7 +4,7 @@ type: meeting
 source_id: e69c84d3-435c-4d64-98b2-d8800e5b9725
 source_table: bookings
 source_updated_at: "2026-05-03 17:00:00+00"
-synced_at: "2026-05-14T00:47:11.953Z"
+synced_at: "2026-05-14T04:30:06.208Z"
 title: discovery
 client_name: David Resilien
 start_time: "2026-05-03 17:00:00+00"

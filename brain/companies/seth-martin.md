@@ -4,7 +4,7 @@ type: company
 company_kind: partner
 source_id: 28004b7f-988b-470d-bb3d-7c854bfca643
 source_table: partners
-synced_at: "2026-05-14T00:47:10.692Z"
+synced_at: "2026-05-14T04:30:05.075Z"
 name: Seth Martin
 partnership_stage: prospective
 ---

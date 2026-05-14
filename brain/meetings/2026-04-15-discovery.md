@@ -4,7 +4,7 @@ type: meeting
 source_id: 73210dfe-e8c0-4085-8902-60d375de70ba
 source_table: bookings
 source_updated_at: "2026-04-15 19:30:00+00"
-synced_at: "2026-05-14T00:47:11.954Z"
+synced_at: "2026-05-14T04:30:06.209Z"
 title: discovery
 client_name: Todd Bashor
 start_time: "2026-04-15 19:30:00+00"

@@ -5,7 +5,7 @@ company_kind: client
 source_id: 55221f92-91cb-45c1-94ad-29ce5bb3c8d5
 source_table: companies
 source_updated_at: "2026-04-17 07:38:36.493605+00"
-synced_at: "2026-05-14T00:47:10.692Z"
+synced_at: "2026-05-14T04:30:05.074Z"
 name: Paydax
 ---
 

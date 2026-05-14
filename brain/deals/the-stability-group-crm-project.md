@@ -4,7 +4,7 @@ type: deal
 source_id: 1dff08ae-30dc-4ab6-b975-cd98cdbc2cc7
 source_table: engagements
 source_updated_at: "2026-04-07 08:12:37.714+00"
-synced_at: "2026-05-14T00:47:11.654Z"
+synced_at: "2026-05-14T04:30:05.992Z"
 name: CRM Project
 stage: closed_lost
 company_slug: the-stability-group

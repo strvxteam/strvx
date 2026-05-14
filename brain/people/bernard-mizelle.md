@@ -5,7 +5,7 @@ person_kind: contact
 source_id: 1add4e57-42eb-4c09-b031-8c2a015c3bff
 source_table: contacts
 source_updated_at: "2026-04-04 21:03:02.550409+00"
-synced_at: "2026-05-14T00:47:10.901Z"
+synced_at: "2026-05-14T04:30:05.221Z"
 name: Bernard Mizelle
 email: coastalcaresolutionssd@gmail.com
 company_slug: coastal-pathways-foundation
