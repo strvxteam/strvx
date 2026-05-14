@@ -24,7 +24,7 @@ export function HygieneFlagRowView({ row }: { row: HygieneFlagRow }) {
   const color = KIND_COLOR[row.kind];
   return (
     <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
-      <td className="py-3 pr-3 max-w-md">
+      <td className="py-2 pr-3 max-w-md">
         <div className="font-medium truncate">
           {row.entityLabel ?? `(${row.entityKind} ${row.entityId.slice(0, 8)})`}
         </div>
@@ -32,7 +32,7 @@ export function HygieneFlagRowView({ row }: { row: HygieneFlagRow }) {
           {summarizeDetails(row.details)}
         </div>
       </td>
-      <td className="py-3 pr-3">
+      <td className="py-2 pr-3">
         <span
           className="px-2 py-0.5 rounded text-[11px] uppercase"
           style={{ background: color.bg, color: color.fg }}
@@ -40,13 +40,13 @@ export function HygieneFlagRowView({ row }: { row: HygieneFlagRow }) {
           {KIND_LABEL[row.kind]}
         </span>
       </td>
-      <td className="py-3 pr-3 text-[12px]" style={{ color: "#666" }}>
+      <td className="py-2 pr-3 text-[12px]" style={{ color: "#666" }}>
         {row.entityKind}
       </td>
-      <td className="py-3 pr-3 text-[12px]" style={{ color: "#888" }}>
+      <td className="py-2 pr-3 text-[12px]" style={{ color: "#888" }}>
         {formatAge(row.createdAt)}
       </td>
-      <td className="py-3 text-right">
+      <td className="py-2 text-right">
         <div className="flex items-center justify-end gap-1">
           <FlagActionButton flagId={row.id} variant="resolve" />
           <FlagActionButton flagId={row.id} variant="dismiss" />
@@ -68,7 +68,7 @@ export function StageAdvancementFlagRow({ row }: { row: HygieneFlagRow }) {
   };
   return (
     <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
-      <td className="py-3 pr-3 max-w-md">
+      <td className="py-2 pr-3 max-w-md">
         <div className="font-medium truncate">
           {row.entityLabel ?? "(engagement)"}
         </div>
@@ -76,7 +76,7 @@ export function StageAdvancementFlagRow({ row }: { row: HygieneFlagRow }) {
           {row.relatedThreadSubject ?? "(no thread subject)"}
         </div>
       </td>
-      <td className="py-3 pr-3 text-[12px]" style={{ color: "#222" }}>
+      <td className="py-2 pr-3 text-[12px]" style={{ color: "#222" }}>
         <div className="flex items-center gap-1">
           <span
             className="px-1.5 py-0.5 rounded text-[11px]"
@@ -93,15 +93,15 @@ export function StageAdvancementFlagRow({ row }: { row: HygieneFlagRow }) {
           </span>
         </div>
       </td>
-      <td className="py-3 pr-3 text-[12px]" style={{ color: "#888" }}>
+      <td className="py-2 pr-3 text-[12px]" style={{ color: "#888" }}>
         {Array.isArray(details.signals) && details.signals.length > 0
           ? details.signals[0]
           : "—"}
       </td>
-      <td className="py-3 pr-3 text-[12px]" style={{ color: "#888" }}>
+      <td className="py-2 pr-3 text-[12px]" style={{ color: "#888" }}>
         {formatAge(row.createdAt)}
       </td>
-      <td className="py-3 text-right">
+      <td className="py-2 text-right">
         <div className="flex items-center justify-end gap-2">
           {row.relatedEntityId && (
             <Link

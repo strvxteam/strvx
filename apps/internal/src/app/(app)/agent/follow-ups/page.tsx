@@ -1,4 +1,10 @@
 import Link from "next/link";
+import { and, eq, gte, sql } from "drizzle-orm";
+import {
+  db,
+  agentAutonomyPolicy,
+  followUpWatchers,
+} from "@strvx/db";
 import {
   loadOpenWatchers,
   loadOpenHygieneFlags,
@@ -14,71 +20,137 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type Section = "watchers" | "flags" | "advancement";
+type CardKey = "watchers" | "flags" | "advancement";
 
-const VALID_SECTIONS: ReadonlySet<Section> = new Set([
+const VALID_EXPAND: ReadonlySet<CardKey> = new Set([
   "watchers",
   "flags",
   "advancement",
 ]);
 
 /**
- * /agent/follow-ups — three collapsible sections:
- *   1. Open watchers (follow_up_watchers status IN (pending,fired))
- *   2. CRM hygiene flags (open, kind != stage_advancement_suggested)
- *   3. Stage-advancement suggestions
+ * /agent/follow-ups — dense single-viewport layout.
  *
- * Section expansion + watcher-kind filter are query-param driven so the page
- * stays a pure RSC. Admin gate inherits from src/app/(app)/agent/layout.tsx.
+ * Header + 4 stat tiles + 3 collapsed-by-default section cards. Each
+ * section header shows a count + Show/Hide toggle wired to ?show=.
  */
 export default async function FollowUpsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ section?: string; kind?: string }>;
+  searchParams: Promise<{ show?: string; kind?: string }>;
 }) {
   const params = await searchParams;
-  const section = parseSection(params.section);
+  const show = parseShow(params.show);
   const kindFilter = parseKind(params.kind);
 
-  const [watchersAll, flags, advancement] = await Promise.all([
-    loadOpenWatchers(),
-    loadOpenHygieneFlags(),
-    loadStageAdvancementSuggestions(),
-  ]);
+  // Get the start of today in Pacific Time, expressed as a UTC instant
+  // for the SQL comparison. Postgres timestamps are stored UTC, so we
+  // compute the boundary in JS to avoid SET TIME ZONE.
+  const todayStartPT = startOfTodayPacific(new Date());
+
+  const [watchersAll, flags, advancement, [policyRow], [todayFiredRow]] =
+    await Promise.all([
+      loadOpenWatchers(),
+      loadOpenHygieneFlags(),
+      loadStageAdvancementSuggestions(),
+      db
+        .select({ followUpsEnabled: agentAutonomyPolicy.followUpsEnabled })
+        .from(agentAutonomyPolicy)
+        .where(eq(agentAutonomyPolicy.id, "global"))
+        .limit(1),
+      db
+        .select({
+          count: sql<number>`count(*)::int`,
+        })
+        .from(followUpWatchers)
+        .where(
+          and(
+            eq(followUpWatchers.status, "fired"),
+            gte(followUpWatchers.firedAt, todayStartPT)
+          )
+        ),
+    ]);
+
+  const followUpsEnabled = policyRow?.followUpsEnabled ?? true;
+  const firedToday =
+    typeof todayFiredRow?.count === "number"
+      ? todayFiredRow.count
+      : Number(todayFiredRow?.count) || 0;
 
   const watcherKinds = uniqueWatcherKinds(watchersAll);
   const watchers = kindFilter
     ? watchersAll.filter((w) => w.kind === kindFilter)
     : watchersAll;
 
+  const watchersExpanded = show === "watchers";
+  const flagsExpanded = show === "flags";
+  const advancementExpanded = show === "advancement";
+
   return (
     <main
-      className="px-8 py-10"
+      className="px-8 py-6"
       style={{ maxWidth: 1080, marginInline: "auto" }}
     >
-      <div className="flex items-center justify-between mb-6">
+      {!followUpsEnabled && <KillSwitchBanner />}
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-[20px] font-semibold" style={{ color: "#111" }}>
+          <h1 className="text-[18px] font-semibold" style={{ color: "#111" }}>
             Follow-ups
           </h1>
-          <p className="text-[13px]" style={{ color: "#888" }}>
-            {watchersAll.length} open watchers · {flags.length} hygiene flags ·{" "}
-            {advancement.length} stage suggestions
+          <p className="text-[12px]" style={{ color: "#888" }}>
+            Proactive watchers, CRM hygiene, and stage signals.
           </p>
         </div>
       </div>
 
+      {/* Stat cards */}
+      <div
+        className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4"
+        style={{ fontSize: 12 }}
+      >
+        <StatCard
+          label="Open watchers"
+          value={String(watchersAll.length)}
+        />
+        <StatCard
+          label="Open hygiene flags"
+          value={String(flags.length)}
+        />
+        <StatCard
+          label="Stage suggestions"
+          value={String(advancement.length)}
+        />
+        <StatCard
+          label="Auto-firing today"
+          value={String(firedToday)}
+          sub={
+            followUpsEnabled
+              ? "Stale + no-show"
+              : "Autonomy paused"
+          }
+        />
+      </div>
+
+      {/* Open watchers — collapsed by default */}
       <CollapsibleSection
         title="Open watchers"
         count={watchersAll.length}
-        expanded={section === "watchers"}
-        href={section === "watchers" ? "/agent/follow-ups" : "/agent/follow-ups?section=watchers"}
+        expanded={watchersExpanded}
+        expandHref={
+          kindFilter
+            ? `/agent/follow-ups?show=watchers&kind=${kindFilter}`
+            : "/agent/follow-ups?show=watchers"
+        }
+        collapseHref={
+          kindFilter
+            ? `/agent/follow-ups?kind=${kindFilter}`
+            : "/agent/follow-ups"
+        }
       >
-        {watcherKinds.length > 1 && section === "watchers" && (
-          <KindFilterChips
-            kinds={watcherKinds}
-            active={kindFilter}
-          />
+        {watcherKinds.length > 1 && (
+          <KindFilterChips kinds={watcherKinds} active={kindFilter} />
         )}
         {watchers.length === 0 ? (
           <EmptyState label="No open watchers." />
@@ -87,11 +159,13 @@ export default async function FollowUpsPage({
         )}
       </CollapsibleSection>
 
+      {/* CRM hygiene flags — collapsed by default */}
       <CollapsibleSection
         title="CRM hygiene flags"
         count={flags.length}
-        expanded={section === "flags"}
-        href={section === "flags" ? "/agent/follow-ups" : "/agent/follow-ups?section=flags"}
+        expanded={flagsExpanded}
+        expandHref="/agent/follow-ups?show=flags"
+        collapseHref="/agent/follow-ups"
       >
         {flags.length === 0 ? (
           <EmptyState label="No open hygiene flags." />
@@ -100,11 +174,13 @@ export default async function FollowUpsPage({
         )}
       </CollapsibleSection>
 
+      {/* Stage-advancement suggestions — collapsed by default */}
       <CollapsibleSection
         title="Stage-advancement suggestions"
         count={advancement.length}
-        expanded={section === "advancement"}
-        href={section === "advancement" ? "/agent/follow-ups" : "/agent/follow-ups?section=advancement"}
+        expanded={advancementExpanded}
+        expandHref="/agent/follow-ups?show=advancement"
+        collapseHref="/agent/follow-ups"
       >
         {advancement.length === 0 ? (
           <EmptyState label="No stage suggestions waiting." />
@@ -116,9 +192,9 @@ export default async function FollowUpsPage({
   );
 }
 
-function parseSection(s: string | undefined): Section | null {
+function parseShow(s: string | undefined): CardKey | null {
   if (!s) return null;
-  return VALID_SECTIONS.has(s as Section) ? (s as Section) : null;
+  return VALID_EXPAND.has(s as CardKey) ? (s as CardKey) : null;
 }
 
 function parseKind(k: string | undefined): WatcherKind | null {
@@ -132,48 +208,156 @@ function parseKind(k: string | undefined): WatcherKind | null {
   return (valid as string[]).includes(k) ? (k as WatcherKind) : null;
 }
 
+/**
+ * Returns the start of today in America/Los_Angeles, expressed as a
+ * UTC Date. Avoids pulling in a tz library — uses Intl.DateTimeFormat
+ * with the en-CA locale (YYYY-MM-DD) for a deterministic format.
+ */
+function startOfTodayPacific(now: Date): Date {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const parts = fmt.formatToParts(now);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
+  const y = Number(get("year"));
+  const m = Number(get("month"));
+  const d = Number(get("day"));
+  const hh = Number(get("hour"));
+  const mm = Number(get("minute"));
+  const ss = Number(get("second"));
+  // Pacific midnight in UTC = now - (Pacific-now-time-of-day).
+  const offsetMs = ((hh * 60 + mm) * 60 + ss) * 1000;
+  const utcMs = Date.UTC(y, m - 1, d, 0, 0, 0);
+  return new Date(utcMs + (now.getTime() - (utcMs + offsetMs)));
+}
+
+function KillSwitchBanner() {
+  return (
+    <div
+      className="rounded-md px-4 py-3 mb-6 flex items-center gap-3"
+      style={{
+        background: "#fef8e7",
+        border: "1px solid #f5d76e",
+        color: "#7c4a00",
+        fontSize: 13,
+      }}
+    >
+      <span style={{ fontSize: 16, lineHeight: 1 }}>⏸</span>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 600, marginBottom: 2 }}>
+          Follow-up autonomy paused.
+        </div>
+        <div style={{ color: "#7c4a00", opacity: 0.85 }}>
+          Stale-thread and no-show nudges are not being dispatched.{" "}
+          <Link
+            href="/agent/settings"
+            style={{ color: "#7c4a00", textDecoration: "underline" }}
+          >
+            Re-enable in /agent/settings
+          </Link>
+          .
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div
+      className="rounded-md border"
+      style={{
+        borderColor: "#e0e0e0",
+        background: "#ffffff",
+        padding: "8px 12px",
+      }}
+    >
+      <div
+        className="text-[10px] uppercase font-semibold"
+        style={{ color: "#888", letterSpacing: 0.3 }}
+      >
+        {label}
+      </div>
+      <div
+        className="font-semibold"
+        style={{ color: "#1a1a1a", fontSize: 18, lineHeight: 1.1, marginTop: 2 }}
+      >
+        {value}
+      </div>
+      {sub && (
+        <div style={{ color: "#888", fontSize: 10, marginTop: 2 }}>{sub}</div>
+      )}
+    </div>
+  );
+}
+
 function CollapsibleSection({
   title,
   count,
   expanded,
-  href,
+  expandHref,
+  collapseHref,
   children,
 }: {
   title: string;
   count: number;
   expanded: boolean;
-  href: string;
+  expandHref: string;
+  collapseHref: string;
   children: React.ReactNode;
 }) {
   return (
     <section
-      className="mb-4 rounded-md"
+      className="mb-2 rounded-md"
       style={{ border: "1px solid #e0e0e0", background: "#ffffff" }}
     >
-      <Link
-        href={href}
-        className="flex items-center justify-between px-4 py-3 text-[13px]"
+      <div
+        className="flex items-center justify-between"
         style={{
-          background: expanded ? "#fafafa" : "#ffffff",
+          background: "#fafafa",
           borderBottom: expanded ? "1px solid #e0e0e0" : "none",
           color: "#222",
+          fontSize: 12,
+          padding: "8px 12px",
         }}
       >
         <div className="flex items-center gap-2">
-          <span style={{ color: "#888" }}>{expanded ? "▾" : "▸"}</span>
           <span className="font-semibold">{title}</span>
           <span
-            className="px-1.5 py-0.5 rounded text-[11px]"
-            style={{ background: "#f0f0f0", color: "#666" }}
+            className="rounded text-[10px]"
+            style={{
+              background: "#f0f0f0",
+              color: "#666",
+              padding: "1px 6px",
+            }}
           >
             {count}
           </span>
         </div>
-        <span className="text-[11px]" style={{ color: "#888" }}>
-          {expanded ? "collapse" : "expand"}
-        </span>
-      </Link>
-      {expanded && <div className="px-4 py-3">{children}</div>}
+        <Link
+          href={expanded ? collapseHref : expandHref}
+          className="text-[11px]"
+          style={{ color: "#1a73e8" }}
+        >
+          {expanded ? "Hide" : "Show"}
+        </Link>
+      </div>
+      {expanded && <div style={{ padding: "8px 12px" }}>{children}</div>}
     </section>
   );
 }
@@ -188,7 +372,7 @@ function KindFilterChips({
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       <Link
-        href="/agent/follow-ups?section=watchers"
+        href="/agent/follow-ups"
         className="px-2 py-1 rounded text-[12px]"
         style={{
           background: active === null ? "#111" : "#f0f0f0",
@@ -200,7 +384,7 @@ function KindFilterChips({
       {kinds.map((k) => (
         <Link
           key={k}
-          href={`/agent/follow-ups?section=watchers&kind=${k}`}
+          href={`/agent/follow-ups?kind=${k}`}
           className="px-2 py-1 rounded text-[12px]"
           style={{
             background: active === k ? "#111" : "#f0f0f0",
@@ -223,16 +407,28 @@ function WatchersTable({
     <table className="w-full text-[13px] border-collapse">
       <thead>
         <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Subject / engagement
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Status
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Kind
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Triggers
           </th>
           <th />
@@ -256,16 +452,28 @@ function FlagsTable({
     <table className="w-full text-[13px] border-collapse">
       <thead>
         <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Entity
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Kind
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Entity type
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Age
           </th>
           <th />
@@ -289,16 +497,28 @@ function AdvancementTable({
     <table className="w-full text-[13px] border-collapse">
       <thead>
         <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Engagement / thread
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Transition
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Signal
           </th>
-          <th className="text-left py-2 font-medium text-[11px] uppercase" style={{ color: "#888" }}>
+          <th
+            className="text-left py-2 font-medium text-[11px] uppercase"
+            style={{ color: "#888" }}
+          >
             Age
           </th>
           <th />

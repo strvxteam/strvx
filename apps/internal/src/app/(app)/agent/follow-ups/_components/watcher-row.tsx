@@ -29,13 +29,13 @@ export function WatcherRow({ row }: { row: FollowUpWatcherRow }) {
 
   return (
     <tr style={{ borderBottom: "1px solid #f0f0f0" }}>
-      <td className="py-3 pr-3 max-w-md">
+      <td className="py-2 pr-3 max-w-md">
         <div className="font-medium truncate">{title}</div>
         <div className="text-[12px] truncate" style={{ color: "#888" }}>
           {sublabel}
         </div>
       </td>
-      <td className="py-3 pr-3">
+      <td className="py-2 pr-3">
         <div className="flex items-center gap-2">
           <span
             className="inline-block rounded-full"
@@ -46,13 +46,13 @@ export function WatcherRow({ row }: { row: FollowUpWatcherRow }) {
           </span>
         </div>
       </td>
-      <td className="py-3 pr-3 text-[12px]" style={{ color: "#666" }}>
+      <td className="py-2 pr-3 text-[12px]" style={{ color: "#666" }}>
         {KIND_LABEL[row.kind]}
       </td>
-      <td className="py-3 pr-3 text-[12px]" style={{ color: "#888" }}>
+      <td className="py-2 pr-3 text-[12px]" style={{ color: "#888" }}>
         {formatTime(row.triggerAfter)}
       </td>
-      <td className="py-3 text-right">
+      <td className="py-2 text-right">
         <div className="flex items-center justify-end gap-2">
           {row.threadId && (
             <Link
