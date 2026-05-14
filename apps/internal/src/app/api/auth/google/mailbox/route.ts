@@ -63,8 +63,15 @@ export async function GET(request: NextRequest) {
     "/agent/settings?tab=mailboxes";
   const response = Response.redirect(url, 302);
   const cookieFlags = "Path=/; HttpOnly; SameSite=Lax; Max-Age=600";
-  const secureFlag =
-    request.nextUrl.protocol === "https:" ? "; Secure" : "";
+  // Behind a load balancer (Vercel, Cloudflare, etc.) the LB terminates
+  // TLS and forwards as HTTP, so request.nextUrl.protocol is "http:" in
+  // production. Honor x-forwarded-proto; fall back to NODE_ENV so we
+  // never ship insecure cookies in a deployed environment.
+  const isSecure =
+    request.nextUrl.protocol === "https:" ||
+    request.headers.get("x-forwarded-proto") === "https" ||
+    process.env.NODE_ENV === "production";
+  const secureFlag = isSecure ? "; Secure" : "";
   response.headers.append(
     "Set-Cookie",
     `mailbox_oauth_return_to=${encodeURIComponent(returnTo)}; ${cookieFlags}${secureFlag}`
