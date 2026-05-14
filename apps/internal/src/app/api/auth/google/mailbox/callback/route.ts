@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { timingSafeEqual } from "node:crypto";
 import { google } from "googleapis";
 import { eq } from "drizzle-orm";
 import { db, mailboxOauthTokens } from "@strvx/db";
@@ -28,6 +29,28 @@ export async function GET(request: NextRequest) {
   }
   if (!code) {
     return Response.json({ error: "Missing code" }, { status: 400 });
+  }
+
+  // CSRF state check: the `state` parameter Google echoed back must match
+  // the HttpOnly cookie we set in the initiate route. Use constant-time
+  // comparison to avoid leaking the nonce via timing.
+  const stateParam = request.nextUrl.searchParams.get("state") ?? "";
+  const stateCookie = request.cookies.get("mailbox_oauth_state")?.value ?? "";
+  if (!stateParam || !stateCookie || !constantTimeEqual(stateParam, stateCookie)) {
+    return failClosed(request, "state_mismatch");
+  }
+
+  // Initiator binding: the session user that lands on the callback must
+  // be the same user that started the flow. Stops an attacker from
+  // hijacking the round-trip and binding their mailbox to a different
+  // admin's session.
+  const initiatorCookie = request.cookies.get("mailbox_oauth_initiated_by")
+    ?.value;
+  const initiatorId = initiatorCookie
+    ? decodeURIComponent(initiatorCookie)
+    : "";
+  if (!initiatorId || initiatorId !== user.id) {
+    return failClosed(request, "initiator_mismatch");
   }
 
   const redirectUri = `${request.nextUrl.origin}/api/auth/google/mailbox/callback`;
@@ -129,6 +152,44 @@ export async function GET(request: NextRequest) {
   response.headers.append(
     "Set-Cookie",
     "mailbox_oauth_initiated_by=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+  );
+  response.headers.append(
+    "Set-Cookie",
+    "mailbox_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+  );
+  return response;
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reject the round-trip and redirect back to the Mailboxes tab with a
+ * specific error code. Also clears the round-trip cookies so a retried
+ * flow starts clean.
+ */
+function failClosed(request: NextRequest, reason: string): Response {
+  const response = Response.redirect(
+    `${request.nextUrl.origin}/agent/settings?tab=mailboxes&error=${encodeURIComponent(reason)}`,
+    302
+  );
+  response.headers.append(
+    "Set-Cookie",
+    "mailbox_oauth_return_to=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+  );
+  response.headers.append(
+    "Set-Cookie",
+    "mailbox_oauth_initiated_by=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
+  );
+  response.headers.append(
+    "Set-Cookie",
+    "mailbox_oauth_state=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"
   );
   return response;
 }

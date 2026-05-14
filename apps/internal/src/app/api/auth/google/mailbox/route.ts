@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { randomBytes } from "node:crypto";
 import { google } from "googleapis";
 import { createClient } from "@/lib/supabase/server";
 
@@ -43,24 +44,38 @@ export async function GET(request: NextRequest) {
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/userinfo.profile",
   ];
+  // CSRF state nonce — 32 random bytes, base64url. Stored in an HttpOnly
+  // cookie and echoed back via the OAuth `state` parameter. The callback
+  // rejects the round-trip unless cookie === state AND the current
+  // session user matches the user that initiated the flow.
+  const stateNonce = randomBytes(32).toString("base64url");
+
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
     scope: scopes,
     include_granted_scopes: true,
+    state: stateNonce,
   });
 
   const returnTo =
     request.nextUrl.searchParams.get("return_to") ??
     "/agent/settings?tab=mailboxes";
   const response = Response.redirect(url, 302);
+  const cookieFlags = "Path=/; HttpOnly; SameSite=Lax; Max-Age=600";
+  const secureFlag =
+    request.nextUrl.protocol === "https:" ? "; Secure" : "";
   response.headers.append(
     "Set-Cookie",
-    `mailbox_oauth_return_to=${encodeURIComponent(returnTo)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`
+    `mailbox_oauth_return_to=${encodeURIComponent(returnTo)}; ${cookieFlags}${secureFlag}`
   );
   response.headers.append(
     "Set-Cookie",
-    `mailbox_oauth_initiated_by=${encodeURIComponent(user.id)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=600`
+    `mailbox_oauth_initiated_by=${encodeURIComponent(user.id)}; ${cookieFlags}${secureFlag}`
+  );
+  response.headers.append(
+    "Set-Cookie",
+    `mailbox_oauth_state=${stateNonce}; ${cookieFlags}${secureFlag}`
   );
   return response;
 }
