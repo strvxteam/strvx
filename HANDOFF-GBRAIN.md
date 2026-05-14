@@ -1,7 +1,7 @@
 # GBrain Replatform — Session Handoff
 
 Branch: `kg-into-sit` in `~/strvx-kg-into-sit` worktree.
-Status as of 2026-05-13 17:55 PT: **SIT runs end-to-end on top of upstream gbrain — including gbrain hybrid search via HTTP MCP.**
+Status as of 2026-05-13 22:25 PT: **SIT runs end-to-end on top of upstream gbrain. Hybrid search, observability endpoints, and embedded entity-page panels all green via `./scripts/smoke-test.sh` (13/13).**
 
 ## What's working right now
 
@@ -25,10 +25,39 @@ brain/ (markdown source of truth, MECE: people/companies/deals/projects/meetings
           KgRelatedPanel embedded on /clients/[id], /contacts/[id]
 ```
 
-**Page counts in brain/:** 19 people, 27 companies, 15 deals, 9 projects, 32 meetings, 6 finances.
-**Indexed in gbrain PGLite:** 108 pages, 209 chunks (run `gbrain doctor` to verify).
+**Page counts in brain/:** 19 people, 27 companies, 15 deals, 9 projects, 32 meetings, 6 finances (110 total).
+**Indexed in gbrain PGLite:** ~108 pages, ~220 chunks (run `gbrain doctor` to verify).
 
-## New in the second push (after the initial handoff)
+## What landed since the initial handoff (committed on `kg-into-sit`)
+
+- **Deal-page enrichment + transcript staging** — deal markdown now folds
+  individual `email_messages` rows into the timeline with 800-char body
+  snippets; `brain/.sources/transcripts/{meetings,emails}/` is restaged on
+  every sync for the dream cycle.
+- **kg_recent + kg_open_threads MCP tools** added to `/api/mcp`; six
+  tools total now (the smoke test pins this).
+- **`/api/kg/refresh`** spawns `scripts/refresh-brain.sh` and busts the
+  brain-reader cache; **`/api/kg/health`** returns brain page counts +
+  gbrain reachability so a Vercel cron / oncall can monitor it.
+- **`scripts/smoke-test.sh`** — 13-check end-to-end smoke (HTTP pages,
+  gbrain health, MCP tools/list, individual tool calls).
+- **`brain/gbrain.yml`** — canonical gbrain config (owner, dream paths,
+  search mode, archive-crawler allow-list).
+- **launchd plist + installer** at `scripts/launchd/` so `gbrain serve`
+  comes up on login.
+- **`apps/brain-sync/README.md`** + 16 vitest unit tests pinning slug
+  + page rendering behavior.
+- **Placeholder-company filter** — `(via Booking)` companies no longer
+  pollute the default browse but stay reachable via `?showPlaceholders=1`.
+- **Single-pass loadGraph edges** — `/kg/graph` HTML now renders in ~50ms.
+- **`resolveBrainSlug()` at the panel boundary** — legacy
+  `postgres:<table>:<uuid>` IDs from `/clients/[id]` translate to brain
+  slugs so the right-rail KG panel actually renders.
+- **System-prompt refresh in `brief.ts`** — pre-meeting brief generator
+  now anchors on `kg_get_node` + `kg_get_entity_context`, cites slugs
+  (`deals/<slug>`), and derives today's date at call time.
+
+## From the original first push
 
 - **scripts/refresh-brain.sh** — one-shot script: render brain/ from Supabase, re-import into gbrain. Optional `--embed` flag. Strips `DATABASE_URL` from gbrain's env automatically. Cron-ready.
 - **Slug cleanup** — deal/project slugs no longer double up the company prefix. `deals/acme-acme-q4-platform` is now `deals/acme-q4-platform`.
@@ -92,7 +121,10 @@ reads from Supabase) but gbrain should not.
 | `apps/brain-sync/` | Postgres → markdown adapter (Node + postgres-js) |
 | `apps/internal/src/lib/kg/brain-reader.ts` | SIT's fs-backed brain reader |
 | `apps/internal/src/lib/kg/queries.ts` | Adapted to call brain-reader, same exported types |
-| `apps/internal/src/lib/kg/mcp-tools.ts` | 4 tools (kg_search, kg_get_node, kg_get_entity_context, kg_list_by_type), now reading from brain |
+| `apps/internal/src/lib/kg/mcp-tools.ts` | 6 tools (kg_search, kg_get_node, kg_get_entity_context, kg_list_by_type, kg_recent, kg_open_threads), reading from brain |
+| `apps/internal/src/app/api/kg/{health,refresh}/route.ts` | Observability + on-demand resync endpoints |
+| `scripts/{refresh-brain,smoke-test}.sh` | Brain refresh + 13-check end-to-end smoke |
+| `scripts/launchd/com.strvx.gbrain-mcp.plist` | launchd unit for `gbrain serve --http --port 3131` |
 | `apps/internal/src/lib/kg/client.ts` | Stubbed to a no-op `{actor}` shim |
 | `.snapshots/pre-gbrain-20260513-165510/` | Pre-replatform Neo4j + pgvector dump (232 nodes, ~172 edges) |
 | `.gitignore` | Now excludes `brain/.gbrain/`, `.snapshots/`, `.vendor/` |
@@ -107,26 +139,14 @@ reads from Supabase) but gbrain should not.
    - Drop `kg_cdc_publication` and Neo4j-specific env vars from `.env.local`.
    - This is destructive — explicit go-ahead needed.
 
-### Mechanical follow-ups (can be done without decisions)
+### Mechanical follow-ups (still open)
 
-1. **Refresh cadence** (Task #32). Today the brain is rebuilt by running
-   `pnpm --filter @strvx/brain-sync sync` manually. Options:
-   - A cron job inside the repo that runs hourly.
-   - A Supabase database webhook that POSTs to a SIT endpoint, triggering an
-     incremental refresh of the touched row.
-   - Pg LISTEN/NOTIFY consumed by a long-running worker.
-2. **Wire gbrain's HTTP MCP server.** Today SIT reads brain/ directly via
-   `brain-reader.ts`. The user's internal agent will eventually want
-   semantic + hybrid search, which lives in gbrain's PGLite index. Plan:
-   `gbrain serve --http` on a known port, OAuth-register a SIT client, and
-   point the agent at `http://localhost:<port>/mcp`. SIT itself can also
-   migrate `brain-reader.ts` calls to MCP for semantic search, but the
-   fs path stays fine for directory listings.
-3. **"Dream cycle"** (Task #36). GBrain ships a nightly enrichment cron
-   that scans conversations / emails / transcripts and updates entity
-   pages. For strvx, point it at the email_threads + meeting notes data
-   so the deal/contact pages stay current. Specifics in
-   `.vendor/gbrain/skills/_brain-filing-rules.md` and `gbrain dream`.
+1. **Dream-cycle activation end-to-end** (Task #49). Transcripts are
+   staged at `brain/.sources/transcripts/{meetings,emails}/` and
+   `gbrain.yml` points the synthesize phase at them. Running the full
+   `gbrain dream --phase synthesize` is held back because the synthesize
+   pass spends OpenAI tokens — needs explicit go-ahead before kicking
+   off the first real run.
 
 ### Quality-of-life cleanups (low-priority)
 
@@ -156,7 +176,8 @@ curl -s -X POST http://localhost:3010/api/mcp \
   -H 'content-type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
   | python3 -c "import sys,json; r=json.load(sys.stdin); print([t['name'] for t in r['result']['tools']])"
-# → ['kg_search', 'kg_get_node', 'kg_get_entity_context', 'kg_list_by_type']
+# → ['kg_search', 'kg_get_node', 'kg_get_entity_context', 'kg_list_by_type', 'kg_recent', 'kg_open_threads']
+# Or just run the full smoke: ./scripts/smoke-test.sh (13 checks)
 
 # 3. gbrain CLI sanity (note the env strip)
 GBRAIN_HOME=$(pwd)/brain gbrain doctor | tail -5
@@ -180,14 +201,14 @@ GBRAIN_HOME=$(pwd)/brain gbrain search "Acme" | head -5
 
 ## What I deliberately did NOT do
 
-- **No git commits.** Working tree has everything; you decide when to commit.
-- **No git push.** No branch operations.
+- **No git push.** Branch `kg-into-sit` is 9 commits ahead of `origin/main`
+  and stays local until you say push.
 - **No deletion of homegrown packages/apps/containers.** They're still
   intact under `packages/kg`, `apps/gbrain-ingestor`, `apps/kg-ingestor`,
-  and the `kgx-neo4j` / `kgx-pg` Docker containers — both unused but
-  preserved as a rollback path.
-- **No re-embedding into gbrain.** Imports ran with `--no-embed` to avoid
-  OpenAI token spend. Run `gbrain embed --stale` (with OPENAI_API_KEY) when
-  you want semantic search active.
+  and the `kgx-neo4j` / `kgx-pg` Docker containers — preserved as the
+  rollback path (Task #35).
+- **No dream-cycle synthesize run.** Transcripts are staged and config
+  points at them, but the synthesize pass spends OpenAI tokens, so I
+  held it back for explicit approval (Task #49).
 - **No personal vault ingestion.** You said strvx-only — `brain/` contains
   only strvx CRM data.
