@@ -284,7 +284,11 @@ function StatCard({
       style={{
         borderColor: "#e0e0e0",
         background: "#ffffff",
-        padding: "8px 12px",
+        padding: "10px 12px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 2,
+        minHeight: 72,
       }}
     >
       <div
@@ -295,13 +299,13 @@ function StatCard({
       </div>
       <div
         className="font-semibold"
-        style={{ color: "#1a1a1a", fontSize: 18, lineHeight: 1.1, marginTop: 2 }}
+        style={{ color: "#1a1a1a", fontSize: 18, lineHeight: 1.1 }}
       >
         {value}
       </div>
-      {sub && (
-        <div style={{ color: "#888", fontSize: 10, marginTop: 2 }}>{sub}</div>
-      )}
+      <div style={{ color: "#888", fontSize: 10, minHeight: 12 }}>
+        {sub ?? ""}
+      </div>
     </div>
   );
 }
@@ -357,7 +361,7 @@ function CollapsibleSection({
           {expanded ? "Hide" : "Show"}
         </Link>
       </div>
-      {expanded && <div style={{ padding: "8px 12px" }}>{children}</div>}
+      {expanded && <div style={{ padding: "10px 16px 12px" }}>{children}</div>}
     </section>
   );
 }
@@ -404,7 +408,14 @@ function WatchersTable({
   rows: Awaited<ReturnType<typeof loadOpenWatchers>>;
 }) {
   return (
-    <table className="w-full text-[13px] border-collapse">
+    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed" }}>
+      <colgroup>
+        <col />
+        <col style={{ width: 110 }} />
+        <col style={{ width: 130 }} />
+        <col style={{ width: 130 }} />
+        <col style={{ width: 180 }} />
+      </colgroup>
       <thead>
         <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
           <th
@@ -449,7 +460,14 @@ function FlagsTable({
   rows: Awaited<ReturnType<typeof loadOpenHygieneFlags>>;
 }) {
   return (
-    <table className="w-full text-[13px] border-collapse">
+    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed" }}>
+      <colgroup>
+        <col />
+        <col style={{ width: 160 }} />
+        <col style={{ width: 110 }} />
+        <col style={{ width: 80 }} />
+        <col style={{ width: 140 }} />
+      </colgroup>
       <thead>
         <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
           <th
@@ -494,7 +512,14 @@ function AdvancementTable({
   rows: Awaited<ReturnType<typeof loadStageAdvancementSuggestions>>;
 }) {
   return (
-    <table className="w-full text-[13px] border-collapse">
+    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed" }}>
+      <colgroup>
+        <col />
+        <col style={{ width: 220 }} />
+        <col style={{ width: 130 }} />
+        <col style={{ width: 80 }} />
+        <col style={{ width: 160 }} />
+      </colgroup>
       <thead>
         <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
           <th
