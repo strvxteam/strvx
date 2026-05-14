@@ -77,26 +77,28 @@ export function StageAdvancementFlagRow({ row }: { row: HygieneFlagRow }) {
         </div>
       </td>
       <td className="py-2 pr-3 text-[12px]" style={{ color: "#222" }}>
-        <div className="flex items-center gap-1">
-          <span
-            className="px-1.5 py-0.5 rounded text-[11px]"
-            style={{ background: "#f5f5f5", color: "#666" }}
-          >
-            {details.from_stage ?? "?"}
-          </span>
-          <span style={{ color: "#aaa" }}>→</span>
-          <span
-            className="px-1.5 py-0.5 rounded text-[11px]"
-            style={{ background: "#e8f5e9", color: "#1b5e20" }}
-          >
-            {details.to_stage ?? "?"}
-          </span>
-        </div>
+        {details.from_stage || details.to_stage ? (
+          <div className="flex items-center gap-1">
+            <span
+              className="px-1.5 py-0.5 rounded text-[11px]"
+              style={{ background: "#f5f5f5", color: "#666" }}
+            >
+              {humanStage(details.from_stage) ?? "—"}
+            </span>
+            <span style={{ color: "#aaa" }}>→</span>
+            <span
+              className="px-1.5 py-0.5 rounded text-[11px]"
+              style={{ background: "#e8f5e9", color: "#1b5e20" }}
+            >
+              {humanStage(details.to_stage) ?? "—"}
+            </span>
+          </div>
+        ) : (
+          <span style={{ color: "#aaa" }}>—</span>
+        )}
       </td>
-      <td className="py-2 pr-3 text-[12px]" style={{ color: "#888" }}>
-        {Array.isArray(details.signals) && details.signals.length > 0
-          ? details.signals[0]
-          : "—"}
+      <td className="py-2 pr-3 text-[12px]" style={{ color: "#666" }}>
+        {humanSignal(details.signals)}
       </td>
       <td className="py-2 pr-3 text-[12px]" style={{ color: "#888" }}>
         {formatAge(row.createdAt)}
@@ -140,6 +142,28 @@ function stringifyShort(v: unknown): string {
   } catch {
     return String(v);
   }
+}
+
+function humanStage(s: string | undefined): string | null {
+  if (!s) return null;
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function humanSignal(signals: unknown): string {
+  if (!Array.isArray(signals) || signals.length === 0) return "—";
+  const first = String(signals[0]);
+  // "category=lead_inquiry+requires_reply=true" → "Lead inquiry · Requires reply"
+  return first
+    .split("+")
+    .map((part) => {
+      const [, value] = part.split("=");
+      const v = (value ?? part).trim();
+      if (v === "true") return null;
+      if (v === "false") return null;
+      return v.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    })
+    .filter(Boolean)
+    .join(" · ") || first;
 }
 
 function formatAge(d: Date): string {

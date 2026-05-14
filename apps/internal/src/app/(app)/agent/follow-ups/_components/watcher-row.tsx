@@ -9,6 +9,16 @@ const KIND_LABEL: Record<FollowUpWatcherRow["kind"], string> = {
   post_meeting_followup: "Post-meeting",
 };
 
+const KIND_COLOR: Record<
+  FollowUpWatcherRow["kind"],
+  { bg: string; fg: string }
+> = {
+  stale_thread: { bg: "#fef3e2", fg: "#7c4a00" },
+  stale_pipeline: { bg: "#fde8e8", fg: "#7c1c14" },
+  no_show: { bg: "#f3e5f5", fg: "#6a1b9a" },
+  post_meeting_followup: { bg: "#e8f0fe", fg: "#1a73e8" },
+};
+
 const STATUS_COLOR: Record<FollowUpWatcherRow["status"], string> = {
   pending: "#f39c12",
   fired: "#1a73e8",
@@ -46,8 +56,19 @@ export function WatcherRow({ row }: { row: FollowUpWatcherRow }) {
           </span>
         </div>
       </td>
-      <td className="py-2 pr-3 text-[12px]" style={{ color: "#666" }}>
-        {KIND_LABEL[row.kind]}
+      <td className="py-2 pr-3">
+        <span
+          className="rounded text-[11px] uppercase"
+          style={{
+            background: KIND_COLOR[row.kind].bg,
+            color: KIND_COLOR[row.kind].fg,
+            padding: "2px 8px",
+            fontWeight: 600,
+            letterSpacing: 0.2,
+          }}
+        >
+          {KIND_LABEL[row.kind]}
+        </span>
       </td>
       <td className="py-2 pr-3 text-[12px]" style={{ color: "#888" }}>
         {formatTime(row.triggerAfter)}

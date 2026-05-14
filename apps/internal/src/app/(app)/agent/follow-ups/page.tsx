@@ -284,28 +284,47 @@ function StatCard({
       style={{
         borderColor: "#e0e0e0",
         background: "#ffffff",
-        padding: "10px 12px",
+        padding: "12px 14px",
         display: "flex",
         flexDirection: "column",
-        gap: 2,
-        minHeight: 72,
+        justifyContent: "center",
+        height: 78,
       }}
     >
       <div
-        className="text-[10px] uppercase font-semibold"
-        style={{ color: "#888", letterSpacing: 0.3 }}
+        className="uppercase font-semibold"
+        style={{
+          color: "#888",
+          letterSpacing: 0.4,
+          fontSize: 10,
+          lineHeight: 1.2,
+        }}
       >
         {label}
       </div>
       <div
         className="font-semibold"
-        style={{ color: "#1a1a1a", fontSize: 18, lineHeight: 1.1 }}
+        style={{
+          color: "#1a1a1a",
+          fontSize: 20,
+          lineHeight: 1.15,
+          marginTop: 4,
+        }}
       >
         {value}
       </div>
-      <div style={{ color: "#888", fontSize: 10, minHeight: 12 }}>
-        {sub ?? ""}
-      </div>
+      {sub && (
+        <div
+          style={{
+            color: "#888",
+            fontSize: 11,
+            lineHeight: 1.2,
+            marginTop: 2,
+          }}
+        >
+          {sub}
+        </div>
+      )}
     </div>
   );
 }
@@ -327,17 +346,20 @@ function CollapsibleSection({
 }) {
   return (
     <section
-      className="mb-2 rounded-md"
+      className="mb-2 rounded-md overflow-hidden"
       style={{ border: "1px solid #e0e0e0", background: "#ffffff" }}
     >
-      <div
+      <Link
+        href={expanded ? collapseHref : expandHref}
         className="flex items-center justify-between"
         style={{
-          background: "#fafafa",
+          background: "#f4f5f7",
           borderBottom: expanded ? "1px solid #e0e0e0" : "none",
           color: "#222",
           fontSize: 12,
-          padding: "8px 12px",
+          padding: "10px 14px",
+          textDecoration: "none",
+          cursor: "pointer",
         }}
       >
         <div className="flex items-center gap-2">
@@ -345,23 +367,24 @@ function CollapsibleSection({
           <span
             className="rounded text-[10px]"
             style={{
-              background: "#f0f0f0",
+              background: "#ffffff",
+              border: "1px solid #e0e0e0",
               color: "#666",
               padding: "1px 6px",
+              fontWeight: 600,
             }}
           >
             {count}
           </span>
         </div>
-        <Link
-          href={expanded ? collapseHref : expandHref}
+        <span
           className="text-[11px]"
-          style={{ color: "#1a73e8" }}
+          style={{ color: "#1a73e8", fontWeight: 500 }}
         >
           {expanded ? "Hide" : "Show"}
-        </Link>
-      </div>
-      {expanded && <div style={{ padding: "10px 16px 12px" }}>{children}</div>}
+        </span>
+      </Link>
+      {expanded && <div style={{ padding: "12px 16px 14px" }}>{children}</div>}
     </section>
   );
 }
@@ -572,3 +595,4 @@ function EmptyState({ label }: { label: string }) {
     </div>
   );
 }
+// trigger

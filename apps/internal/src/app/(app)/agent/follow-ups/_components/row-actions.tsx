@@ -36,11 +36,15 @@ export function FlagActionButton({ flagId, variant }: FlagButtonProps) {
       type="button"
       onClick={onClick}
       disabled={pending}
-      className="px-2 py-1 rounded text-[12px]"
+      className="rounded text-[12px]"
       style={{
-        color: isDismiss ? "#888" : "#1a73e8",
-        background: pending ? "#f5f5f5" : "transparent",
+        color: isDismiss ? "#555" : "#1a73e8",
+        background: pending ? "#f5f5f5" : "#ffffff",
+        border: `1px solid ${isDismiss ? "#e0e0e0" : "#cfdcfb"}`,
+        padding: "3px 10px",
+        fontWeight: 500,
         opacity: pending ? 0.6 : 1,
+        cursor: pending ? "wait" : "pointer",
       }}
     >
       {pending
@@ -77,11 +81,15 @@ export function WatcherCancelButton({ watcherId }: { watcherId: string }) {
       type="button"
       onClick={onClick}
       disabled={pending}
-      className="px-2 py-1 rounded text-[12px]"
+      className="rounded text-[12px]"
       style={{
-        color: "#888",
-        background: pending ? "#f5f5f5" : "transparent",
+        color: "#555",
+        background: pending ? "#f5f5f5" : "#ffffff",
+        border: "1px solid #e0e0e0",
+        padding: "3px 10px",
+        fontWeight: 500,
         opacity: pending ? 0.6 : 1,
+        cursor: pending ? "wait" : "pointer",
       }}
     >
       {pending ? "Cancelling…" : "Cancel"}
