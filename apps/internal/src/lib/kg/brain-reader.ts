@@ -321,6 +321,48 @@ export async function listBrainNodes(
   return out;
 }
 
+/**
+ * Single-pass wikilink edge enumeration across the entire brain. Used by
+ * loadGraph; doing this here in one pass (instead of N getBrainContext
+ * calls) cuts /kg/graph render time roughly proportionally to the page
+ * count.
+ *
+ * `inScope` constrains both endpoints — edges to pages outside the slug
+ * set get dropped so the force-graph viz doesn't render dangling nodes.
+ */
+export async function listBrainEdges(
+  inScope: Set<string>,
+): Promise<BrainEdge[]> {
+  await buildSlugIndex();
+  const edges: BrainEdge[] = [];
+  for (const slug of SLUG_INDEX) {
+    if (!inScope.has(slug)) continue;
+    const page = await loadPageBySlug(slug);
+    if (!page) continue;
+    const links = extractWikilinks(page.body);
+    for (const target of links) {
+      if (target === slug) continue;
+      if (!inScope.has(target)) continue;
+      edges.push({
+        id: `${slug}->${target}`,
+        type: "REFERENCES",
+        from: slug,
+        to: target,
+        properties: {},
+        provenance: {
+          source_type: "brain",
+          extraction_method: "wikilink",
+          trust_score: 1,
+          confidence: 1,
+          created_by: "brain-reader",
+          validation_count: 0,
+        },
+      });
+    }
+  }
+  return edges;
+}
+
 export async function listBrainLabelCounts(): Promise<Array<{ label: string; count: number }>> {
   await buildSlugIndex();
   const counts = new Map<string, number>();

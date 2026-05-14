@@ -160,7 +160,7 @@ export default async function KgHomePage({ searchParams }: KgHomeProps) {
 }
 
 function SummaryGrid({ counts }: { counts: Array<{ label: string; count: number }> }) {
-  const featured = ["Person", "Organization", "Note", "Engagement", "Decision"];
+  const featured = ["Person", "Organization", "Engagement", "Interaction", "FinancialEvent"];
   const top = featured
     .map((label) => ({ label, count: counts.find((c) => c.label === label)?.count ?? 0 }))
     .filter((x) => x.count > 0);
@@ -214,7 +214,7 @@ function RecentSection({ items }: { items: Awaited<ReturnType<typeof recentEntit
           fontSize: 13,
         }}
       >
-        No entities indexed yet. Run gbrain-ingestor or kg-ingestor backfill to populate.
+        No entities indexed yet. Run `scripts/refresh-brain.sh` to populate from the Supabase CRM.
       </div>
     );
   }
@@ -394,7 +394,10 @@ function ErrorCard({ message }: { message: string }) {
         {message}
       </div>
       <div style={{ fontSize: 12, color: "#7f1d1d", marginTop: 8 }}>
-        Check NEO4J_URI, NEO4J_USER_RW, and NEO4J_PASSWORD_RW in .env.local.
+        Check that <code>brain/</code> contains markdown pages (run
+        <code> scripts/refresh-brain.sh</code> if not) and that
+        <code> GBRAIN_MCP_URL</code> + <code>GBRAIN_MCP_TOKEN</code> in
+        <code> .env.local</code> point at a running <code>gbrain serve --http</code>.
       </div>
     </div>
   );
@@ -406,7 +409,10 @@ function LabelChip({ label }: { label: string }) {
     Organization: { fg: "#0e7490", bg: "#e0f7fa" },
     Note: { fg: "#7c3aed", bg: "#f3e8ff" },
     Engagement: { fg: "#15803d", bg: "#dcfce7" },
+    Interaction: { fg: "#0891b2", bg: "#ecfeff" },
+    FinancialEvent: { fg: "#b45309", bg: "#fef3c7" },
     Decision: { fg: "#b45309", bg: "#fef3c7" },
+    Task: { fg: "#ea580c", bg: "#fff7ed" },
   };
   const c = palette[label] ?? { fg: "#555", bg: "#f0f0f0" };
   return (

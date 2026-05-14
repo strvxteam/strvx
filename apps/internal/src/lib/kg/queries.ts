@@ -6,6 +6,7 @@ import {
   listBrainByType,
   listBrainLabelCounts,
   listBrainNodes,
+  listBrainEdges,
   type BrainNode,
   type BrainContext,
 } from "./brain-reader";
@@ -169,19 +170,15 @@ export async function loadGraph(
     };
   });
 
-  // Collect edges by walking each node's compiled+timeline wikilinks. We've
-  // already loaded the pages once via listBrainNodes; fetch them again via
-  // getBrainContext to leverage caching and pick up only in-set targets.
-  const edges: GraphEdge[] = [];
-  for (const n of filtered) {
-    const ctx = await getBrainContext(n.id, 1, 100);
-    if (!ctx) continue;
-    for (const e of ctx.edges) {
-      if (e.from !== n.id) continue;
-      if (!idSet.has(e.to)) continue;
-      edges.push({ source: e.from, target: e.to, type: e.type });
-    }
-  }
+  // Single-pass edge enumeration: brain-reader walks every page once and
+  // returns only in-set edges, instead of the previous O(N*M) getBrainContext
+  // loop. Big perf win for /kg/graph at scale.
+  const rawEdges = await listBrainEdges(idSet);
+  const edges: GraphEdge[] = rawEdges.map((e) => ({
+    source: e.from,
+    target: e.to,
+    type: e.type,
+  }));
   return { nodes: graphNodes, edges };
 }
 
