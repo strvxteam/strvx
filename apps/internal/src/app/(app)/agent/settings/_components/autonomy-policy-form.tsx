@@ -1073,13 +1073,14 @@ function MailboxesPanel({
           display: "inline-flex",
           alignItems: "center",
           gap: 8,
-          borderRadius: 6,
-          border: "1px solid #e0e0e0",
+          borderRadius: 8,
+          border: "1px solid #111",
           padding: "8px 14px",
           fontSize: 13,
-          color: "#111",
+          fontWeight: 600,
+          color: "#ffffff",
           textDecoration: "none",
-          background: "#fff",
+          background: "#111",
           marginBottom: 16,
         }}
       >
@@ -1092,8 +1093,19 @@ function MailboxesPanel({
         </p>
       ) : (
         <table
-          style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}
+          style={{
+            width: "100%",
+            fontSize: 13,
+            borderCollapse: "collapse",
+            tableLayout: "fixed",
+          }}
         >
+          <colgroup>
+            <col style={{ width: 230 }} />
+            <col />
+            <col style={{ width: 90 }} />
+            <col style={{ width: 110 }} />
+          </colgroup>
           <thead>
             <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
               <MailboxHeaderCell>Email</MailboxHeaderCell>
@@ -1105,23 +1117,73 @@ function MailboxesPanel({
           <tbody>
             {mailboxes.map((m) => (
               <tr key={m.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                <td style={{ padding: "10px 0" }}>
-                  <div style={{ fontWeight: 500 }}>{m.email}</div>
+                <td style={{ padding: "10px 8px 10px 0" }}>
+                  <div
+                    style={{ fontWeight: 500, color: "#222" }}
+                    className="truncate"
+                  >
+                    {m.email}
+                  </div>
                   {m.displayName && (
-                    <div style={{ color: "#888", fontSize: 12 }}>
+                    <div
+                      style={{ color: "#888", fontSize: 12 }}
+                      className="truncate"
+                    >
                       {m.displayName}
                     </div>
                   )}
                 </td>
-                <td style={{ padding: "10px 0", color: "#888" }}>
-                  {m.scopes
-                    .map((s) =>
-                      s.replace("https://www.googleapis.com/auth/", "")
-                    )
-                    .join(", ")}
+                <td style={{ padding: "10px 8px 10px 0" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 4,
+                    }}
+                  >
+                    {m.scopes.map((s) => (
+                      <span
+                        key={s}
+                        style={{
+                          background: "#f0f0f0",
+                          color: "#555",
+                          fontSize: 11,
+                          padding: "1px 6px",
+                          borderRadius: 4,
+                          fontFamily:
+                            "ui-monospace, SFMono-Regular, Menlo, monospace",
+                        }}
+                      >
+                        {s.replace("https://www.googleapis.com/auth/", "")}
+                      </span>
+                    ))}
+                  </div>
                 </td>
-                <td style={{ padding: "10px 0" }}>
-                  {m.isActive ? "Active" : "Paused"}
+                <td style={{ padding: "10px 8px 10px 0" }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 12,
+                      color: m.isActive ? "#1b5e20" : "#7a5d00",
+                      background: m.isActive ? "#e3f7ea" : "#fff6dc",
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: m.isActive ? "#22a14a" : "#d39e00",
+                      }}
+                    />
+                    {m.isActive ? "Active" : "Paused"}
+                  </span>
                 </td>
                 <td style={{ padding: "10px 0", color: "#888" }}>
                   {new Date(m.updatedAt).toISOString().slice(0, 10)}

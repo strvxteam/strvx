@@ -31,7 +31,10 @@ export async function GET(request: NextRequest) {
     }
 
     const overlays = await loadCalendarAgentOverlays(
-      events.map((e) => `gcal-${e.googleEventId}`)
+      events.map((e) => ({
+        id: `gcal-${e.googleEventId}`,
+        googleEventId: e.googleEventId,
+      }))
     );
     const enriched = events.map((e) => {
       const o = overlays.get(`gcal-${e.googleEventId}`);

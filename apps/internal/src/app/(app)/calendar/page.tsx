@@ -98,7 +98,28 @@ export default async function CalendarPage() {
   });
   const events: CalendarEvent[] = [...converted, ...uniqueGoogleEvents];
 
-  const overlays = await loadCalendarAgentOverlays(events.map((e) => e.id));
+  // Build overlay lookups so each event carries the right hint:
+  // DB events already know their engagementId and googleEventId from the
+  // row; Google-only events only have `gcal-<id>` to go on.
+  const dbEventById = new Map(dbEvents.map((e) => [e.id, e]));
+  const overlays = await loadCalendarAgentOverlays(
+    events.map((e) => {
+      const dbRow = dbEventById.get(e.id);
+      if (dbRow) {
+        return {
+          id: e.id,
+          googleEventId: dbRow.googleEventId ?? null,
+          engagementId: dbRow.engagementId ?? null,
+        };
+      }
+      return {
+        id: e.id,
+        googleEventId: e.id.startsWith("gcal-")
+          ? e.id.slice("gcal-".length)
+          : null,
+      };
+    })
+  );
   const enriched = events.map((e) => {
     const o = overlays.get(e.id);
     if (!o) return e;

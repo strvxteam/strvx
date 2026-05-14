@@ -13,61 +13,116 @@ export type CalendarAgentOverlay = {
   hasPrepBrief: boolean;
 };
 
+export type OverlayLookup = {
+  /** UI event id — bare DB UUID or `gcal-<google_event_id>`. */
+  id: string;
+  /** Google Calendar event id, if known (from DB row or `gcal-` prefix). */
+  googleEventId: string | null;
+  /** Engagement id already known from a DB row, if any. */
+  engagementId?: string | null;
+};
+
 /**
- * Given an array of event ids — either `gcal-<googleEventId>` (from a
- * Google Calendar fetch) or raw DB ids — return overlay data per id:
- * engagement linkage (via calendar_events.google_event_id) and prep-brief
- * presence (via meeting_prep_briefs.calendar_event_id).
- *
- * Missing rows fall back to nulls/false so the UI degrades gracefully.
+ * Resolve engagement linkage + prep-brief presence for a heterogeneous
+ * mix of events. DB-stored events carry their own `engagementId` and
+ * `googleEventId` straight from the row; Google-fetched events only have
+ * a `gcal-<id>` UI id. Both shapes are looked up by `google_event_id`
+ * in `meeting_prep_briefs`, and engagement names are joined when an id
+ * is present. Missing rows fall back gracefully.
  */
 export async function loadCalendarAgentOverlays(
-  ids: string[]
+  events: OverlayLookup[]
 ): Promise<Map<string, CalendarAgentOverlay>> {
   const result = new Map<string, CalendarAgentOverlay>();
-  if (ids.length === 0) return result;
+  if (events.length === 0) return result;
 
-  const googleEventIds = ids
-    .filter((id) => id.startsWith("gcal-"))
-    .map((id) => id.slice("gcal-".length));
+  const googleEventIds = Array.from(
+    new Set(
+      events
+        .map((e) => e.googleEventId)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+  const engagementIds = Array.from(
+    new Set(
+      events
+        .map((e) => e.engagementId ?? null)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
 
-  if (googleEventIds.length === 0) return result;
-
-  const [engagementRows, briefRows] = await Promise.all([
-    db
-      .select({
-        googleEventId: calendarEvents.googleEventId,
-        engagementId: calendarEvents.engagementId,
-        engagementName: engagements.name,
-      })
-      .from(calendarEvents)
-      .leftJoin(engagements, eq(engagements.id, calendarEvents.engagementId))
-      .where(inArray(calendarEvents.googleEventId, googleEventIds)),
-    db
-      .select({ calendarEventId: meetingPrepBriefs.calendarEventId })
-      .from(meetingPrepBriefs)
-      .where(inArray(meetingPrepBriefs.calendarEventId, googleEventIds)),
+  const [briefRows, engagementRows, joinedRows] = await Promise.all([
+    googleEventIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({ calendarEventId: meetingPrepBriefs.calendarEventId })
+          .from(meetingPrepBriefs)
+          .where(inArray(meetingPrepBriefs.calendarEventId, googleEventIds)),
+    engagementIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({ id: engagements.id, name: engagements.name })
+          .from(engagements)
+          .where(inArray(engagements.id, engagementIds)),
+    googleEventIds.length === 0
+      ? Promise.resolve([])
+      : db
+          .select({
+            googleEventId: calendarEvents.googleEventId,
+            engagementId: calendarEvents.engagementId,
+            engagementName: engagements.name,
+          })
+          .from(calendarEvents)
+          .leftJoin(
+            engagements,
+            eq(engagements.id, calendarEvents.engagementId)
+          )
+          .where(inArray(calendarEvents.googleEventId, googleEventIds)),
   ]);
 
   const briefSet = new Set(briefRows.map((r) => r.calendarEventId));
+  const engagementNameById = new Map(
+    engagementRows.map((r) => [r.id, r.name])
+  );
+  const linkageByGoogleId = new Map(
+    joinedRows
+      .filter((r): r is typeof r & { googleEventId: string } =>
+        typeof r.googleEventId === "string"
+      )
+      .map((r) => [
+        r.googleEventId,
+        {
+          engagementId: r.engagementId,
+          engagementName: r.engagementName,
+        },
+      ])
+  );
 
-  for (const row of engagementRows) {
-    if (!row.googleEventId) continue;
-    result.set(`gcal-${row.googleEventId}`, {
-      engagementId: row.engagementId,
-      engagementName: row.engagementName,
-      hasPrepBrief: briefSet.has(row.googleEventId),
-    });
-  }
+  for (const event of events) {
+    const hasPrepBrief =
+      event.googleEventId !== null && event.googleEventId !== undefined
+        ? briefSet.has(event.googleEventId)
+        : false;
 
-  // Cover IDs with a brief but no engagement linkage.
-  for (const googleEventId of briefSet) {
-    const id = `gcal-${googleEventId}`;
-    if (result.has(id)) continue;
-    result.set(id, {
-      engagementId: null,
-      engagementName: null,
-      hasPrepBrief: true,
+    // Engagement: prefer the DB row's own engagement_id, then fall back to
+    // the Google-event-id lookup join.
+    let engagementId: string | null = event.engagementId ?? null;
+    let engagementName: string | null = engagementId
+      ? engagementNameById.get(engagementId) ?? null
+      : null;
+    if (!engagementId && event.googleEventId) {
+      const linked = linkageByGoogleId.get(event.googleEventId);
+      if (linked) {
+        engagementId = linked.engagementId;
+        engagementName = linked.engagementName;
+      }
+    }
+
+    if (!engagementId && !hasPrepBrief) continue;
+    result.set(event.id, {
+      engagementId,
+      engagementName,
+      hasPrepBrief,
     });
   }
 

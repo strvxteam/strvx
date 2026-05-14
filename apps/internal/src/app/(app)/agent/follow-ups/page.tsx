@@ -136,6 +136,7 @@ export default async function FollowUpsPage({
       {/* Open watchers — collapsed by default */}
       <CollapsibleSection
         title="Open watchers"
+        sectionId="watchers-section"
         count={watchersAll.length}
         expanded={watchersExpanded}
         expandHref={
@@ -162,6 +163,7 @@ export default async function FollowUpsPage({
       {/* CRM hygiene flags — collapsed by default */}
       <CollapsibleSection
         title="CRM hygiene flags"
+        sectionId="flags-section"
         count={flags.length}
         expanded={flagsExpanded}
         expandHref="/agent/follow-ups?show=flags"
@@ -177,6 +179,7 @@ export default async function FollowUpsPage({
       {/* Stage-advancement suggestions — collapsed by default */}
       <CollapsibleSection
         title="Stage-advancement suggestions"
+        sectionId="advancement-section"
         count={advancement.length}
         expanded={advancementExpanded}
         expandHref="/agent/follow-ups?show=advancement"
@@ -335,6 +338,7 @@ function CollapsibleSection({
   expanded,
   expandHref,
   collapseHref,
+  sectionId,
   children,
 }: {
   title: string;
@@ -342,8 +346,10 @@ function CollapsibleSection({
   expanded: boolean;
   expandHref: string;
   collapseHref: string;
+  sectionId: string;
   children: React.ReactNode;
 }) {
+  const bodyId = `${sectionId}-body`;
   return (
     <section
       className="mb-2 rounded-md overflow-hidden"
@@ -351,6 +357,9 @@ function CollapsibleSection({
     >
       <Link
         href={expanded ? collapseHref : expandHref}
+        role="button"
+        aria-expanded={expanded}
+        aria-controls={bodyId}
         className="flex items-center justify-between"
         style={{
           background: "#f4f5f7",
@@ -373,18 +382,28 @@ function CollapsibleSection({
               padding: "1px 6px",
               fontWeight: 600,
             }}
+            aria-hidden="true"
           >
             {count}
           </span>
+          <span className="sr-only">({count} items)</span>
         </div>
         <span
           className="text-[11px]"
           style={{ color: "#1a73e8", fontWeight: 500 }}
+          aria-hidden="true"
         >
           {expanded ? "Hide" : "Show"}
         </span>
       </Link>
-      {expanded && <div style={{ padding: "12px 16px 14px" }}>{children}</div>}
+      {expanded && (
+        <div
+          id={bodyId}
+          style={{ padding: "12px 16px 14px", overflowX: "auto" }}
+        >
+          {children}
+        </div>
+      )}
     </section>
   );
 }
@@ -431,7 +450,7 @@ function WatchersTable({
   rows: Awaited<ReturnType<typeof loadOpenWatchers>>;
 }) {
   return (
-    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed" }}>
+    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed", minWidth: 720 }}>
       <colgroup>
         <col />
         <col style={{ width: 110 }} />
@@ -483,7 +502,7 @@ function FlagsTable({
   rows: Awaited<ReturnType<typeof loadOpenHygieneFlags>>;
 }) {
   return (
-    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed" }}>
+    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed", minWidth: 720 }}>
       <colgroup>
         <col />
         <col style={{ width: 160 }} />
@@ -535,7 +554,7 @@ function AdvancementTable({
   rows: Awaited<ReturnType<typeof loadStageAdvancementSuggestions>>;
 }) {
   return (
-    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed" }}>
+    <table className="w-full text-[13px] border-collapse" style={{ tableLayout: "fixed", minWidth: 720 }}>
       <colgroup>
         <col />
         <col style={{ width: 220 }} />
