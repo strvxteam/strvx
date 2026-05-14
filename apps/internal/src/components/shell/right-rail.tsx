@@ -8,9 +8,9 @@ export type RightRailData = {
   openInvoices: { id: string; number: string; amount: number }[];
 };
 
-export function RightRail({ data }: { data: RightRailData }) {
-  return (
-    <aside className="w-[280px] shrink-0 border-l border-[#eee] pl-5 text-[13px]">
+export function RightRail({ data, embedded = false }: { data: RightRailData; embedded?: boolean }) {
+  const inner = (
+    <>
       <Section title="Company">
         <Link href={`/clients?companyId=${data.company.id}`} className="block py-1 hover:text-[#111]">
           {data.company.name}
@@ -47,6 +47,12 @@ export function RightRail({ data }: { data: RightRailData }) {
           ))}
         </Section>
       )}
+    </>
+  );
+  if (embedded) return inner;
+  return (
+    <aside className="w-[280px] shrink-0 border-l border-[#eee] pl-5 text-[13px]">
+      {inner}
     </aside>
   );
 }

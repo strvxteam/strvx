@@ -36,6 +36,8 @@ import {
   Server,
   Activity,
   Database,
+  Network,
+  Share2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -109,6 +111,16 @@ const navSections: NavSection[] = [
     items: [
       { href: "/docs", label: "Docs", icon: BookOpen },
       { href: "/assets", label: "Assets", icon: FolderOpen },
+      {
+        label: "Knowledge Graph",
+        icon: Network,
+        items: [
+          { href: "/kg", label: "Search", icon: Network },
+          { href: "/kg/graph", label: "Graph", icon: Share2 },
+          { href: "/kg/browse", label: "Browse", icon: Boxes },
+          { href: "/kg/notes", label: "Notes", icon: BookOpen },
+        ],
+      },
       {
         label: "Skills",
         icon: Boxes,

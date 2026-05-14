@@ -30,6 +30,7 @@ export default async function ContactLayout({
       engagementId={id}
       tabs={tabs}
       rightRail={data.rightRail}
+      kgEntityId={`postgres:contacts:${id}`}
     >
       {children}
     </EntityShell>
