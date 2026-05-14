@@ -22,8 +22,8 @@ const TYPE_PALETTE: Record<string, { fg: string; bg: string }> = {
 
 /**
  * Server component that fetches KG neighborhood for an entity and renders a
- * compact related-entities list. Silently renders nothing if Neo4j is
- * unreachable or the entity isn't in the graph — KG outage must NOT block
+ * compact related-entities list. Silently renders nothing if the brain
+ * is unreachable or the entity isn't in it — KG outage must NOT block
  * the host page.
  */
 export async function KgRelatedPanel({ kgId, limit = 12 }: Props) {

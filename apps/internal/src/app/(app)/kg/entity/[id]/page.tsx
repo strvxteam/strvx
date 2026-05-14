@@ -38,7 +38,7 @@ export default async function EntityPage({ params }: EntityPageProps) {
     loadError = (err as Error).message;
   }
 
-  // Distinguish "Neo4j threw" (show error card) from "no such id" (404).
+  // Distinguish "lookup threw" (show error card) from "no such id" (404).
   if (!node && !loadError) {
     notFound();
   }
