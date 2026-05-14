@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  com.strvx.refresh-brain — hourly cron-style brain refresh.
+
+  Triggers ./scripts/refresh-brain.sh every hour. The script re-renders
+  brain/ from Supabase, re-imports into gbrain's PGLite, and (if --embed
+  is passed) re-embeds. We default to embed=on so hybrid search stays
+  current; tune StartInterval / args if cost becomes a concern.
+
+  Install: ./scripts/launchd/install-refresh.sh
+  Logs:    /tmp/strvx-refresh-brain.{out,err}.log
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.strvx.refresh-brain</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/nicolasdossantos/strvx-kg-into-sit/scripts/refresh-brain.sh</string>
+        <string>--force</string>
+        <string>--embed</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/nicolasdossantos/.bun/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/nicolasdossantos</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/nicolasdossantos/strvx-kg-into-sit</string>
+    <key>StartInterval</key>
+    <integer>3600</integer>
+    <key>RunAtLoad</key>
+    <false/>
+    <key>StandardOutPath</key>
+    <string>/tmp/strvx-refresh-brain.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/strvx-refresh-brain.err.log</string>
+</dict>
+</plist>

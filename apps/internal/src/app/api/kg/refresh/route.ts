@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
+import { mkdirSync, statSync, utimesSync, openSync, closeSync } from "node:fs";
+import { tmpdir } from "node:os";
+import crypto from "node:crypto";
 import { invalidateBrainCache } from "@/lib/kg/brain-reader";
 
 export const runtime = "nodejs";
@@ -13,9 +16,47 @@ export const dynamic = "force-dynamic";
  *
  * Body (optional): { "embed": true } — also runs `gbrain embed --stale`.
  *
- * Auth: when KG_MCP_API_KEY is set, requires that bearer token. Otherwise
- * the route is open — only safe behind a private network or for local dev.
+ * Doubles as the Supabase database-webhook target: Supabase fires this
+ * on every row change in tracked tables, so we debounce to one real
+ * refresh per DEBOUNCE_MS window. Bursts return 202 Accepted without
+ * spawning a child.
+ *
+ * Auth: when KG_MCP_API_KEY is set, requires that bearer token. Comparison
+ * is constant-time. Otherwise the route is open — only safe behind a
+ * private network or for local dev.
  */
+
+const DEBOUNCE_MS = 60_000;
+const LOCK_PATH = `${tmpdir()}/strvx-kg-refresh.lock`;
+
+function timingSafeBearerEqual(a: string, b: string): boolean {
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
+function shouldDebounce(): boolean {
+  try {
+    const st = statSync(LOCK_PATH);
+    return Date.now() - st.mtimeMs < DEBOUNCE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function touchLock(): void {
+  try {
+    mkdirSync(tmpdir(), { recursive: true });
+    const fd = openSync(LOCK_PATH, "a");
+    closeSync(fd);
+    const now = new Date();
+    utimesSync(LOCK_PATH, now, now);
+  } catch {
+    // best-effort — don't fail the request if /tmp is weird
+  }
+}
+
 export async function POST(req: Request): Promise<NextResponse> {
   const expected = process.env.KG_MCP_API_KEY;
   if (expected) {
@@ -23,7 +64,7 @@ export async function POST(req: Request): Promise<NextResponse> {
       /^Bearer\s+/i,
       "",
     );
-    if (provided !== expected) {
+    if (!timingSafeBearerEqual(provided, expected)) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
   }
@@ -32,8 +73,17 @@ export async function POST(req: Request): Promise<NextResponse> {
   try {
     body = (await req.json()) as { embed?: boolean };
   } catch {
-    // empty body is fine
+    // empty body is fine — Supabase webhooks send the row payload but
+    // we don't need it, we just refresh the whole brain.
   }
+
+  if (shouldDebounce()) {
+    return NextResponse.json(
+      { ok: true, debounced: true, message: "refresh ran in the last 60s" },
+      { status: 202 },
+    );
+  }
+  touchLock();
 
   const repoRoot = resolve(process.cwd(), "..", "..");
   const script = resolve(repoRoot, "scripts", "refresh-brain.sh");
