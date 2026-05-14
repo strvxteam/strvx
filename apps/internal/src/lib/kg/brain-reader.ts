@@ -156,6 +156,18 @@ function inferTypeFromSlug(slug: string): string {
   }
 }
 
+// Once-per-process warning when SIT's search falls back from gbrain to the
+// fs substring scorer. Keeps logs quiet under normal load but surfaces an
+// outage exactly once per dev/server lifetime.
+let _fallbackWarned = false;
+function warnFallback(query: string): void {
+  if (_fallbackWarned) return;
+  _fallbackWarned = true;
+  console.warn(
+    `[brain-reader] gbrain MCP returned no usable hits for query=${JSON.stringify(query)} — falling back to substring scoring. Check that ${process.env.GBRAIN_MCP_URL ?? "<unset>"} is reachable and that the bearer token is valid.`,
+  );
+}
+
 function pageToNode(page: ParsedPage): BrainNode {
   const fm = page.frontmatter;
   const synced = typeof fm.synced_at === "string" ? fm.synced_at : undefined;
@@ -237,8 +249,6 @@ export async function searchBrain(query: string, limit = 20): Promise<Array<{ no
       const seen = new Set<string>();
       for (const h of hits) {
         if (!h.slug || h.slug.startsWith("_")) continue;
-        // Skip the per-directory README index entries that gbrain auto-typed
-        // — they're navigation, not entities.
         if (h.slug.endsWith("/_readme") || h.slug.endsWith("readme")) continue;
         if (seen.has(h.slug)) continue;
         seen.add(h.slug);
@@ -248,6 +258,9 @@ export async function searchBrain(query: string, limit = 20): Promise<Array<{ no
       }
       if (out.length > 0) return out.slice(0, limit);
     }
+    // gbrain is configured but returned nothing / unreachable. Log once per
+    // process so operators see when the fallback is firing in dev logs.
+    warnFallback(query);
   }
 
   // Fallback: substring scoring against frontmatter + body.
