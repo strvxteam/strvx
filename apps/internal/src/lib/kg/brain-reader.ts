@@ -51,6 +51,7 @@ const PAGE_CACHE = new Map<string, ParsedPage>();
 let SLUG_INDEX_BUILT = false;
 const SLUG_INDEX = new Set<string>();
 let BUILD_PROMISE: Promise<void> | null = null;
+let SOURCE_ID_INDEX: Map<string, string> | null = null;
 
 async function buildSlugIndex(): Promise<void> {
   if (SLUG_INDEX_BUILT) return;
@@ -77,6 +78,7 @@ export function invalidateBrainCache(): void {
   PAGE_CACHE.clear();
   SLUG_INDEX.clear();
   SLUG_INDEX_BUILT = false;
+  SOURCE_ID_INDEX = null;
 }
 
 async function loadPageBySlug(slug: string): Promise<ParsedPage | null> {
@@ -361,6 +363,35 @@ export async function listBrainEdges(
     }
   }
   return edges;
+}
+
+/**
+ * Resolve a Postgres source id (the UUID written into frontmatter as
+ * `source_id`) to its brain slug. The embedded KgRelatedPanel passes
+ * `postgres:<table>:<uuid>`-shaped ids from when the KG was Neo4j-backed;
+ * we accept both the legacy form and a bare UUID and walk the brain to
+ * find the matching page.
+ *
+ * Cached: a single full-brain scan builds a Postgres UUID → slug index
+ * lazily.
+ */
+export async function resolveBrainSlug(id: string): Promise<string | null> {
+  // Already a slug? Return as-is if it points at a known page.
+  await buildSlugIndex();
+  if (SLUG_INDEX.has(id)) return id;
+  // Strip "postgres:<table>:" prefix when present.
+  const uuid = id.includes(":") ? id.split(":").pop() ?? id : id;
+  if (!SOURCE_ID_INDEX) {
+    const idx = new Map<string, string>();
+    for (const slug of SLUG_INDEX) {
+      const page = await loadPageBySlug(slug);
+      if (!page) continue;
+      const sid = page.frontmatter.source_id;
+      if (typeof sid === "string" && sid) idx.set(sid, slug);
+    }
+    SOURCE_ID_INDEX = idx;
+  }
+  return SOURCE_ID_INDEX.get(uuid) ?? null;
 }
 
 export async function listBrainLabelCounts(): Promise<Array<{ label: string; count: number }>> {

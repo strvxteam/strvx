@@ -3,6 +3,7 @@ import { EntityHeader } from "./entity-header";
 import { EntityTabs, type Tab } from "./entity-tabs";
 import { RightRail, type RightRailData } from "./right-rail";
 import { KgRelatedPanel } from "@/components/kg/kg-related-panel";
+import { resolveBrainSlug } from "@/lib/kg/brain-reader";
 
 export async function EntityShell({
   title, subtitle, engagementId, tabs, rightRail, kgEntityId, children,
@@ -17,8 +18,13 @@ export async function EntityShell({
   kgEntityId?: string;
   children: ReactNode;
 }) {
-  // NOTE: Breadcrumbs are rendered globally by <SidebarBreadcrumbs /> in
-  // the (app) layout — do not render them again here.
+  // The legacy KG-id shape was `postgres:<table>:<uuid>` (Neo4j). The brain
+  // uses slugs like `deals/acme-q4-platform`. Translate at the boundary so
+  // callers (clients/[id], contacts/[id]) don't need to know which backing
+  // store renders the panel.
+  const resolvedKgId = kgEntityId
+    ? (await resolveBrainSlug(kgEntityId)) ?? null
+    : null;
   return (
     <div className="flex gap-6">
       <div className="min-w-0 flex-1">
@@ -28,7 +34,7 @@ export async function EntityShell({
       </div>
       <aside className="w-[280px] shrink-0 border-l border-[#eee] pl-5 text-[13px]">
         <RightRail data={rightRail} embedded />
-        {kgEntityId ? <KgRelatedPanel kgId={kgEntityId} /> : null}
+        {resolvedKgId ? <KgRelatedPanel kgId={resolvedKgId} /> : null}
       </aside>
     </div>
   );
