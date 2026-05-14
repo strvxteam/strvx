@@ -3,23 +3,12 @@ import { withSentryConfig } from "@sentry/nextjs";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@strvx/db", "@strvx/kg"],
+  transpilePackages: ["@strvx/db"],
   // Pin Turbopack's workspace root to this app to avoid it picking up
   // stray ~/package-lock.json files and panicking.
   turbopack: {
     root: path.join(__dirname, "..", ".."),
     resolveExtensions: [".tsx", ".ts", ".mts", ".jsx", ".js", ".mjs", ".json"],
-  },
-  webpack: (config) => {
-    // @strvx/kg uses .js import specifiers from .ts source (NodeNext-style)
-    // so webpack needs to try .ts/.tsx when it sees a .js import.
-    config.resolve = config.resolve ?? {};
-    config.resolve.extensionAlias = {
-      ...(config.resolve.extensionAlias ?? {}),
-      ".js": [".ts", ".tsx", ".js"],
-      ".mjs": [".mts", ".mjs"],
-    };
-    return config;
   },
   async redirects() {
     return [

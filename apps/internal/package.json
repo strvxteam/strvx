@@ -27,7 +27,6 @@
     "@octokit/rest": "^22.0.1",
     "@sentry/nextjs": "^10.47.0",
     "@strvx/db": "workspace:*",
-    "@strvx/kg": "workspace:*",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.100.1",
     "@tiptap/core": "^3.22.0",

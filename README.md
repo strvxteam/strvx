@@ -8,14 +8,11 @@ knowledge graph on top of [Garry Tan's gbrain](https://github.com/garrytan/gbrai
 ```
 apps/
 ├── internal/           ← SIT (Next.js) — the team's web UI
-├── brain-sync/         ← Postgres → markdown adapter (NEW)
-├── kg-ingestor/        ← legacy homegrown CDC ingester (retained as rollback)
-├── gbrain-ingestor/    ← legacy homegrown vault ingester (retained as rollback)
+├── brain-sync/         ← Postgres → markdown adapter
 └── landing/
 
 packages/
 ├── db/                 ← Drizzle schemas + Supabase client
-├── kg/                 ← legacy @strvx/kg SDK (retained as rollback)
 └── ui/
 
 brain/                  ← markdown source of truth (NEW)
@@ -76,10 +73,11 @@ cd apps/internal && PORT=3010 pnpm dev
 - **Re-import doesn't purge stale slugs.** After a structural slug change, wipe
   `brain/.gbrain/brain.pglite` and re-init + re-import + re-embed. Otherwise
   gbrain MCP returns slugs that no longer exist on disk.
-- **The homegrown stack is retained for rollback.** `packages/kg`,
-  `apps/gbrain-ingestor`, `apps/kg-ingestor`, the `kgx-neo4j` + `kgx-pg` Docker
-  containers, and the `kg_cdc_publication` on Supabase are all preserved.
-  See `HANDOFF-GBRAIN.md`.
+- **The homegrown stack has been retired.** `packages/kg` is deleted, the
+  `kgx-neo4j` + `kgx-pg` Docker containers are torn down, and the
+  `kg_cdc_publication` + `kg_cdc_slot` on Supabase are dropped. Rollback
+  source-of-truth is `.snapshots/pre-gbrain-20260513-165510/` (Neo4j +
+  pgvector dump) and the git history before commit `916ce18`.
 
 ## Test + typecheck
 

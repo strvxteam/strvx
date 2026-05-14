@@ -131,14 +131,6 @@ reads from Supabase) but gbrain should not.
 
 ## Still TODO (when you come back)
 
-### Pending decisions (blockers — need your call)
-
-1. **Retire the homegrown stack** (Task #35 in the task list).
-   - Delete `apps/gbrain-ingestor`, `apps/kg-ingestor`, `packages/kg`.
-   - Tear down `kgx-neo4j` + `kgx-pg` containers.
-   - Drop `kg_cdc_publication` and Neo4j-specific env vars from `.env.local`.
-   - This is destructive — explicit go-ahead needed.
-
 ### Mechanical follow-ups (still open)
 
 1. **Dream-cycle activation end-to-end** (Task #49). Transcripts are
@@ -147,6 +139,10 @@ reads from Supabase) but gbrain should not.
    `gbrain dream --phase synthesize` is held back because the synthesize
    pass spends OpenAI tokens — needs explicit go-ahead before kicking
    off the first real run.
+2. **Supabase webhook → `/api/kg/refresh` tunnel.** The endpoint is
+   wired (60s-debounced, Bearer-token gated). The Supabase dashboard
+   side still needs a database webhook configured with a tunnel URL
+   pointing at the local SIT — see "How to wire the webhook" below.
 
 ### Quality-of-life cleanups (low-priority)
 
@@ -199,16 +195,62 @@ GBRAIN_HOME=$(pwd)/brain gbrain search "Acme" | head -5
 - Search mode: `balanced` (12K budget, no expansion, 25 chunks — Sonnet sweet
   spot). Configured via `gbrain config set search.mode balanced`.
 
+## How to wire the Supabase webhook (laptop-only hosting)
+
+Production refresh is "hourly cron (launchd) + Supabase database
+webhook". The cron half is fully automated:
+`scripts/launchd/install-refresh.sh` registers
+`com.strvx.refresh-brain` which runs `./scripts/refresh-brain.sh
+--force --embed` every 3600s.
+
+The webhook half needs a tunnel because gbrain only runs on the laptop:
+
+1. Stand up a tunnel from a public URL to `http://localhost:3010`.
+   Cloudflare Tunnel and ngrok both work:
+   `cloudflared tunnel --url http://localhost:3010` →
+   gives a `*.trycloudflare.com` URL.
+2. In Supabase Dashboard → Database → Webhooks, add one webhook per
+   table you want to track (start with `companies`, `contacts`,
+   `engagements`, `email_messages`, `bookings`, `interactions`,
+   `tasks`, `next_actions`). For each:
+   - URL: `https://<tunnel-host>/api/kg/refresh`
+   - HTTP method: POST
+   - HTTP headers: `Authorization: Bearer <KG_MCP_API_KEY value>`
+   - Events: insert + update + delete
+3. The endpoint debounces to one real refresh per 60s, so bursty
+   row changes won't fan out. `/tmp/strvx-kg-refresh.lock` holds
+   the mtime of the last refresh.
+
+When the tunnel is down, the hourly cron keeps freshness within 60
+min worst case.
+
 ## What I deliberately did NOT do
 
-- **No git push.** Branch `kg-into-sit` is 9 commits ahead of `origin/main`
-  and stays local until you say push.
-- **No deletion of homegrown packages/apps/containers.** They're still
-  intact under `packages/kg`, `apps/gbrain-ingestor`, `apps/kg-ingestor`,
-  and the `kgx-neo4j` / `kgx-pg` Docker containers — preserved as the
-  rollback path (Task #35).
+- **No git push.** Branch `kg-into-sit` stays local until you say push.
 - **No dream-cycle synthesize run.** Transcripts are staged and config
   points at them, but the synthesize pass spends OpenAI tokens, so I
   held it back for explicit approval (Task #49).
 - **No personal vault ingestion.** You said strvx-only — `brain/` contains
   only strvx CRM data.
+
+## Homegrown stack — retired
+
+Deleted under Task #35 (per your "Retire now" call):
+
+- `packages/kg` (the legacy `@strvx/kg` SDK) — removed; SIT's
+  `package.json` no longer declares it; `next.config.ts` dropped
+  `transpilePackages` entry + the `.js→.ts` extensionAlias webpack
+  block (only `@strvx/kg` needed that NodeNext-style resolution).
+- `kgx-neo4j` + `kgx-pg` Docker containers — `docker stop && docker rm`.
+- Supabase `kg_cdc_publication` (12 tables) + `kg_cdc_slot`
+  (wal2json logical replication slot) — dropped.
+- `NEO4J_URI`, `NEO4J_USER_RW`, `NEO4J_PASSWORD_RW`, `NEO4J_USER_RO`,
+  `NEO4J_PASSWORD_RO` removed from `apps/internal/.env.local`. A
+  timestamped backup of the file pre-strip is at
+  `/tmp/strvx-env-local-<ts>.bak`.
+
+Rollback path if you need to undo:
+1. `git revert` the retirement commit (everything above lives in one).
+2. Restore Neo4j data from `.snapshots/pre-gbrain-20260513-165510/`
+   into a fresh `kgx-neo4j` container.
+3. `pnpm install` to bring `@strvx/kg` back into the workspace.
