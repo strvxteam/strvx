@@ -11,7 +11,7 @@
     "db:studio": "turbo db:studio"
   },
   "devDependencies": {
-    "turbo": "^2.9.6"
+    "turbo": "^2.9.14"
   },
   "packageManager": "pnpm@10.8.0",
   "pnpm": {
