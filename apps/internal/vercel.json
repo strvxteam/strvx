@@ -1,28 +1,13 @@
 {
+  "//": "Vercel Hobby plan caps cron jobs at 2 per project, daily-or-coarser only. The 4 crons disabled below (monitor/check, dev/refresh, dev/sync-supabase, cleanup/ui-state) all violated either the count or the schedule limit. They are still callable via direct HTTP if you want to wire them to UptimeRobot / GitHub Actions / a Pro Vercel team. The two kept are the most user-facing: daily auto-invoicing and the weekly team report.",
   "crons": [
-    {
-      "path": "/api/monitor/check?secret=${MONITOR_SECRET}",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/dev/refresh?secret=${DEV_OPS_REFRESH_SECRET}",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/dev/sync-supabase?secret=${DEV_OPS_REFRESH_SECRET}",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/reports/weekly?secret=${WEEKLY_REPORT_SECRET}",
-      "schedule": "0 14 * * 1"
-    },
     {
       "path": "/api/cron/generate-invoices",
       "schedule": "0 9 * * *"
     },
     {
-      "path": "/api/cleanup/ui-state?secret=${UI_STATE_CLEANUP_SECRET}",
-      "schedule": "0 5 * * *"
+      "path": "/api/reports/weekly?secret=${WEEKLY_REPORT_SECRET}",
+      "schedule": "0 14 * * 1"
     }
   ]
 }
