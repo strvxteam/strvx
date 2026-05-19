@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { google } from "googleapis";
 import { inArray } from "drizzle-orm";
+import { getTeamRefreshToken } from "@/lib/google-calendar";
 
 // ── Team member config ────────────────────────────────────────────────────────
 //
@@ -304,12 +305,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "start and end are required" }, { status: 400 });
   }
 
-  const teamRefreshToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN;
+  const teamRefreshToken = await getTeamRefreshToken();
   if (!teamRefreshToken) {
     return NextResponse.json(
       {
         error:
-          "GOOGLE_TEAM_REFRESH_TOKEN is not set — strvxteam@gmail.com calendar account is not connected.",
+          "strvxteam@gmail.com calendar is not connected. Click here to connect it.",
+        connectUrl: "/api/auth/google/team-connect",
       },
       { status: 503 },
     );

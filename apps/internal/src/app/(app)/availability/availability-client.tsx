@@ -175,6 +175,10 @@ export function AvailabilityClient() {
   const [data, setData] = useState<TeamAvailabilityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // When the server returns 503 because the team token is missing, it also
+  // includes the URL of the OAuth flow that fixes it — we surface that as a
+  // clickable Connect button next to the error message.
+  const [connectUrl, setConnectUrl] = useState<string | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [generatingLink, setGeneratingLink] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
@@ -228,6 +232,7 @@ export function AvailabilityClient() {
 
     setLoading(true);
     setError(null);
+    setConnectUrl(null);
     try {
       const start = new Date(ws);
       start.setHours(0, 0, 0, 0);
@@ -237,12 +242,13 @@ export function AvailabilityClient() {
         { signal: controller.signal },
       );
       if (!res.ok) {
-        // Surface the server's actual error message (e.g. "GOOGLE_TEAM_REFRESH_TOKEN
-        // is not set") instead of just "HTTP 503" — otherwise the user has no
-        // signal about what to fix.
+        // Surface the server's actual error message and the optional connect
+        // URL (for the team-token-missing case) instead of just "HTTP 503".
         const body = (await res.json().catch(() => null)) as
-          | { error?: string }
+          | { error?: string; connectUrl?: string }
           | null;
+        if (controller.signal.aborted) return;
+        if (body?.connectUrl) setConnectUrl(body.connectUrl);
         throw new Error(body?.error ?? `HTTP ${res.status}`);
       }
       const json = await res.json();
@@ -434,8 +440,16 @@ export function AvailabilityClient() {
 
       {/* ── Error ── */}
       {error && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-[13px] text-red-700">
-          {error}
+        <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-[13px] text-red-700">
+          <span className="min-w-0">{error}</span>
+          {connectUrl && (
+            <a
+              href={connectUrl}
+              className="shrink-0 rounded-md border border-red-300 bg-white px-2.5 py-1 text-[12px] font-medium text-red-700 transition-colors hover:bg-red-100"
+            >
+              Connect strvxteam@gmail.com →
+            </a>
+          )}
         </div>
       )}
 

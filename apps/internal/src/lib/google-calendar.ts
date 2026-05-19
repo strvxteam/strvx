@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { encrypt, decrypt, isEncrypted } from "./crypto";
 
 // Schema import for google_tokens table (define inline since we just created it)
-import { pgTable, uuid, text, bigint, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, bigint, timestamp, boolean } from "drizzle-orm/pg-core";
 
 export const googleTokens = pgTable("google_tokens", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -26,6 +26,56 @@ export const driveTokens = pgTable("drive_tokens", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Singleton table holding the strvxteam@gmail.com refresh token. Lets the
+// availability + booking flows read the team token from DB so it doesn't
+// need to be re-pasted into every Vercel project's env vars. See migration
+// 015_team_calendar_token.sql.
+export const teamCalendarToken = pgTable("team_calendar_token", {
+  id: boolean("id").primaryKey().default(true),
+  refreshToken: text("refresh_token").notNull(),
+  email: text("email"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Read the shared team Calendar refresh token. Prefers the env var (cheap),
+ *  falls back to the DB singleton (lets ops set it via /api/auth/google/
+ *  team-connect without touching Vercel env vars). */
+export async function getTeamRefreshToken(): Promise<string | null> {
+  const envToken = process.env.GOOGLE_TEAM_REFRESH_TOKEN?.trim();
+  if (envToken) return envToken;
+  try {
+    const [row] = await db.select().from(teamCalendarToken).limit(1);
+    return row?.refreshToken ?? null;
+  } catch (err) {
+    console.error("[getTeamRefreshToken] DB lookup failed:", err);
+    return null;
+  }
+}
+
+/** Persist the strvxteam refresh token to the singleton DB row. Idempotent
+ *  — overwrites whatever was there before. */
+export async function saveTeamRefreshToken(refreshToken: string, email?: string | null) {
+  await db
+    .insert(teamCalendarToken)
+    .values({ id: true, refreshToken, email: email ?? null })
+    .onConflictDoUpdate({
+      target: teamCalendarToken.id,
+      set: { refreshToken, email: email ?? null, updatedAt: new Date() },
+    });
+}
+
+/** OAuth URL specifically for connecting strvxteam@gmail.com. Calendar-only
+ *  scope, forces account picker so the operator can choose the team account
+ *  even if their browser is already signed into a personal Google account. */
+export function getTeamCalendarAuthUrl() {
+  const oauth2Client = getOAuth2Client();
+  return oauth2Client.generateAuthUrl({
+    access_type: "offline",
+    prompt: "select_account consent",
+    scope: ["https://www.googleapis.com/auth/calendar.readonly"],
+  });
+}
 
 function getOAuth2Client() {
   return new google.auth.OAuth2(
