@@ -215,7 +215,17 @@ export function AvailabilityClient() {
     }
   }, []);
 
+  // Tracks the most recent fetch so out-of-order responses (user clicks
+  // prev/next/today rapidly) can be discarded — without this guard, a slow
+  // older request can land AFTER a fast newer one and overwrite fresh data
+  // with stale data.
+  const fetchAbortRef = useRef<AbortController | null>(null);
+
   const fetchData = useCallback(async (ws: Date) => {
+    fetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
@@ -224,6 +234,7 @@ export function AvailabilityClient() {
       const end = addDays(start, 7);
       const res = await fetch(
         `/api/availability/team?start=${start.toISOString()}&end=${end.toISOString()}`,
+        { signal: controller.signal },
       );
       if (!res.ok) {
         // Surface the server's actual error message (e.g. "GOOGLE_TEAM_REFRESH_TOKEN
@@ -234,17 +245,30 @@ export function AvailabilityClient() {
           | null;
         throw new Error(body?.error ?? `HTTP ${res.status}`);
       }
-      setData(await res.json());
+      const json = await res.json();
+      // Only apply the response if this fetch is still the latest one.
+      if (controller.signal.aborted) return;
+      setData(json);
     } catch (e) {
+      if (controller.signal.aborted) return; // ignore abort errors
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
-      setLoading(false);
+      // Only clear loading if this fetch is still the latest one. Otherwise
+      // the newer fetch is responsible for managing loading state.
+      if (fetchAbortRef.current === controller) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     fetchData(weekStart);
   }, [weekStart, fetchData]);
+
+  // Abort any in-flight fetch on unmount so its setState calls don't fire
+  // against a torn-down component.
+  useEffect(() => {
+    return () => fetchAbortRef.current?.abort();
+  }, []);
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const members = data?.members ?? [];
