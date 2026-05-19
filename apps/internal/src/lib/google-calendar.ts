@@ -38,6 +38,18 @@ export const teamCalendarToken = pgTable("team_calendar_token", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+// Manual mapping from Google calendar id → which team member owns it. The
+// availability route consults this BEFORE the env-var aliases and summary
+// name heuristics, so ops can rescue side calendars (Alex's "Tutoring",
+// Nick's "Travel") whose ids are opaque hashes and whose names don't
+// contain a member's name. See migration 016_team_calendar_owners.sql.
+export const teamCalendarOwners = pgTable("team_calendar_owners", {
+  calendarId: text("calendar_id").primaryKey(),
+  owner: text("owner").notNull(), // 'alex' | 'nick' | 'team' | 'skip'
+  label: text("label"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Read the shared team Calendar refresh token. Prefers the env var (cheap),
  *  falls back to the DB singleton (lets ops set it via /api/auth/google/
  *  team-connect without touching Vercel env vars). */

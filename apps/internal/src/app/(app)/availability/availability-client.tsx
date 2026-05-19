@@ -9,8 +9,10 @@ import {
   Link2,
   Copy,
   Check,
+  Settings,
   X,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { createInternalBookingLink } from "@/app/actions";
 import type {
@@ -392,6 +394,16 @@ export function AvailabilityClient() {
               </span>
             ))}
           </div>
+
+          {/* Calendar mappings settings */}
+          <Link
+            href="/availability/settings"
+            className="flex items-center gap-1.5 rounded-md border border-[#e0e0e0] bg-white px-2.5 py-1 text-[12px] font-medium text-[#333] transition-colors hover:bg-[#f5f5f5]"
+            title="Assign Alex's / Nick's side calendars"
+          >
+            <Settings size={13} strokeWidth={2} />
+            Calendars
+          </Link>
 
           {/* Generate booking link */}
           <button

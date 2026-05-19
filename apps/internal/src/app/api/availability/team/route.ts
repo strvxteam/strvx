@@ -4,9 +4,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { google } from "googleapis";
+import { google, type calendar_v3 } from "googleapis";
 import { inArray } from "drizzle-orm";
-import { getTeamRefreshToken } from "@/lib/google-calendar";
+import { getTeamRefreshToken, teamCalendarOwners } from "@/lib/google-calendar";
 
 // ── Team member config ────────────────────────────────────────────────────────
 //
@@ -112,16 +112,23 @@ export type TeamAvailabilityResponse = {
 // across both members' columns.
 type CalendarOwner = MemberKey | "team" | "skip";
 
-function classifyCalendar(cal: {
-  id?: string | null;
-  summary?: string | null;
-  summaryOverride?: string | null;
-  primary?: boolean | null;
-}): CalendarOwner {
+function classifyCalendar(
+  cal: {
+    id?: string | null;
+    summary?: string | null;
+    summaryOverride?: string | null;
+    primary?: boolean | null;
+  },
+  dbMappings: Map<string, CalendarOwner>,
+): CalendarOwner {
   const id = (cal.id ?? "").toLowerCase();
   const summary = (cal.summary ?? "").toLowerCase();
   const summaryOverride = (cal.summaryOverride ?? "").toLowerCase();
   const effectiveName = summaryOverride || summary;
+
+  // 0. Explicit DB mapping wins over everything else — this is how ops
+  // assign opaque-hash side calendars to the right person.
+  if (id && dbMappings.has(id)) return dbMappings.get(id)!;
 
   // 1. Calendar id alias match (handles shared primaries where id === owner's email)
   if (id && ALEX_ALIASES.has(id)) return "alex";
@@ -145,9 +152,27 @@ function classifyCalendar(cal: {
 
   // 4. Default — SKIP. Unclassified calendars (holidays, birthdays, weather,
   // sports subscriptions, random 3rd-party shares) would otherwise appear on
-  // BOTH columns under a "team" fallback. Add an explicit alias via
-  // AVAILABILITY_{ALEX,NICK,TEAM}_CALENDAR_IDS to opt one in.
+  // BOTH columns under a "team" fallback. Assign one manually via
+  // /availability/settings or POST /api/availability/calendar-owners.
   return "skip";
+}
+
+async function loadCalendarOwnerMappings(): Promise<Map<string, CalendarOwner>> {
+  try {
+    const rows = await db
+      .select({ calendarId: teamCalendarOwners.calendarId, owner: teamCalendarOwners.owner })
+      .from(teamCalendarOwners);
+    const m = new Map<string, CalendarOwner>();
+    for (const r of rows) {
+      if (r.owner === "alex" || r.owner === "nick" || r.owner === "team" || r.owner === "skip") {
+        m.set(r.calendarId.toLowerCase(), r.owner);
+      }
+    }
+    return m;
+  } catch (err) {
+    console.error("[team/availability] loadCalendarOwnerMappings failed:", err);
+    return new Map();
+  }
 }
 
 // ── Google Calendar fetch ─────────────────────────────────────────────────────
@@ -188,10 +213,14 @@ async function fetchAllVisibleEvents(
   oauth2Client.setCredentials({ refresh_token: refreshToken });
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
+  // Load DB mappings BEFORE classifying so ops-assigned owners take priority
+  // over the heuristic match (id alias / summary pattern / skip fallback).
+  const dbMappings = await loadCalendarOwnerMappings();
+
   // List EVERY calendar the team account can read (its own + everything shared
-  // with it). freeBusyReader is the lowest meaningful access level — includes
-  // shared "reader" / "writer" / "owner" too.
-  let calendarItems: {
+  // with it). Paginate via pageToken so accounts with >250 calendars still
+  // get full coverage.
+  const calendarItems: {
     id?: string | null;
     summary?: string | null;
     summaryOverride?: string | null;
@@ -199,11 +228,16 @@ async function fetchAllVisibleEvents(
     accessRole?: string | null;
   }[] = [];
   try {
-    const listRes = await calendar.calendarList.list({
-      minAccessRole: "freeBusyReader",
-      maxResults: 250,
-    });
-    calendarItems = listRes.data.items ?? [];
+    let pageToken: string | undefined;
+    do {
+      const listRes = await calendar.calendarList.list({
+        minAccessRole: "freeBusyReader",
+        maxResults: 250,
+        pageToken,
+      });
+      calendarItems.push(...(listRes.data.items ?? []));
+      pageToken = listRes.data.nextPageToken ?? undefined;
+    } while (pageToken);
   } catch (err) {
     console.error("[team/availability] calendarList.list failed:", err);
     throw new Error("Could not list calendars from strvxteam@gmail.com");
@@ -217,7 +251,7 @@ async function fetchAllVisibleEvents(
       summary: c.summary ?? c.summaryOverride ?? "(no name)",
       primary: c.primary === true,
       accessRole: c.accessRole ?? "unknown",
-      owner: classifyCalendar(c),
+      owner: classifyCalendar(c, dbMappings),
     }));
 
   console.log(
@@ -232,26 +266,34 @@ async function fetchAllVisibleEvents(
 
   // Fetch events ONLY from calendars classified as alex/nick/team. Skipping
   // unclassified calendars (e.g. holiday subscriptions) avoids both wasted
-  // API calls AND the "appears on both columns" doubling bug.
+  // API calls AND the "appears on both columns" doubling bug. Paginate via
+  // nextPageToken so high-volume calendars don't silently drop events past
+  // the first 250.
+  type EventItem = NonNullable<calendar_v3.Schema$Events["items"]>[number];
   const perCalendar = await Promise.all(
     classifiedCals
       .filter((cal) => cal.owner !== "skip")
       .map(async (cal) => {
+        const items: EventItem[] = [];
+        let pageToken: string | undefined;
         try {
-          const res = await calendar.events.list({
-            calendarId: cal.id,
-            timeMin,
-            timeMax,
-            singleEvents: true,
-            orderBy: "startTime",
-            maxResults: 250,
-          });
-          const items = res.data.items ?? [];
-          return { cal, items };
+          do {
+            const res = await calendar.events.list({
+              calendarId: cal.id,
+              timeMin,
+              timeMax,
+              singleEvents: true,
+              orderBy: "startTime",
+              maxResults: 250,
+              pageToken,
+            });
+            if (res.data.items) items.push(...res.data.items);
+            pageToken = res.data.nextPageToken ?? undefined;
+          } while (pageToken);
         } catch (err) {
           console.error(`[team/availability] events.list failed for ${cal.id}:`, err);
-          return { cal, items: [] };
         }
+        return { cal, items };
       }),
   );
 
@@ -274,7 +316,9 @@ async function fetchAllVisibleEvents(
         isAllDay: !e.start?.dateTime,
         meetLink:
           e.hangoutLink ??
-          e.conferenceData?.entryPoints?.find((ep) => ep.entryPointType === "video")?.uri ??
+          e.conferenceData?.entryPoints?.find(
+            (ep: calendar_v3.Schema$EntryPoint) => ep.entryPointType === "video",
+          )?.uri ??
           null,
         uidKey: eventDedupKey(e),
         owner: cal.owner,
