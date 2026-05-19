@@ -13,7 +13,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { createClient } from "@/lib/supabase/server";
 import { db } from "@/lib/db";
-import { getTeamRefreshToken, teamCalendarOwners } from "@/lib/google-calendar";
+import {
+  getTeamRefreshToken,
+  teamCalendarOwners,
+  unsubscribeCalendarFromTeam,
+} from "@/lib/google-calendar";
 import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
@@ -142,10 +146,35 @@ export async function DELETE(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const calendarId = req.nextUrl.searchParams.get("calendarId")?.trim();
+  const unsubscribe = req.nextUrl.searchParams.get("unsubscribe") === "1";
   if (!calendarId) {
     return NextResponse.json({ error: "calendarId is required" }, { status: 400 });
   }
 
+  // When unsubscribe=1, also remove the calendar from strvxteam's Google
+  // calendarList so it stops showing up on the Calendars settings page.
+  // Requires the team token to have the full Calendar scope — older tokens
+  // granted only `calendar.readonly` will get 403 and need to re-OAuth.
+  if (unsubscribe) {
+    try {
+      await unsubscribeCalendarFromTeam(calendarId);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      const m = message.toLowerCase();
+      const isScopeIssue = m.includes("insufficient") || m.includes("403") || m.includes("forbidden");
+      console.error(`[availability/calendars] unsubscribe failed for ${calendarId}:`, message);
+      return NextResponse.json(
+        {
+          error: isScopeIssue
+            ? "strvxteam token does not have permission to unsubscribe. Reconnect strvxteam@gmail.com via /api/auth/google/team-connect to grant the wider scope, then retry."
+            : `Google API rejected unsubscribe: ${message}`,
+          connectUrl: isScopeIssue ? "/api/auth/google/team-connect" : undefined,
+        },
+        { status: isScopeIssue ? 403 : 502 },
+      );
+    }
+  }
+
   await db.delete(teamCalendarOwners).where(eq(teamCalendarOwners.calendarId, calendarId));
-  return NextResponse.json({ ok: true, calendarId });
+  return NextResponse.json({ ok: true, calendarId, unsubscribed: unsubscribe });
 }

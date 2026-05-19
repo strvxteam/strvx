@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, RefreshCw } from "lucide-react";
+import { ChevronLeft, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type Owner = "alex" | "nick" | "team" | "skip";
@@ -50,6 +50,43 @@ export function CalendarSettingsClient() {
   useEffect(() => {
     fetchCalendars();
   }, [fetchCalendars]);
+
+  const unsubscribe = useCallback(
+    async (calendarId: string, summary: string) => {
+      if (
+        !confirm(
+          `Unsubscribe strvxteam@gmail.com from "${summary}"?\n\nThis removes the calendar from strvxteam's Google account entirely — it will no longer appear on this Calendars page or contribute events. The calendar itself is NOT deleted; only the strvxteam subscription.`,
+        )
+      ) {
+        return;
+      }
+      setSavingId(calendarId);
+      try {
+        const res = await fetch(
+          `/api/availability/calendars?calendarId=${encodeURIComponent(calendarId)}&unsubscribe=1`,
+          { method: "DELETE" },
+        );
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as
+            | { error?: string; connectUrl?: string }
+            | null;
+          if (body?.connectUrl) {
+            toast.error(body.error ?? "Reconnect strvxteam to enable removal");
+            window.location.href = body.connectUrl;
+            return;
+          }
+          throw new Error(body?.error ?? `HTTP ${res.status}`);
+        }
+        setCalendars((prev) => prev.filter((c) => c.id !== calendarId));
+        toast.success(`Removed "${summary}"`);
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Remove failed");
+      } finally {
+        setSavingId(null);
+      }
+    },
+    [],
+  );
 
   const saveMapping = useCallback(
     async (calendarId: string, owner: Owner | null) => {
@@ -147,12 +184,13 @@ export function CalendarSettingsClient() {
               <th className="w-56 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-[#888]">
                 Mapped to
               </th>
+              <th className="w-12 px-2 py-2.5" />
             </tr>
           </thead>
           <tbody>
             {calendars.length === 0 && !loading && (
               <tr>
-                <td colSpan={3} className="px-4 py-10 text-center text-[#999]">
+                <td colSpan={4} className="px-4 py-10 text-center text-[#999]">
                   No calendars visible to strvxteam@gmail.com.
                 </td>
               </tr>
@@ -196,6 +234,23 @@ export function CalendarSettingsClient() {
                       <RefreshCw size={12} className="animate-spin text-[#aaa]" />
                     )}
                   </div>
+                </td>
+                <td className="px-2 py-3 text-right">
+                  {c.primary ? (
+                    <span title="Can't unsubscribe from a primary calendar" className="opacity-30">
+                      <Trash2 size={14} className="text-[#aaa]" />
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => unsubscribe(c.id, c.summary)}
+                      disabled={savingId === c.id}
+                      className="rounded p-1 text-[#bbb] transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
+                      title={`Unsubscribe strvxteam from "${c.summary}"`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

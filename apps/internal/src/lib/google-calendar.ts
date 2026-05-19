@@ -77,16 +77,31 @@ export async function saveTeamRefreshToken(refreshToken: string, email?: string 
     });
 }
 
-/** OAuth URL specifically for connecting strvxteam@gmail.com. Calendar-only
- *  scope, forces account picker so the operator can choose the team account
+/** OAuth URL specifically for connecting strvxteam@gmail.com. Full Calendar
+ *  scope is required so we can also unsubscribe (calendarList.delete) from
+ *  calendars the operator wants removed from the team view; readonly was not
+ *  enough. Forces account picker so the operator can choose the team account
  *  even if their browser is already signed into a personal Google account. */
 export function getTeamCalendarAuthUrl() {
   const oauth2Client = getOAuth2Client();
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "select_account consent",
-    scope: ["https://www.googleapis.com/auth/calendar.readonly"],
+    scope: ["https://www.googleapis.com/auth/calendar"],
   });
+}
+
+/** Remove a calendar from strvxteam's calendarList (Google-side unsubscribe).
+ *  Requires the full `calendar` scope on the team token. Throws on 4xx/5xx
+ *  so callers can surface a clear error. */
+export async function unsubscribeCalendarFromTeam(calendarId: string): Promise<void> {
+  const refreshToken = await getTeamRefreshToken();
+  if (!refreshToken) throw new Error("strvxteam calendar account is not connected");
+
+  const oauth2Client = getOAuth2Client();
+  oauth2Client.setCredentials({ refresh_token: refreshToken });
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  await calendar.calendarList.delete({ calendarId });
 }
 
 function getOAuth2Client() {
