@@ -225,7 +225,15 @@ export function AvailabilityClient() {
       const res = await fetch(
         `/api/availability/team?start=${start.toISOString()}&end=${end.toISOString()}`,
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // Surface the server's actual error message (e.g. "GOOGLE_TEAM_REFRESH_TOKEN
+        // is not set") instead of just "HTTP 503" — otherwise the user has no
+        // signal about what to fix.
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(body?.error ?? `HTTP ${res.status}`);
+      }
       setData(await res.json());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
